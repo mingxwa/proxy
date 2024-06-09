@@ -1,14 +1,12 @@
 # Proxy 3 Specifications
 
-Proxy is a C++20 template library for modern runtime polymorphism based on pointer-semantics. It makes runtime abstraction easier in C++: not only saves engineering effort in managing lifetime of different types of objects (like other languages with GC, e.g., Java, C#), but also supports flexible architecture design without requiring inheritance (like Go or Rust, and even better). Most importantly, it generates high quality code with equal or higher performance than an equivalent implementation with virtual functions or existing polymorphic wrappers (including `std::function`, `std::move_only_function`, `std::any`, etc.) in C++ today.
-
-This document is intended to be a quick reference for people to learn and use this library. If you have any questions or feedback, please feel free to file an issue following [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+If you have any questions or feedback, please feel free to file an issue following [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 
 ## Concepts
 
 | Name                                                      | Description                                                  |
 | --------------------------------------------------------- | ------------------------------------------------------------ |
-| [`facade`](facade.md)                                     | Specifies that a type models a "facade" of `proxy`           |
+| [`facade`](facade.md)                                     | Specifies that a type models a "facade" for runtime polymorphism |
 | [`proxiable`](proxiable.md)                               | Specifies that a pointer type can instantiate a `proxy`      |
 | [`inplace_proxiable_target`](inplace_proxiable_target.md) | Specifies that a value type can instantiate a `proxy` with direct storage |
 
@@ -39,4 +37,14 @@ This document is intended to be a quick reference for people to learn and use th
 | [`PRO_DEF_PREFIX_OPERATOR_DISPATCH`](PRO_DEF_PREFIX_OPERATOR_DISPATCH.md) | Defines a dispatch type to a prefix operator  |
 | [`PRO_DEF_POSTFIX_OPERATOR_DISPATCH`](PRO_DEF_POSTFIX_OPERATOR_DISPATCH.md) | Defines a dispatch type to a postfix operator |
 | [`PRO_DEF_CONVERSION_DISPATCH`](PRO_DEF_CONVERSION_DISPATCH.md) | Defines a dispatch type to a type conversion  |
+
+## Named Requirements
+
+| Name                              | Description                                                  |
+| --------------------------------- | ------------------------------------------------------------ |
+| [`Facade`](req_facade.md)         | Specifies that a type models a "facade" for runtime polymorphism |
+| [`Convention`](req_convention.md) | Specifies that a type models a "convention" for runtime polymorphism |
+| [`Dispatch`](req_dispatch.md)     | Specifies that a type models a "dispatch" for runtime polymorphism |
+| [`Reflection`](req_reflection.md) | Specifies that a type models a "reflection" for runtime polymorphism |
+| [`Accessor`](req_accessor.md)     | Specifies that a type models an "accessor" for `proxy`       |
 

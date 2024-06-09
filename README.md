@@ -12,7 +12,7 @@ If so, this library is for you. 😉
 
 For decades, object-based virtual table has been a de facto implementation of runtime polymorphism in many (compiled) programming languages. There are many drawbacks in this mechanism, including life management (because each object may have different size and ownership) and reflection (because it is hard to balance between usability and memory allocation). To workaround these drawbacks, some languages like Java or C# choose to sacrifice performance by introducing GC to facilitate lifetime management, and JIT-compile the source code at runtime to generate full metadata. We improved the theory and implemented as a C++ library without sacrificing performance, proposed to merge into the C++ standard.
 
-The "proxy" is a single-header, cross-platform C++ library that Microsoft uses to make runtime polymorphism easier to implement and faster. Please find the design details at https://wg21.link/p3086.
+The "proxy" is a single-header, cross-platform C++20 template library for modern runtime polymorphism based on pointer-semantics. It makes runtime abstraction easier in C++: not only saves engineering effort in managing lifetime of different types of objects (like other languages with GC, e.g., Java, C#), but also supports flexible architecture design without requiring inheritance (like Go or Rust, and even better). Most importantly, it generates high quality code with equal or higher performance than an equivalent implementation with virtual functions or existing polymorphic wrappers (including `std::function`, `std::move_only_function`, `std::any`, etc.) in C++ today. Please find the design details at https://wg21.link/p3086.
 
 ## Quick start
 
