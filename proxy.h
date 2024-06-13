@@ -15,6 +15,14 @@
 
 namespace pro {
 
+#if __has_cpp_attribute(msvc::no_unique_address)
+#define ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE msvc::no_unique_address
+#elif __has_cpp_attribute(no_unique_address)
+#define ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE no_unique_address
+#else
+#error "Proxy requires C++20 attribute no_unique_address"
+#endif
+
 enum class constraint_level { none, nontrivial, nothrow, trivial };
 
 struct proxiable_ptr_constraints {
@@ -143,9 +151,8 @@ constexpr bool invocable_dispatch = std::conditional_t<
     NE, std::is_nothrow_invocable_r<R, D, Args...>,
     std::is_invocable_r<R, D, Args...>>::value;
 template <class D, class P, bool NE, class R, class... Args>
-concept invocable_dispatch_ptr = invocable_dispatch<
+concept invocable_indirect_dispatch_ptr = invocable_dispatch<
     D, NE, R, typename ptr_traits<P>::target_type&, Args...> ||
-    invocable_dispatch<D, NE, R, const P&, Args...> ||
     invocable_dispatch<D, NE, R, std::nullptr_t, Args...>;
 
 template <bool NE, class R, class... Args>
@@ -161,20 +168,14 @@ R invoke_dispatch(Args&&... args) {
   }
 }
 template <class P, class D, class R, class... Args>
-R invocation_dispatcher_ref(const std::byte* self, Args... args)
+R indirect_dispatcher(const std::byte* self, Args... args)
     noexcept(invocable_dispatch<
         D, true, R, typename ptr_traits<P>::target_type&, Args...>) {
   return invoke_dispatch<D, R>(ptr_traits<P>::dereference(*std::launder(
       reinterpret_cast<const P*>(self))), std::forward<Args>(args)...);
 }
-template <class P, class D, class R, class... Args>
-R invocation_dispatcher_ptr(const std::byte* self, Args... args)
-    noexcept(invocable_dispatch<D, true, R, const P&, Args...>) {
-  return invoke_dispatch<D, R>(*std::launder(reinterpret_cast<const P*>(self)),
-      std::forward<Args>(args)...);
-}
 template <class D, class R, class... Args>
-R invocation_dispatcher_default(const std::byte*, Args... args)
+R indirect_default_dispatcher(const std::byte*, Args... args)
     noexcept(invocable_dispatch<D, true, R, std::nullptr_t, Args...>)
     { return invoke_dispatch<D, R>(nullptr, std::forward<Args>(args)...); }
 template <class P>
@@ -203,7 +204,7 @@ void destruction_dispatcher(std::byte* self)
 inline void destruction_default_dispatcher(std::byte*) noexcept {}
 
 template <bool NE, class R, class... Args>
-struct overload_traits_impl : applicable_traits {
+struct indirect_overload_traits_impl : applicable_traits {
   using dispatcher_type = func_ptr_t<NE, R, const std::byte*, Args...>;
   template <class D>
   struct meta_provider {
@@ -211,28 +212,27 @@ struct overload_traits_impl : applicable_traits {
     static constexpr dispatcher_type get() {
       if constexpr (invocable_dispatch<
           D, NE, R, typename ptr_traits<P>::target_type&, Args...>) {
-        return &invocation_dispatcher_ref<P, D, R, Args...>;
-      } else if constexpr (invocable_dispatch<D, NE, R, const P&, Args...>) {
-        return &invocation_dispatcher_ptr<P, D, R, Args...>;
+        return &indirect_dispatcher<P, D, R, Args...>;
       } else {
-        return &invocation_dispatcher_default<D, R, Args...>;
+        return &indirect_default_dispatcher<D, R, Args...>;
       }
     }
   };
   struct resolver { func_ptr_t<NE, R, Args...> operator()(Args...); };
   template <class D, class P>
   static constexpr bool applicable_ptr =
-      invocable_dispatch_ptr<D, P, NE, R, Args...>;
+      invocable_indirect_dispatch_ptr<D, P, NE, R, Args...>;
   static constexpr bool is_noexcept = NE;
   template <class... Args2>
   static constexpr bool matches = std::is_invocable_v<resolver, Args2...>;
 };
-template <class O> struct overload_traits : inapplicable_traits {};
+template <class O> struct indirect_overload_traits : inapplicable_traits {};
 template <class R, class... Args>
-struct overload_traits<R(Args...)> : overload_traits_impl<false, R, Args...> {};
+struct indirect_overload_traits<R(Args...)>
+    : indirect_overload_traits_impl<false, R, Args...> {};
 template <class R, class... Args>
-struct overload_traits<R(Args...) noexcept>
-    : overload_traits_impl<true, R, Args...> {};
+struct indirect_overload_traits<R(Args...) noexcept>
+    : indirect_overload_traits_impl<true, R, Args...> {};
 
 template <class T>
 struct nullable_traits : conditional_traits<requires(const T& cv, T& v) {
@@ -281,28 +281,41 @@ template <class... Ms>
 using composite_meta =
     recursive_reduction_t<meta_reduction_t, composite_meta_impl<>, Ms...>;
 
+template <class... Os>
+struct indirect_conv_normalized_overload_traits_impl {
+  template <class O> requires(std::is_same_v<O, Os> || ...)
+  using normalized_overload = O;
+};
+template <class O>
+struct indirect_conv_normalized_overload_traits_impl<O> {
+  template <class O2> requires(std::is_void_v<O2> || std::is_same_v<O2, O>)
+  using normalized_overload = O;
+};
 template <class C, class... Os>
-struct conv_traits_impl : inapplicable_traits {};
-template <class C, class... Os>
-    requires(sizeof...(Os) > 0u && (overload_traits<Os>::applicable && ...))
-struct conv_traits_impl<C, Os...> : applicable_traits {
+struct indirect_conv_traits_impl : inapplicable_traits {};
+template <class C, class... Os> requires(sizeof...(Os) > 0u &&
+    (indirect_overload_traits<Os>::applicable && ...))
+struct indirect_conv_traits_impl<C, Os...> : applicable_traits,
+    indirect_conv_normalized_overload_traits_impl<Os...> {
  private:
-  struct overload_resolver : overload_traits<Os>::resolver...
-      { using overload_traits<Os>::resolver::operator()...; };
+  struct overload_resolver : indirect_overload_traits<Os>::resolver...
+      { using indirect_overload_traits<Os>::resolver::operator()...; };
 
  public:
   using dispatch_type = typename C::dispatch_type;
-  using meta = composite_meta<dispatcher_meta<
-      typename overload_traits<Os>::template meta_provider<dispatch_type>>...>;
+  using meta = composite_meta<dispatcher_meta<typename indirect_overload_traits<
+      Os>::template meta_provider<dispatch_type>>...>;
   template <class... Args>
   using matched_overload =
       std::remove_pointer_t<std::invoke_result_t<overload_resolver, Args...>>;
 
   template <class P>
-  static constexpr bool applicable_ptr =
-      (overload_traits<Os>::template applicable_ptr<dispatch_type, P> && ...);
+  static constexpr bool applicable_ptr = (indirect_overload_traits<Os>::template
+      applicable_ptr<dispatch_type, P> && ...);
+  template <class O>
+  static constexpr bool has_overload = (std::is_same_v<O, Os> || ...);
 };
-template <class C> struct conv_traits : inapplicable_traits {};
+template <class C> struct indirect_conv_traits : inapplicable_traits {};
 template <class C>
     requires(
         requires {
@@ -311,8 +324,8 @@ template <class C>
         } &&
         std::is_nothrow_default_constructible_v<typename C::dispatch_type> &&
         is_tuple_like_well_formed<typename C::overload_types>())
-struct conv_traits<C> : instantiated_t<
-    conv_traits_impl, typename C::overload_types, C> {};
+struct indirect_conv_traits<C> : instantiated_t<
+    indirect_conv_traits_impl, typename C::overload_types, C> {};
 
 template <bool NE>
 struct copyability_meta_provider {
@@ -360,26 +373,47 @@ using lifetime_meta_t = typename lifetime_meta_traits<MP, C>::type;
 
 template <class... As> struct composite_accessor_impl : As... {};
 template <class T, class O, class I>
-struct accessor_reduction : std::type_identity<O> {};
+struct direct_accessor_reduction : std::type_identity<O> {};
 template <class T, class... As, class I>
-    requires(requires { typename I::template accessor<T>; } &&
+    requires(requires { typename I::template direct_accessor<T>; } &&
         std::is_nothrow_default_constructible_v<
-            typename I::template accessor<T>>)
-struct accessor_reduction<T, composite_accessor_impl<As...>, I>
+            typename I::template direct_accessor<T>>)
+struct direct_accessor_reduction<T, composite_accessor_impl<As...>, I>
     : std::type_identity<composite_accessor_impl<
-          As..., typename I::template accessor<T>>> {};
+          As..., typename I::template direct_accessor<T>>> {};
 template <class T, class... As0, class... As1>
-struct accessor_reduction<
-    T, composite_accessor_impl<As0...>, composite_accessor_impl<As1...>>
+struct direct_accessor_reduction<T, composite_accessor_impl<As0...>,
+    composite_accessor_impl<As1...>>
+    : std::type_identity<composite_accessor_impl<As0..., As1...>> {};
+template <class T, class O, class I>
+struct indirect_accessor_reduction : std::type_identity<O> {};
+template <class T, class... As, class I>
+    requires(requires { typename I::template indirect_accessor<T>; } &&
+        std::is_nothrow_default_constructible_v<
+            typename I::template indirect_accessor<T>>)
+struct indirect_accessor_reduction<T, composite_accessor_impl<As...>, I>
+    : std::type_identity<composite_accessor_impl<
+          As..., typename I::template indirect_accessor<T>>> {};
+template <class T, class... As0, class... As1>
+struct indirect_accessor_reduction<T, composite_accessor_impl<As0...>,
+    composite_accessor_impl<As1...>>
     : std::type_identity<composite_accessor_impl<As0..., As1...>> {};
 template <class T>
 struct accessor_helper {
   template <class O, class I>
-  using reduction_t = typename accessor_reduction<T, O, I>::type;
+  using direct_reduction = typename direct_accessor_reduction<T, O, I>::type;
+  template <class O, class I>
+  using indirect_reduction = typename indirect_accessor_reduction<
+      T, O, I>::type;
 };
-template <class F, class... As>
-using composite_accessor = recursive_reduction_t<accessor_helper<proxy<F>>
-    ::template reduction_t, composite_accessor_impl<>, As...>;
+template <class F, class... Ts>
+using composite_direct_accessor = recursive_reduction_t<
+    accessor_helper<proxy<F>>::template direct_reduction,
+    composite_accessor_impl<>, Ts...>;
+template <class F, class... Ts>
+using composite_indirect_accessor = recursive_reduction_t<
+    accessor_helper<proxy<F>>::template indirect_reduction,
+    composite_accessor_impl<>, Ts...>;
 
 template <class F>
 consteval bool is_facade_constraints_well_formed() {
@@ -407,46 +441,57 @@ struct dispatch_match_helper {
   using traits =
       conditional_traits<std::is_same_v<typename C::dispatch_type, D>>;
 };
+template <class D, class... Cs>
+using matched_conv = first_applicable_t<
+    dispatch_match_helper<D>::template traits, Cs...>;
 template <class F, class... Cs>
-struct facade_conv_traits_impl : inapplicable_traits {};
-template <class F, class... Cs> requires(conv_traits<Cs>::applicable && ...)
-struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
-  using conv_meta = composite_meta<typename conv_traits<Cs>::meta...>;
-  using conv_accessor = composite_accessor<
-      F, typename conv_traits<Cs>::dispatch_type...>;
+struct facade_indirect_conv_traits_impl : inapplicable_traits {};
+template <class F, class... Cs>
+    requires(indirect_conv_traits<Cs>::applicable && ...)
+struct facade_indirect_conv_traits_impl<F, Cs...> : applicable_traits {
+  using indirect_conv_meta =
+      composite_meta<typename indirect_conv_traits<Cs>::meta...>; // Todo: wrap into a struct
+  using indirect_conv_accessor = composite_indirect_accessor<
+      F, typename indirect_conv_traits<Cs>::dispatch_type...>;
   template <class D, class... Args>
-  using matched_overload = typename conv_traits<
-      first_applicable_t<dispatch_match_helper<D>::template traits, Cs...>>
-      ::template matched_overload<Args...>;
+  using matched_indirect_overload = typename indirect_conv_traits<
+      matched_conv<D, Cs...>>::template matched_overload<Args...>;
+  template <class D, class O>
+  using normalized_indirect_overload = typename indirect_conv_traits<
+      matched_conv<D, Cs...>>::template normalized_overload<O>;
 
   template <class P>
-  static constexpr bool conv_applicable_ptr =
-      (conv_traits<Cs>::template applicable_ptr<P> && ...);
+  static constexpr bool indirect_conv_applicable_ptr =
+      (indirect_conv_traits<Cs>::template applicable_ptr<P> && ...);
+  static constexpr bool has_indirect_conv = sizeof...(Cs) != 0u;
 };
 template <class F, class... Rs>
-struct facade_refl_traits_impl {
-  using refl_meta = composite_meta<Rs...>;
-  using refl_accessor = composite_accessor<F, Rs...>;
+struct facade_direct_refl_traits_impl {
+  using direct_refl_meta = composite_meta<Rs...>;
+  using direct_refl_accessor = composite_direct_accessor<F, Rs...>;
 
   template <class R>
-  static constexpr bool has_refl = (std::is_same_v<R, Rs> || ...);
+  static constexpr bool has_direct_refl = (std::is_same_v<R, Rs> || ...);
   template <class P>
-  static constexpr bool refl_applicable_ptr =
+  static constexpr bool direct_refl_applicable_ptr =
       (is_reflection_type_well_formed<Rs, P>() && ...);
 };
 template <class F> struct facade_traits : inapplicable_traits {};
 template <class F>
     requires(
         requires {
-          typename F::convention_types;
+          // TODO: typename F::direct_convention_types;
+          typename F::indirect_convention_types;
           typename F::reflection_types;
-        } && is_tuple_like_well_formed<typename F::convention_types>() &&
+        } &&
+        is_tuple_like_well_formed<typename F::indirect_convention_types>() &&
         is_tuple_like_well_formed<typename F::reflection_types>() &&
         is_facade_constraints_well_formed<F>() &&
-        instantiated_t<facade_conv_traits_impl,
-            typename F::convention_types, F>::applicable)
+        instantiated_t<facade_indirect_conv_traits_impl,
+            typename F::indirect_convention_types, F>::applicable)
 struct facade_traits<F>
-    : instantiated_t<facade_conv_traits_impl, typename F::convention_types, F>,
+    : instantiated_t<facade_indirect_conv_traits_impl,
+          typename F::indirect_convention_types, F>,
       instantiated_t<facade_refl_traits_impl, typename F::reflection_types, F> {
   using copyability_meta = lifetime_meta_t<
       copyability_meta_provider, F::constraints.copyability>;
@@ -455,11 +500,17 @@ struct facade_traits<F>
   using destructibility_meta = lifetime_meta_t<
       destructibility_meta_provider, F::constraints.destructibility>;
   using meta = composite_meta<copyability_meta, relocatability_meta,
-      destructibility_meta, typename facade_traits::conv_meta,
+      destructibility_meta, typename facade_traits::indirect_conv_meta,
       typename facade_traits::refl_meta>;
-  using base = composite_accessor<F, typename facade_traits::conv_accessor,
-      typename facade_traits::refl_accessor>;
+  using direct_base = composite_accessor<F,
+      typename facade_traits::direct_refl_accessor>;
+  struct indirect_base {
+    [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+    composite_indirect_accessor<
+        F, typename facade_traits::indirect_conv_accessor> accessor;
+  };
 
+  static constexpr bool has_indirection = facade_traits::has_indirect_conv;
   template <class P>
   static constexpr bool applicable_ptr =
       sizeof(P) <= F::constraints.max_size &&
@@ -467,8 +518,8 @@ struct facade_traits<F>
       has_copyability<P>(F::constraints.copyability) &&
       has_relocatability<P>(F::constraints.relocatability) &&
       has_destructibility<P>(F::constraints.destructibility) &&
-      facade_traits::template conv_applicable_ptr<P> &&
-      facade_traits::template refl_applicable_ptr<P>;
+      facade_traits::template indirect_conv_applicable_ptr<P> &&
+      facade_traits::template direct_refl_applicable_ptr<P>;
 };
 
 using ptr_prototype = void*[2];
@@ -500,9 +551,12 @@ struct proxy_helper {
   static inline const auto& get_meta(const proxy<F>& p) noexcept
       { return *p.meta_.operator->(); }
 };
+template <class F, class D, class O>
+using proxy_normalized_indirect_overload = typename facade_traits<F>
+    ::template normalized_indirect_overload<D, O>;
 template <class F, class D, class... Args>
-using proxy_overload = typename facade_traits<
-    lazy_eval_t<F, D, Args...>>::template matched_overload<D, Args...>;
+using proxy_matched_indirect_overload = typename facade_traits<F>
+    ::template matched_indirect_overload<D, Args...>;
 
 }  // namespace details
 
@@ -510,11 +564,13 @@ template <class F>
 concept facade = details::facade_traits<F>::applicable;
 
 template <class P, class F>
-concept proxiable = facade<F> && details::ptr_traits<P>::applicable &&
+concept proxiable = facade<F> && (!details::facade_traits<F>::has_indirection ||
+    details::ptr_traits<P>::applicable) &&
     details::facade_traits<F>::template applicable_ptr<P>;
 
 template <class F>
-class proxy : public details::facade_traits<F>::base {
+class proxy : public details::facade_traits<F>::direct_base,
+    private details::facade_traits<F>::indirect_base {
   friend struct details::proxy_helper<F>;
   using Traits = details::facade_traits<F>;
   static_assert(Traits::applicable);
@@ -562,18 +618,20 @@ class proxy : public details::facade_traits<F>::base {
 
  public:
   template <class O>
-  class dispatch_ptr {
-    using OverloadTraits = details::overload_traits<O>;
+  class indirect_dispatch_ptr {
+    using OverloadTraits = details::indirect_overload_traits<O>;
     using DispatcherType = typename OverloadTraits::dispatcher_type;
 
    public:
-    constexpr dispatch_ptr() noexcept = default;
-    constexpr dispatch_ptr(const dispatch_ptr&) noexcept = default;
-    dispatch_ptr& operator=(const dispatch_ptr&) noexcept = default;
+    constexpr indirect_dispatch_ptr() noexcept = default;
+    constexpr indirect_dispatch_ptr(const indirect_dispatch_ptr&) noexcept
+        = default;
+    indirect_dispatch_ptr& operator=(const indirect_dispatch_ptr&) noexcept
+        = default;
 
 #if defined(_MSC_VER) && !defined(__clang__)
     template <class D>
-    constexpr explicit dispatch_ptr(std::in_place_type_t<D>) noexcept
+    constexpr explicit indirect_dispatch_ptr(std::in_place_type_t<D>) noexcept
         : offset_(offsetof(Meta, template dispatcher_meta<typename
               OverloadTraits::template meta_provider<D>>::dispatcher)) {}
     DispatcherType get_dispatcher(const Meta& meta) const noexcept {
@@ -585,7 +643,7 @@ class proxy : public details::facade_traits<F>::base {
     std::size_t offset_;
 #else
     template <class D>
-    constexpr explicit dispatch_ptr(std::in_place_type_t<D>) noexcept
+    constexpr explicit indirect_dispatch_ptr(std::in_place_type_t<D>) noexcept
         : ptr_(&details::dispatcher_meta<typename OverloadTraits
               ::template meta_provider<D>>::dispatcher) {}
     DispatcherType get_dispatcher(const Meta& meta) const noexcept
@@ -595,10 +653,11 @@ class proxy : public details::facade_traits<F>::base {
     DispatcherType Meta::* ptr_;
 #endif  // defined(_MSC_VER) && !defined(__clang__)
   };
-  template <class D, class... Args>
-  static auto consteval get_dispatch_ptr()
-      requires(requires { typename details::proxy_overload<F, D, Args...>; }) {
-    return dispatch_ptr<details::proxy_overload<F, D, Args...>>{
+  template <class D, class O = void>
+  static auto consteval get_indirect_dispatch_ptr()
+      requires(requires { typename details::proxy_normalized_indirect_overload<
+          F, D, O>; }) {
+    return dispatch_ptr<details::proxy_normalized_indirect_overload<F, D, O>>{
         std::in_place_type<D>};
   }
   proxy() noexcept = default;
@@ -738,10 +797,13 @@ class proxy : public details::facade_traits<F>::base {
   }
 
   template <class O>
-  friend auto operator->*(const proxy& p, dispatch_ptr<O> ptd) noexcept {
+  friend auto operator->*(const proxy& p, indirect_dispatch_ptr<O> ptd)
+      noexcept {
     return [&p, ptd]<class... Args>(Args&&... args)
-        noexcept(details::overload_traits<O>::is_noexcept) -> decltype(auto)
-        requires(details::overload_traits<O>::template matches<Args...>) {
+        noexcept(details::indirect_overload_traits<O>::is_noexcept)
+        -> decltype(auto)
+        requires(details::indirect_overload_traits<O>
+            ::template matches<Args...>) {
       return ptd.get_dispatcher(*p.meta_.operator->())(
           p.ptr_, std::forward<Args>(args)...);
     };
@@ -760,17 +822,19 @@ class proxy : public details::facade_traits<F>::base {
 };
 
 template <class D, class F, class... Args>
-decltype(auto) proxy_invoke(const proxy<F>& p, Args&&... args)
-    noexcept(details::overload_traits<details::proxy_overload<F, D, Args...>>
-        ::is_noexcept)
-    requires(requires { typename details::proxy_overload<F, D, Args...>; }) {
-  constexpr auto ptd = proxy<F>::template get_dispatch_ptr<D, Args...>();
+decltype(auto) proxy_indirect_invoke(const proxy<F>& p, Args&&... args)
+    noexcept(details::overload_traits<details::proxy_matched_indirect_overload<
+        F, D, Args...>>::is_noexcept)
+    requires(requires { typename details::proxy_matched_indirect_overload<
+        F, D, Args...>; }) {
+  constexpr auto ptd = proxy<F>::template get_indirect_dispatch_ptr<
+      D, details::proxy_matched_indirect_overload<F, D, Args...>>();
   return (p->*ptd)(std::forward<Args>(args)...);
 }
 
 template <class R, class F>
-const R& proxy_reflect(const proxy<F>& p) noexcept
-    requires(details::facade_traits<F>::template has_refl<R>)
+const R& proxy_direct_reflect(const proxy<F>& p) noexcept
+    requires(details::facade_traits<F>::template has_direct_refl<R>)
     { return details::proxy_helper<F>::get_meta(p); }
 
 namespace details {
@@ -833,11 +897,7 @@ class allocated_ptr {
   T* operator->() const noexcept { return ptr_; }
 
  private:
-#if __has_cpp_attribute(msvc::no_unique_address)
-  [[msvc::no_unique_address]]
-#elif __has_cpp_attribute(no_unique_address)
-  [[__no_unique_address__]]
-#endif
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
   Alloc alloc_;
   T* ptr_;
 };
@@ -1459,6 +1519,8 @@ using op_dispatch_accessor = typename op_dispatch_traits<SIGN, POS>
         __NAME, __T, ___PRO_DEFAULT_DISPATCH_CALL_IMPL(__DEFFUNC))
 #define PRO_DEF_CONVERSION_DISPATCH(__NAME, ...) \
     ___PRO_EXPAND_MACRO(___PRO_DEF_CONVERSION_DISPATCH, __NAME, __VA_ARGS__)
+
+#undef ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE
 
 }  // namespace pro
 
