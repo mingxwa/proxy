@@ -7,7 +7,15 @@
       "Description": "MSVC on Windows Server 2022 (x64)"
     },
     {
+      "Name": "msvc2",
+      "Description": "MSVC on Windows Server 2022 (x64)"
+    },
+    {
       "Name": "gcc",
+      "Description": "GCC on Ubuntu 24.04 (x64)"
+    },
+    {
+      "Name": "gcc2",
       "Description": "GCC on Ubuntu 24.04 (x64)"
     },
     {
@@ -15,7 +23,15 @@
       "Description": "Clang on Ubuntu 24.04 (x64)"
     },
     {
+      "Name": "clang2",
+      "Description": "Clang on Ubuntu 24.04 (x64)"
+    },
+    {
       "Name": "appleclang",
+      "Description": "Apple Clang on macOS 15 (ARM64)"
+    },
+    {
+      "Name": "appleclang2",
       "Description": "Apple Clang on macOS 15 (ARM64)"
     }
   ],
