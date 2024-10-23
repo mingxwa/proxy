@@ -7,6 +7,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <string_view>
 #include <string>
 #include <unordered_map>
@@ -74,9 +75,7 @@ struct ReportConfig {
   }
 };
 
-const std::string_view MedianSuffix = "_median";
-
-std::unordered_map<std::string, double> Parse(const std::filesystem::path& file) {
+std::unordered_map<std::string, std::vector<double>> Parse(const std::filesystem::path& file) {
   nlohmann::json obj;
   {
     std::ifstream in;
@@ -84,16 +83,26 @@ std::unordered_map<std::string, double> Parse(const std::filesystem::path& file)
     in.open(file, std::ios_base::in | std::ios_base::binary);
     in >> obj;
   }
-  std::unordered_map<std::string, double> result;
+  std::unordered_map<std::string, std::vector<double>> result;
   for (auto& node : obj["benchmarks"]) {
-    std::string name = node["name"];
-    if (name.ends_with(MedianSuffix)) {
-      name.resize(name.size() - MedianSuffix.size());
-      double value = node["real_time"];
-      result.emplace(std::move(name), value);
-    }
+    result[node["name"]].push_back(node["real_time"]);
+  }
+  for (auto& pair : result) {
+    std::ranges::sort(pair.second);
   }
   return result;
+}
+
+double CalculateRate(const std::vector<double>& target, const std::vector<double>& baseline) {
+  // Pre-condition: target.size() == baseline.size() && !target.empty() && (both `target` and `baseline` are sorted)
+  std::vector<double> rates;
+  for (std::size_t i = 0u; i < target.size(); ++i) {
+    rates.push_back((baseline[i] - target[i]) * 100 / target[i]);
+  }
+  std::ranges::sort(rates);
+  std::size_t lower_bound = target.size() / 4;  // P25
+  std::size_t upper_bound = (target.size() * 3 + 3) / 4;  // P75
+  return std::accumulate(rates.begin() + lower_bound, rates.begin() + upper_bound, 0.0) / (upper_bound - lower_bound);
 }
 
 void GenerateReport(const std::filesystem::path& config_path, const std::string& commit_id, const std::filesystem::path& source, const std::filesystem::path& output) {
@@ -106,7 +115,7 @@ void GenerateReport(const std::filesystem::path& config_path, const std::string&
     in >> obj;
     obj.get_to(config);
   }
-  std::vector<std::unordered_map<std::string, double>> benchmarks;
+  std::vector<std::unordered_map<std::string, std::vector<double>>> benchmarks;
   benchmarks.reserve(config.Environments.size());
   for (auto& environment : config.Environments) {
     benchmarks.push_back(Parse(source / std::format("benchmarking-results-{}", environment.Name) / "benchmarking-results.json"));
@@ -133,9 +142,7 @@ void GenerateReport(const std::filesystem::path& config_path, const std::string&
   for (auto& metric : config.Metrics) {
     out << "| " << metric.Name << " |";
     for (auto& benchmark : benchmarks) {
-      double target = benchmark.at(metric.TargetBenchmarkName);
-      double baseline = benchmark.at(metric.BaselineBenchmarkName);
-      double rate = (baseline - target) * 100 / target;
+      double rate = CalculateRate(benchmark.at(metric.TargetBenchmarkName), benchmark.at(metric.BaselineBenchmarkName));
       bool is_negative = rate < 0;
       if (is_negative) {
         rate = -rate;
