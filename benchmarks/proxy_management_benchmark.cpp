@@ -41,8 +41,6 @@ struct PolymorphicObject : PolymorphicObjectBase {
   T Value;
 };
 
-}  // namespace
-
 struct DefaultFacade : pro::facade_builder
     ::support_copy<pro::constraint_level::nontrivial>
     ::build {};
@@ -195,6 +193,8 @@ void BM_LargeObjectManagementWithAny(benchmark::State& state) {
     benchmark::DoNotOptimize(data);
   }
 }
+
+}  // namespace
 
 BENCHMARK(BM_SmallObjectManagementWithProxy);
 BENCHMARK(BM_SmallObjectManagementWithUniquePtr);
