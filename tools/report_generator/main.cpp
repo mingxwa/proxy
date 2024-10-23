@@ -95,14 +95,19 @@ std::unordered_map<std::string, std::vector<double>> Parse(const std::filesystem
 
 double CalculateRate(const std::vector<double>& target, const std::vector<double>& baseline) {
   // Pre-condition: target.size() == baseline.size() && !target.empty() && (both `target` and `baseline` are sorted)
+  if (target.size() != baseline.size() || target.empty()) {
+    throw std::runtime_error{"CalculateRate(): target.size() != baseline.size() || target.empty()"};
+  }
   std::vector<double> rates;
-  for (std::size_t i = 0u; i < target.size(); ++i) {
+  for (std::size_t i = 0; i < target.size(); ++i) {
     rates.push_back((baseline[i] - target[i]) * 100 / target[i]);
   }
   std::ranges::sort(rates);
-  std::size_t lower_bound = target.size() / 4;  // P25
-  std::size_t upper_bound = (target.size() * 3 + 3) / 4;  // P75
-  return std::accumulate(rates.begin() + lower_bound, rates.begin() + upper_bound, 0.0) / (upper_bound - lower_bound);
+  if (rates.size() % 2 == 0) {
+    return (rates[rates.size() / 2 - 1] + rates[rates.size() / 2]) / 2;
+  } else {
+    return rates[rates.size() / 2];
+  }
 }
 
 void GenerateReport(const std::filesystem::path& config_path, const std::string& commit_id, const std::filesystem::path& source, const std::filesystem::path& output) {
