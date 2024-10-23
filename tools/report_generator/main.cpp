@@ -103,9 +103,11 @@ double CalculateRate(const std::vector<double>& target, const std::vector<double
     rates.push_back((baseline[i] - target[i]) * 100 / target[i]);
   }
   std::ranges::sort(rates);
-  std::size_t lower_bound = target.size() / 4;  // P25
-  std::size_t upper_bound = (target.size() * 3 + 3) / 4;  // P75
-  return std::accumulate(rates.begin() + lower_bound, rates.begin() + upper_bound, 0.0) / (upper_bound - lower_bound);
+  if (rates.size() % 2 == 0) {
+    return (rates[rates.size() / 2 - 1] + rates[rates.size() / 2]) / 2;
+  } else {
+    return rates[rates.size() / 2];
+  }
 }
 
 void GenerateReport(const std::filesystem::path& config_path, const std::string& commit_id, const std::filesystem::path& source, const std::filesystem::path& output) {
