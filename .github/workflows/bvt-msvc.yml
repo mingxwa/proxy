@@ -22,10 +22,21 @@ jobs:
     - name: run benchmarks
       run: |
         cd build\benchmarks
-        .\Release\msft_proxy_benchmarks.exe --benchmark_repetitions=10 --benchmark_report_aggregates_only=true --benchmark_enable_random_interleaving=true --benchmark_out=benchmarking-results.json
+        .\Release\msft_proxy_benchmarks.exe --benchmark_repetitions=10 --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
 
     - name: archive benchmarking results
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-msvc
+        path: build/benchmarks/benchmarking-results.json
+
+    - name: run benchmarks again
+      run: |
+        cd build\benchmarks
+        .\Release\msft_proxy_benchmarks.exe --benchmark_repetitions=10 --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
+
+    - name: archive benchmarking results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmarking-results-msvc2
         path: build/benchmarks/benchmarking-results.json

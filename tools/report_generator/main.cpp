@@ -7,6 +7,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <string_view>
 #include <string>
 #include <unordered_map>
@@ -74,9 +75,7 @@ struct ReportConfig {
   }
 };
 
-const std::string_view MedianSuffix = "_median";
-
-std::unordered_map<std::string, double> Parse(const std::filesystem::path& file) {
+std::unordered_map<std::string, std::vector<double>> Parse(const std::filesystem::path& file) {
   nlohmann::json obj;
   {
     std::ifstream in;
@@ -84,16 +83,63 @@ std::unordered_map<std::string, double> Parse(const std::filesystem::path& file)
     in.open(file, std::ios_base::in | std::ios_base::binary);
     in >> obj;
   }
-  std::unordered_map<std::string, double> result;
+  std::unordered_map<std::string, std::vector<double>> result;
   for (auto& node : obj["benchmarks"]) {
-    std::string name = node["name"];
-    if (name.ends_with(MedianSuffix)) {
-      name.resize(name.size() - MedianSuffix.size());
-      double value = node["real_time"];
-      result.emplace(std::move(name), value);
-    }
+    result[node["name"]].push_back(node["real_time"]);
+  }
+  for (auto& pair : result) {
+    std::ranges::sort(pair.second);
   }
   return result;
+}
+
+double CalculateMedian(const std::vector<double>& values) {
+  // Pre-condition: !values.empty() && (values is sorted)
+  if (values.empty()) {
+    throw std::runtime_error{"CalculateMedian(): values.empty()"};
+  }
+  if (values.size() % 2 == 0) {
+    return (values[values.size() / 2 - 1] + values[values.size() / 2]) / 2;
+  } else {
+    return values[values.size() / 2];
+  }
+}
+
+double CalculateRate_ValMedian(const std::vector<double>& target, const std::vector<double>& baseline) {
+  // Pre-condition: target.size() == baseline.size() && !target.empty() && (both `target` and `baseline` are sorted)
+  if (target.size() != baseline.size() || target.empty()) {
+    throw std::runtime_error{ "CalculateRate_ValMedian(): target.size() != baseline.size() || target.empty()" };
+  }
+  double t = CalculateMedian(target), b = CalculateMedian(baseline);
+  return (b - t) * 100 / t;
+}
+
+double CalculateRate_RateMedian(const std::vector<double>& target, const std::vector<double>& baseline) {
+  // Pre-condition: target.size() == baseline.size() && !target.empty() && (both `target` and `baseline` are sorted)
+  if (target.size() != baseline.size() || target.empty()) {
+    throw std::runtime_error{"CalculateRate_RateMedian(): target.size() != baseline.size() || target.empty()"};
+  }
+  std::vector<double> rates;
+  for (std::size_t i = 0; i < target.size(); ++i) {
+    rates.push_back((baseline[i] - target[i]) * 100 / target[i]);
+  }
+  std::ranges::sort(rates);
+  return CalculateMedian(rates);
+}
+
+double CalculateRate_RateAverage(const std::vector<double>& target, const std::vector<double>& baseline) {
+  // Pre-condition: target.size() == baseline.size() && !target.empty() && (both `target` and `baseline` are sorted)
+  if (target.size() != baseline.size() || target.empty()) {
+    throw std::runtime_error{ "CalculateRate_RateAverage(): target.size() != baseline.size() || target.empty()" };
+  }
+  std::vector<double> rates;
+  for (std::size_t i = 0; i < target.size(); ++i) {
+    rates.push_back((baseline[i] - target[i]) * 100 / target[i]);
+  }
+  std::ranges::sort(rates);
+  std::size_t lower_bound = target.size() / 4;  // P25
+  std::size_t upper_bound = (target.size() * 3 + 3) / 4;  // P75
+  return std::accumulate(rates.begin() + lower_bound, rates.begin() + upper_bound, 0.0) / (upper_bound - lower_bound);
 }
 
 void GenerateReport(const std::filesystem::path& config_path, const std::string& commit_id, const std::filesystem::path& source, const std::filesystem::path& output) {
@@ -106,7 +152,7 @@ void GenerateReport(const std::filesystem::path& config_path, const std::string&
     in >> obj;
     obj.get_to(config);
   }
-  std::vector<std::unordered_map<std::string, double>> benchmarks;
+  std::vector<std::unordered_map<std::string, std::vector<double>>> benchmarks;
   benchmarks.reserve(config.Environments.size());
   for (auto& environment : config.Environments) {
     benchmarks.push_back(Parse(source / std::format("benchmarking-results-{}", environment.Name) / "benchmarking-results.json"));
@@ -133,9 +179,7 @@ void GenerateReport(const std::filesystem::path& config_path, const std::string&
   for (auto& metric : config.Metrics) {
     out << "| " << metric.Name << " |";
     for (auto& benchmark : benchmarks) {
-      double target = benchmark.at(metric.TargetBenchmarkName);
-      double baseline = benchmark.at(metric.BaselineBenchmarkName);
-      double rate = (baseline - target) * 100 / target;
+      double rate = CalculateRate_ValMedian(benchmark.at(metric.TargetBenchmarkName), benchmark.at(metric.BaselineBenchmarkName));
       bool is_negative = rate < 0;
       if (is_negative) {
         rate = -rate;
@@ -155,6 +199,9 @@ void GenerateReport(const std::filesystem::path& config_path, const std::string&
       } else {
         out << config.TargetName << " is about **" << rate_str << "% " << (is_negative ? "slower" : "faster") << "**";
       }
+      double rm = CalculateRate_RateMedian(benchmark.at(metric.TargetBenchmarkName), benchmark.at(metric.BaselineBenchmarkName));
+      double ra = CalculateRate_RateAverage(benchmark.at(metric.TargetBenchmarkName), benchmark.at(metric.BaselineBenchmarkName));
+      out << std::format(" (RM={:.1f}， RA={:.1f})", rm, ra);
       out << " |";
     }
     out << "\n";
