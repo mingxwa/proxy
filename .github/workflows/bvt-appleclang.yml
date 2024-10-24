@@ -27,7 +27,7 @@ jobs:
     - name: run benchmarks
       run: |
         cd build/benchmarks
-        ./msft_proxy_benchmarks --benchmark_repetitions=500 --benchmark_min_time=0.1s --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
+        ./msft_proxy_benchmarks --benchmark_repetitions=10 --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
 
     - name: archive benchmarking results
       uses: actions/upload-artifact@v4
@@ -38,7 +38,7 @@ jobs:
     - name: run benchmarks again
       run: |
         cd build/benchmarks
-        ./msft_proxy_benchmarks --benchmark_repetitions=500 --benchmark_min_time=0.1s --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
+        ./msft_proxy_benchmarks --benchmark_repetitions=10 --benchmark_enable_random_interleaving=true --benchmark_format=json > benchmarking-results.json
 
     - name: archive benchmarking results
       uses: actions/upload-artifact@v4
