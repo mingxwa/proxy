@@ -37,8 +37,8 @@ std::vector<std::unique_ptr<InvocationTestBase>> GenerateSmallObjectInvocationVi
   return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed)
       { return std::unique_ptr<InvocationTestBase>{new details::IntrusiveSmallImpl<TypeSeries>(seed)}; });
 }
-std::vector<details::VariantType<details::NonIntrusiveSmallImpl>> GenerateSmallObjectInvocationVariantTestData() {
-  return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed) -> details::VariantType<details::NonIntrusiveSmallImpl>
+std::vector<details::VariantType> GenerateSmallObjectInvocationVariantTestData() {
+  return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed) -> details::VariantType
       { return details::NonIntrusiveSmallImpl<TypeSeries>{seed}; });
 }
 std::vector<pro::proxy<InvocationTestFacade>> GenerateLargeObjectInvocationProxyTestData() {
@@ -49,7 +49,7 @@ std::vector<std::unique_ptr<InvocationTestBase>> GenerateLargeObjectInvocationVi
   return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed)
       { return std::unique_ptr<InvocationTestBase>{new details::IntrusiveLargeImpl<TypeSeries>(seed)}; });
 }
-std::vector<details::VariantType<details::NonIntrusiveLargeImpl>> GenerateLargeObjectInvocationVariantTestData() {
-  return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed) -> details::VariantType<details::NonIntrusiveLargeImpl>
+std::vector<details::VariantType> GenerateLargeObjectInvocationVariantTestData() {
+  return GenerateTestData([]<int TypeSeries>(IntConstant<TypeSeries>, int seed) -> details::VariantType
       { return details::NonIntrusiveLargeImpl<TypeSeries>{seed}; });
 }

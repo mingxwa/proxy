@@ -34,6 +34,8 @@ struct LargeObject3 {
   void* Padding[15];
 };
 
+using TestVariant = std::variant<SmallObject1, SmallObject2, SmallObject3, LargeObject1, LargeObject2, LargeObject3>;
+
 struct PolymorphicObjectBase {
   virtual ~PolymorphicObjectBase() = default;
 };
