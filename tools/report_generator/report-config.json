@@ -26,9 +26,19 @@
       "BaselineBenchmarkName": "BM_SmallObjectInvocationViaVirtualFunction"
     },
     {
+      "Name": "Indirect invocation on small objects via `proxy` vs. `std::variant`",
+      "TargetBenchmarkName": "BM_SmallObjectInvocationViaProxy",
+      "BaselineBenchmarkName": "BM_SmallObjectInvocationViaVariant"
+    },
+    {
       "Name": "Indirect invocation on large objects via `proxy` vs. virtual functions",
       "TargetBenchmarkName": "BM_LargeObjectInvocationViaProxy",
       "BaselineBenchmarkName": "BM_LargeObjectInvocationViaVirtualFunction"
+    },
+    {
+      "Name": "Indirect invocation on large objects via `proxy` vs. `std::variant`",
+      "TargetBenchmarkName": "BM_LargeObjectInvocationViaProxy",
+      "BaselineBenchmarkName": "BM_LargeObjectInvocationViaVariant"
     },
     {
       "Name": "Basic lifetime management for small objects with `proxy` vs. `std::unique_ptr`",
@@ -49,6 +59,11 @@
       "Name": "Basic lifetime management for small objects with `proxy` vs. `std::any`",
       "TargetBenchmarkName": "BM_SmallObjectManagementWithProxy",
       "BaselineBenchmarkName": "BM_SmallObjectManagementWithAny"
+    },
+    {
+      "Name": "Basic lifetime management for small objects with `proxy` vs. `std::variant`",
+      "TargetBenchmarkName": "BM_SmallObjectManagementWithProxy",
+      "BaselineBenchmarkName": "BM_SmallObjectManagementWithVariant"
     },
     {
       "Name": "Basic lifetime management for large objects with `proxy` (without memory pool) vs. `std::unique_ptr`",
@@ -79,6 +94,16 @@
       "Name": "Basic lifetime management for large objects with `proxy` (with memory pool) vs. `std::any`",
       "TargetBenchmarkName": "BM_LargeObjectManagementWithProxy_Pooled",
       "BaselineBenchmarkName": "BM_LargeObjectManagementWithAny"
+    },
+    {
+      "Name": "Basic lifetime management for large objects with `proxy` (without memory pool) vs. `std::variant`",
+      "TargetBenchmarkName": "BM_LargeObjectManagementWithProxy",
+      "BaselineBenchmarkName": "BM_LargeObjectManagementWithVariant"
+    },
+    {
+      "Name": "Basic lifetime management for large objects with `proxy` (with memory pool) vs. `std::variant`",
+      "TargetBenchmarkName": "BM_LargeObjectManagementWithProxy_Pooled",
+      "BaselineBenchmarkName": "BM_LargeObjectManagementWithVariant"
     }
   ]
 }
