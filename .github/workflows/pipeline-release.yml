@@ -10,7 +10,7 @@ on:
 
 jobs:
   prepare-release:
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v3
 
@@ -19,7 +19,7 @@ jobs:
         git checkout -b release/${{ github.event.inputs.version }}
 
     - name: assign cmake version
-      run: "((Get-Content -Path CMakeLists.txt -Raw) -Replace 'VERSION 0.1.0 # local build version','VERSION ${{ github.event.inputs.version }}') | Set-Content -Path CMakeLists.txt -NoNewLine"
+      run: "sed -i 's/VERSION 0\\.1\\.0 # local build version/VERSION ${{ github.event.inputs.version }}/' CMakeLists.txt"
 
     - name: commit changes
       run: |
@@ -78,7 +78,7 @@ jobs:
     needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc]
 
   draft-release:
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     needs: report
     steps:
     - uses: actions/checkout@v3
@@ -86,7 +86,7 @@ jobs:
         ref: release/${{ github.event.inputs.version }}
 
     - name: create zip archive
-      run: Compress-Archive -Path ".\proxy.h" -DestinationPath ".\proxy-${{ github.event.inputs.version }}.zip"
+      run: zip "proxy-${{ github.event.inputs.version }}.zip" "proxy.h"
 
     - uses: actions/create-release@v1
       name: create release draft
