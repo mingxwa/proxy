@@ -17,7 +17,7 @@ jobs:
     - name: create release branch
       run: |
         git checkout -b release/${{ github.event.inputs.version }}
-        "sed -i 's/VERSION 0\\.1\\.0 # local build version/VERSION ${{ github.event.inputs.version }}/' CMakeLists.txt"
+        sed -i 's/VERSION 0\.1\.0 # local build version/VERSION ${{ github.event.inputs.version }}/' CMakeLists.txt
         git config --local user.email "release-bot@no.email.com"
         git config --local user.name "release bot"
         git add CMakeLists.txt
