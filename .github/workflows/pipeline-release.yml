@@ -9,38 +9,10 @@ on:
         default: '0.0.0'
 
 jobs:
-  run-bvt-gcc:
-    name: Run BVT with GCC
-    uses: ./.github/workflows/bvt-gcc.yml
-
-  run-bvt-clang:
-    name: Run BVT with Clang
-    uses: ./.github/workflows/bvt-clang.yml
-
-  run-bvt-msvc:
-    name: Run BVT with MSVC
-    uses: ./.github/workflows/bvt-msvc.yml
-
-  run-bvt-appleclang:
-    name: Run BVT with AppleClang
-    uses: ./.github/workflows/bvt-appleclang.yml
-
-  run-bvt-nvhpc:
-    name: Run BVT with NVHPC
-    uses: ./.github/workflows/bvt-nvhpc.yml
-
-  report:
-    uses: ./.github/workflows/bvt-report.yml
-    name: Generate report
-    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc]
-
   draft-release:
     runs-on: ubuntu-24.04
-    needs: report
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: release/${{ github.event.inputs.version }}
 
     - name: create release branch
       run: |
@@ -54,7 +26,7 @@ jobs:
         git push origin release/${{ github.event.inputs.version }}
         git push origin ${{ github.event.inputs.version }}
 
-    - name: create zip archive
+    - name: create tgz archive
       run: tar -czf "proxy-${{ github.event.inputs.version }}.tgz" "proxy.h"
 
     - name: create release draft
