@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: create release branch
+    - name: create tag
       run: |
         git checkout -b release/${{ github.event.inputs.version }}
         sed -i 's/VERSION 0\.1\.0 # local build version/VERSION ${{ github.event.inputs.version }}/' CMakeLists.txt
@@ -23,7 +23,7 @@ jobs:
         git add CMakeLists.txt
         git commit -m "Release version ${{ github.event.inputs.version }}"
         git tag ${{ github.event.inputs.version }}
-        git push ${{ github.event.inputs.version }}
+        git push origin ${{ github.event.inputs.version }}
 
     - name: create tgz archive
       run: tar -czf "proxy-${{ github.event.inputs.version }}.tgz" "proxy.h"
