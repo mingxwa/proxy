@@ -23,8 +23,7 @@ jobs:
         git add CMakeLists.txt
         git commit -m "Release version ${{ github.event.inputs.version }}"
         git tag ${{ github.event.inputs.version }}
-        git push origin release/${{ github.event.inputs.version }}
-        git push origin ${{ github.event.inputs.version }}
+        git push ${{ github.event.inputs.version }}
 
     - name: create tgz archive
       run: tar -czf "proxy-${{ github.event.inputs.version }}.tgz" "proxy.h"
