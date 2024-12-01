@@ -11,8 +11,15 @@
 #include <initializer_list>
 #include <limits>
 #include <memory>
+#ifdef __cpp_rtti
+#include <optional>
+#endif  // __cpp_rtti
 #include <tuple>
 #include <type_traits>
+#ifdef __cpp_rtti
+#include <typeindex>
+#include <typeinfo>
+#endif  // __cpp_rtti
 #include <utility>
 
 #if __has_cpp_attribute(msvc::no_unique_address)
@@ -1183,6 +1190,19 @@ proxy<F> make_proxy(T&& value) {
     accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; }
 #endif  // NDEBUG
 
+#ifdef __cpp_rtti
+struct proxy_cast_context {
+  std::type_index type;
+  bool is_ref;
+  bool is_const;
+  void* result_ptr;
+};
+
+#ifdef __cpp_exceptions
+struct bad_proxy_cast : std::bad_cast {};
+#endif  // __cpp_exceptions
+#endif  // __cpp_rtti
+
 namespace details {
 
 constexpr std::size_t invalid_size = std::numeric_limits<std::size_t>::max();
@@ -1261,7 +1281,7 @@ struct facade_impl {
     template <class F2, class C> \
     struct accessor<F2, C, proxy<F>() Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __VA_ARGS__ () Q { \
+      __VA_ARGS__() Q { \
         if (access_proxy<F2>(SELF).has_value()) { \
           return proxy_invoke<C, proxy<F>() Q>(access_proxy<F2>(SELF)); \
         } \
@@ -1360,6 +1380,51 @@ struct sign {
 template <std::size_t N>
 sign(const char (&str)[N]) -> sign<N>;
 
+#ifdef __cpp_rtti
+#ifdef __cpp_exceptions
+#define ___PRO_THROW(...) throw __VA_ARGS__
+#else
+#define ___PRO_THROW(...) std::terminate()
+#endif  // __cpp_exceptions
+template <class F, class C, class O>
+struct proxy_cast_accessor_impl {
+  using _Self = add_qualifier_t<
+      proxy_cast_accessor_impl, overload_traits<O>::qualifier>;
+  template <class T>
+  friend T proxy_cast(_Self self) {
+    static_assert(!std::is_rvalue_reference_v<T>);
+    if (!access_proxy<F>(self).has_value()) { ___PRO_THROW(bad_proxy_cast{}); }
+    if constexpr (std::is_lvalue_reference_v<T>) {
+      using U = std::remove_reference_t<T>;
+      void* result = nullptr;
+      proxy_cast_context ctx{.type = typeid(T), .is_ref = true,
+          .is_const = std::is_const_v<U>, .result_ptr = &result};
+      proxy_invoke<C, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      if (result == nullptr) { ___PRO_THROW(bad_proxy_cast{}); }
+      return *static_cast<U*>(result);
+    } else {
+      std::optional<std::remove_const_t<T>> result;
+      proxy_cast_context ctx{.type = typeid(T), .is_ref = false,
+          .is_const = false, .result_ptr = &result};
+      proxy_invoke<C, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      if (!result.has_value()) { ___PRO_THROW(bad_proxy_cast{}); }
+      return std::move(*result);
+    }
+  }
+  template <class T>
+  friend T* proxy_cast(std::remove_reference_t<_Self>* self) noexcept
+      requires(std::is_lvalue_reference_v<_Self>) {
+    if (!access_proxy<F>(*self).has_value()) { return nullptr; }
+    void* result = nullptr;
+    proxy_cast_context ctx{.type = typeid(T), .is_ref = true,
+        .is_const = std::is_const_v<T>, .result_ptr = &result};
+    proxy_invoke<C, O>(access_proxy<F>(*self), ctx);
+    return static_cast<T*>(result);
+  }
+};
+#undef ___PRO_THROW
+#endif  // __cpp_rtti
+
 }  // namespace details
 
 template <class Cs, class Rs, proxiable_ptr_constraints C>
@@ -1424,14 +1489,14 @@ struct operator_dispatch;
     template <class F, class C, class R> \
     struct accessor<F, C, R() Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__ () Q \
+      R __VA_ARGS__() Q \
           { return proxy_invoke<C, R() Q>(access_proxy<F>(SELF)); } \
     }
 #define ___PRO_DEF_LHS_ANY_OP_ACCESSOR(Q, SELF, ...) \
     template <class F, class C, class R, class... Args> \
     struct accessor<F, C, R(Args...) Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__ (Args... args) Q { \
+      R __VA_ARGS__(Args... args) Q { \
         return proxy_invoke<C, R(Args...) Q>( \
             access_proxy<F>(SELF), std::forward<Args>(args)...); \
       } \
@@ -1470,7 +1535,7 @@ struct operator_dispatch;
 #define ___PRO_DEF_RHS_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg) Q> { \
-      friend R operator __VA_ARGS__ (Arg arg, SELF) NE { \
+      friend R operator __VA_ARGS__(Arg arg, SELF) NE { \
         return proxy_invoke<C, R(Arg) Q>( \
             access_proxy<F>(FW_SELF), std::forward<Arg>(arg)); \
       } \
@@ -1480,7 +1545,7 @@ struct operator_dispatch;
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg) Q> { \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
-      friend R operator __VA_ARGS__ (Arg arg, SELF) NE { \
+      friend R operator __VA_ARGS__(Arg arg, SELF) NE { \
         return proxy_invoke<C, R(Arg) Q>( \
             access_proxy<F>(FW_SELF), std::forward<Arg>(arg)); \
       } \
@@ -1513,7 +1578,7 @@ struct operator_dispatch;
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg) Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      decltype(auto) __VA_ARGS__ (Arg arg) Q { \
+      decltype(auto) __VA_ARGS__(Arg arg) Q { \
         proxy_invoke<C, R(Arg) Q>( \
             access_proxy<F>(SELF), std::forward<Arg>(arg)); \
         if constexpr (C::is_direct) { \
@@ -1527,7 +1592,7 @@ struct operator_dispatch;
 #define ___PRO_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg&) Q> { \
-      friend Arg& operator __VA_ARGS__ (Arg& arg, SELF) NE { \
+      friend Arg& operator __VA_ARGS__(Arg& arg, SELF) NE { \
         proxy_invoke<C, R(Arg&) Q>(access_proxy<F>(FW_SELF), arg); \
         return arg; \
       } \
@@ -1537,7 +1602,7 @@ struct operator_dispatch;
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg&) Q> { \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
-      friend Arg& operator __VA_ARGS__ (Arg& arg, SELF) NE { \
+      friend Arg& operator __VA_ARGS__(Arg& arg, SELF) NE { \
         proxy_invoke<C, R(Arg&) Q>(access_proxy<F>(FW_SELF), arg); \
         return arg; \
       } \
@@ -1647,7 +1712,7 @@ struct operator_dispatch<"[]", false> {
     template <class F, class C> \
     struct accessor<F, C, T() Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      explicit(Expl) __VA_ARGS__ () Q \
+      explicit(Expl) __VA_ARGS__() Q \
           { return proxy_invoke<C, T() Q>(access_proxy<F>(SELF)); } \
     }
 template <class T, bool Expl = true>
@@ -1663,6 +1728,61 @@ struct conversion_dispatch {
 };
 #undef ___PRO_DEF_CONVERSION_ACCESSOR
 
+#ifdef __cpp_rtti
+#define ___PRO_DEF_PROXY_CAST_ACCESSOR(Q, ...) \
+    template <class F, class C> \
+    struct accessor<F, C, void(proxy_cast_context) Q> \
+        : details::proxy_cast_accessor_impl<F, C, void(proxy_cast_context) Q> {}
+struct proxy_cast_dispatch {
+  template <class T>
+  void operator()(T&& self, proxy_cast_context ctx)
+      noexcept (!std::is_constructible_v<std::decay_t<T>, T> ||
+          std::is_nothrow_constructible_v<std::decay_t<T>, T>) {
+    if (typeid(T) == ctx.type) {
+      if (ctx.is_ref) {
+        if constexpr (std::is_lvalue_reference_v<T>) {
+          if (ctx.is_const || !std::is_const_v<T>) {
+            *static_cast<void**>(ctx.result_ptr) = (void*)&self;
+          }
+        }
+      } else {
+        if constexpr (std::is_constructible_v<std::decay_t<T>, T>) {
+          static_cast<std::optional<std::decay_t<T>>*>(ctx.result_ptr)
+              ->emplace(std::forward<T>(self));
+        }
+      }
+    }
+  }
+  ___PRO_DEF_FREE_ACCESSOR_TEMPLATE(___PRO_DEF_PROXY_CAST_ACCESSOR)
+};
+#undef ___PRO_DEF_PROXY_CAST_ACCESSOR
+
+class proxy_typeid_reflector {
+ public:
+  template <class T>
+  constexpr explicit proxy_typeid_reflector(std::in_place_type_t<T>)
+      : type_(typeid(T)) {}
+
+  template <class F, class R>
+  struct accessor {
+    friend const std::type_info& proxy_typeid(const accessor& self) noexcept {
+      if (!access_proxy<F>(self).has_value()) { return typeid(void); }
+      return proxy_reflect<R>(access_proxy<F>(self)).type_;
+    }
+#ifndef NDEBUG
+    accessor() noexcept { std::ignore = &accessor::_symbol_guard; }
+
+   private:
+    static inline const std::type_info& _symbol_guard(const accessor& self)
+        noexcept { return proxy_typeid(self); }
+#endif  // NDEBUG
+  };
+
+ private:
+  const std::type_info& type_;
+};
+#endif  // __cpp_rtti
+
 #define ___PRO_EXPAND_IMPL(__X) __X
 #define ___PRO_EXPAND_MACRO_IMPL( \
     __MACRO, __1, __2, __3, __NAME, ...) \
@@ -1675,7 +1795,7 @@ struct conversion_dispatch {
     template <class __F, class __C, class __R, class... __Args> \
     struct accessor<__F, __C, __R(__Args...) __Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __R __VA_ARGS__ (__Args... __args) __Q { \
+      __R __VA_ARGS__(__Args... __args) __Q { \
         return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
             ::pro::access_proxy<__F>(__SELF), \
             ::std::forward<__Args>(__args)...); \
@@ -1700,7 +1820,7 @@ struct conversion_dispatch {
 #define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF, __FW_SELF, ...) \
     template <class __F, class __C, class __R, class... __Args> \
     struct accessor<__F, __C, __R(__Args...) __Q> { \
-      friend __R __VA_ARGS__ (__SELF, __Args... __args) __NE { \
+      friend __R __VA_ARGS__(__SELF, __Args... __args) __NE { \
         return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
             ::pro::access_proxy<__F>(__FW_SELF), \
             ::std::forward<__Args>(__args)...); \
