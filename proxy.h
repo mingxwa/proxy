@@ -1663,6 +1663,41 @@ struct conversion_dispatch {
 };
 #undef ___PRO_DEF_CONVERSION_ACCESSOR
 
+template <class F>
+struct observer_facade {
+  using convention_types = typename F::convention_types;
+  using reflection_types = typename F::reflection_types;
+  static constexpr proxiable_ptr_constraints constraints{
+      .max_size = sizeof(void*), .max_align = alignof(void*),
+      .copyability = constraint_level::trivial,
+      .relocatability = constraint_level::trivial,
+      .destructibility = constraint_level::trivial};
+};
+
+template <class F>
+using proxy_view = proxy<observer_facade<F>>;
+
+#define ___PRO_DEF_PROXY_VIEW_ACCESSOR(Q, SELF, ...) \
+    template <class C> \
+    struct accessor<F, C, proxy_view<F>() Q> { \
+      ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
+      __VA_ARGS__() Q { \
+        if (access_proxy<F>(SELF).has_value()) { \
+          return proxy_invoke<C, proxy_view<F>() Q>(access_proxy<F>(SELF)); \
+        } \
+        return nullptr; \
+      } \
+    }
+template <class F>
+struct proxy_view_dispatch {
+  template <class T>
+  proxy_view<F> operator()(T&& value)
+      ___PRO_DIRECT_FUNC_IMPL(std::addressof(*std::forward<T>(value)))
+  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(
+      ___PRO_DEF_PROXY_VIEW_ACCESSOR, operator proxy_view<F>)
+};
+#undef ___PRO_DEF_PROXY_VIEW_ACCESSOR
+
 #define ___PRO_EXPAND_IMPL(__X) __X
 #define ___PRO_EXPAND_MACRO_IMPL( \
     __MACRO, __1, __2, __3, __NAME, ...) \
