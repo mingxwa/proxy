@@ -1257,7 +1257,7 @@ struct facade_impl {
   static constexpr proxiable_ptr_constraints constraints = C;
 };
 
-#define ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR(Q, SELF, ...) \
+#define ___PRO_DEF_PROXY_CONVERSION_ACCESSOR(Q, SELF, ...) \
     template <class F2, class C> \
     struct accessor<F2, C, proxy<F>() Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
@@ -1269,16 +1269,20 @@ struct facade_impl {
       } \
     }
 template <class F>
-struct upward_conversion_dispatch {
+struct proxy_conversion_dispatch_base {
+  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(
+      ___PRO_DEF_PROXY_CONVERSION_ACCESSOR, operator proxy<F>)
+};
+#undef ___PRO_DEF_PROXY_CONVERSION_ACCESSOR
+
+template <class F>
+struct upward_conversion_dispatch : proxy_conversion_dispatch_base<F> {
   template <class T>
   proxy<F> operator()(T&& value)
       noexcept(std::is_nothrow_convertible_v<T, proxy<F>>)
       requires(std::is_convertible_v<T, proxy<F>>)
       { return static_cast<proxy<F>>(std::forward<T>(value)); }
-  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(
-      ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR, operator proxy<F>)
 };
-#undef ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR
 
 template <class O, class I>
 struct add_tuple_reduction : std::type_identity<O> {};
@@ -1677,26 +1681,13 @@ struct observer_facade {
 template <class F>
 using proxy_view = proxy<observer_facade<F>>;
 
-#define ___PRO_DEF_PROXY_VIEW_ACCESSOR(Q, SELF, ...) \
-    template <class C> \
-    struct accessor<F, C, proxy_view<F>() Q> { \
-      ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __VA_ARGS__() Q { \
-        if (access_proxy<F>(SELF).has_value()) { \
-          return proxy_invoke<C, proxy_view<F>() Q>(access_proxy<F>(SELF)); \
-        } \
-        return nullptr; \
-      } \
-    }
 template <class F>
-struct proxy_view_dispatch {
+struct proxy_view_dispatch
+    : details::proxy_conversion_dispatch_base<observer_facade<F>> {
   template <class T>
   proxy_view<F> operator()(T&& value)
       ___PRO_DIRECT_FUNC_IMPL(std::addressof(*std::forward<T>(value)))
-  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(
-      ___PRO_DEF_PROXY_VIEW_ACCESSOR, operator proxy_view<F>)
 };
-#undef ___PRO_DEF_PROXY_VIEW_ACCESSOR
 
 #define ___PRO_EXPAND_IMPL(__X) __X
 #define ___PRO_EXPAND_MACRO_IMPL( \
