@@ -30,11 +30,23 @@ jobs:
         cmake --build build-clang-15 -j
         ctest --test-dir build-clang-15 -j
 
+    - name: build and run test with clang 15d
+      run: |
+        cmake -B build-clang-15d -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-clang-15d -j
+        ctest --test-dir build-clang-15d -j
+
     - name: build and run test with clang 16
       run: |
         cmake -B build-clang-16 -DCMAKE_C_COMPILER=clang-16 -DCMAKE_CXX_COMPILER=clang++-16 -DCMAKE_BUILD_TYPE=Release
         cmake --build build-clang-16 -j
         ctest --test-dir build-clang-16 -j
+
+    - name: build and run test with clang 16d
+      run: |
+        cmake -B build-clang-16d -DCMAKE_C_COMPILER=clang-16 -DCMAKE_CXX_COMPILER=clang++-16 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-clang-16d -j
+        ctest --test-dir build-clang-16d -j
 
     - name: build and run test with clang 17
       run: |
@@ -42,11 +54,23 @@ jobs:
         cmake --build build-clang-17 -j
         ctest --test-dir build-clang-17 -j
 
+    - name: build and run test with clang 17d
+      run: |
+        cmake -B build-clang-17d -DCMAKE_C_COMPILER=clang-17 -DCMAKE_CXX_COMPILER=clang++-17 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-clang-17d -j
+        ctest --test-dir build-clang-17d -j
+
     - name: build and run test with clang 18
       run: |
         cmake -B build-clang-18 -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release
         cmake --build build-clang-18 -j
         ctest --test-dir build-clang-18 -j
+
+    - name: build and run test with clang 18d
+      run: |
+        cmake -B build-clang-18d -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-clang-18d -j
+        ctest --test-dir build-clang-18d -j
 
     - name: run benchmarks
       run: |

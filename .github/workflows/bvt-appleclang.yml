@@ -24,6 +24,12 @@ jobs:
         cmake --build build -j
         ctest --test-dir build -j
 
+    - name: build and run test with AppleClangd
+      run: |
+        cmake -B buildd -DCMAKE_BUILD_TYPE=Debug
+        cmake --build buildd -j
+        ctest --test-dir buildd -j
+
     - name: run benchmarks
       run: |
         cd build/benchmarks

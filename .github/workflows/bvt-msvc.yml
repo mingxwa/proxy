@@ -19,6 +19,12 @@ jobs:
         cmake --build build --config Release -j
         ctest --test-dir build -j
 
+    - name: build and run test with MSVCd
+      run: |
+        cmake -B buildd
+        cmake --build buildd --config Debug -j
+        ctest --test-dir buildd -j
+
     - name: run benchmarks
       run: |
         cd build\benchmarks

@@ -27,6 +27,13 @@ jobs:
         cmake --build build-nv -j
         ctest --test-dir build-nv -j
 
+    - name: build and run test with NVHPC 24.9d
+      run: |
+        PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/24.9/compilers/bin:$PATH; export PATH
+        cmake -B build-nvd -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-nvd -j
+        ctest --test-dir build-nvd -j
+
     - name: run benchmarks
       run: |
         cd build-nv/benchmarks

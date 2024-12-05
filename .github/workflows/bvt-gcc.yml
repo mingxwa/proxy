@@ -28,11 +28,23 @@ jobs:
         cmake --build build-gcc-13 -j
         ctest --test-dir build-gcc-13 -j
 
+    - name: build and run test with gcc 13d
+      run: |
+        cmake -B build-gcc-13d -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-gcc-13d -j
+        ctest --test-dir build-gcc-13d -j
+
     - name: build and run test with gcc 14
       run: |
         cmake -B build-gcc-14 -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_BUILD_TYPE=Release
         cmake --build build-gcc-14 -j
         ctest --test-dir build-gcc-14 -j
+
+    - name: build and run test with gcc 14d
+      run: |
+        cmake -B build-gcc-14d -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-gcc-14d -j
+        ctest --test-dir build-gcc-14d -j
 
     - name: run benchmarks
       run: |
