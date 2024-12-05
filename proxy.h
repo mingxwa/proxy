@@ -260,6 +260,7 @@ struct overload_traits_impl : applicable_traits {
       }
     }
   };
+  using return_type = R;
 
   template <bool IS_DIRECT, class D, class P>
   static constexpr bool applicable_ptr =
@@ -1185,6 +1186,45 @@ proxy<F> make_proxy(T&& value) {
 
 namespace details {
 
+template <class O>
+using overload_return_type = typename overload_traits<O>::return_type;
+#define ___PRO_DEF_CAST_ACCESSOR(Q, SELF, ...) \
+    template <class F, class C, class T> \
+    struct accessor<F, C, T() Q> { \
+      explicit(Expl) operator T() Q { \
+        if constexpr (Nullable) { \
+          if (!access_proxy<F>(SELF).has_value()) { return nullptr; } \
+        } \
+        return proxy_invoke<C, T() Q>(access_proxy<F>(SELF)); \
+      } \
+    }
+template <bool Expl, bool Nullable>
+struct cast_dispatch_base {
+  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_CAST_ACCESSOR,
+      operator overload_return_type<__Os>);
+};
+#undef ___PRO_DEF_CAST_ACCESSOR
+
+struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
+  template <class T>
+  T&& operator()(T&& self) noexcept { return std::forward<T>(self); }
+};
+
+template <class T>
+struct explicit_conversion_adapter {
+  explicit explicit_conversion_adapter(T&& value)
+      : value_(std::forward<T>(value)) {}
+  explicit_conversion_adapter(const explicit_conversion_adapter&) = delete;
+
+  template <class U>
+  operator U() noexcept(std::is_nothrow_constructible_v<U, T>)
+      requires(std::is_constructible_v<U, T>)
+      { return U{std::forward<T>(value_)}; }
+
+ private:
+  T&& value_;
+};
+
 constexpr std::size_t invalid_size = std::numeric_limits<std::size_t>::max();
 constexpr constraint_level invalid_cl = static_cast<constraint_level>(
     std::numeric_limits<std::underlying_type_t<constraint_level>>::min());
@@ -1257,29 +1297,6 @@ struct facade_impl {
   static constexpr proxiable_ptr_constraints constraints = C;
 };
 
-#define ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR(Q, SELF, ...) \
-    template <class F2, class C> \
-    struct accessor<F2, C, proxy<F>() Q> { \
-      ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __VA_ARGS__ () Q { \
-        if (access_proxy<F2>(SELF).has_value()) { \
-          return proxy_invoke<C, proxy<F>() Q>(access_proxy<F2>(SELF)); \
-        } \
-        return nullptr; \
-      } \
-    }
-template <class F>
-struct upward_conversion_dispatch {
-  template <class T>
-  proxy<F> operator()(T&& value)
-      noexcept(std::is_nothrow_convertible_v<T, proxy<F>>)
-      requires(std::is_convertible_v<T, proxy<F>>)
-      { return static_cast<proxy<F>>(std::forward<T>(value)); }
-  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(
-      ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR, operator proxy<F>)
-};
-#undef ___PRO_DEF_UPWARD_CONVERSION_ACCESSOR
-
 template <class O, class I>
 struct add_tuple_reduction : std::type_identity<O> {};
 template <class... Os, class I> requires(!std::is_same_v<I, Os> && ...)
@@ -1325,16 +1342,16 @@ using move_conversion_overload =
 template <class Cs, class F, constraint_level CCL, constraint_level RCL>
 struct add_upward_conversion_conv
     : std::type_identity<add_conv_t<Cs, conv_impl<true,
-          upward_conversion_dispatch<F>, copy_conversion_overload<F, CCL>,
+          upward_conversion_dispatch, copy_conversion_overload<F, CCL>,
           move_conversion_overload<F, RCL>>>> {};
 template <class Cs, class F, constraint_level RCL>
 struct add_upward_conversion_conv<Cs, F, constraint_level::none, RCL>
     : std::type_identity<add_conv_t<Cs, conv_impl<true,
-          upward_conversion_dispatch<F>, move_conversion_overload<F, RCL>>>> {};
+          upward_conversion_dispatch, move_conversion_overload<F, RCL>>>> {};
 template <class Cs, class F, constraint_level CCL>
 struct add_upward_conversion_conv<Cs, F, CCL, constraint_level::none>
     : std::type_identity<add_conv_t<Cs, conv_impl<true,
-          upward_conversion_dispatch<F>, copy_conversion_overload<F, CCL>>>> {};
+          upward_conversion_dispatch, copy_conversion_overload<F, CCL>>>> {};
 template <class Cs, class F>
 struct add_upward_conversion_conv<
     Cs, F, constraint_level::none, constraint_level::none>
@@ -1643,25 +1660,18 @@ struct operator_dispatch<"[]", false> {
 #undef ___PRO_DEF_LHS_ANY_OP_ACCESSOR
 #undef ___PRO_DEF_LHS_LEFT_OP_ACCESSOR
 
-#define ___PRO_DEF_CONVERSION_ACCESSOR(Q, SELF, ...) \
-    template <class F, class C> \
-    struct accessor<F, C, T() Q> { \
-      ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      explicit(Expl) __VA_ARGS__ () Q \
-          { return proxy_invoke<C, T() Q>(access_proxy<F>(SELF)); } \
-    }
-template <class T, bool Expl = true>
-struct conversion_dispatch {
-  template <class U>
-  T operator()(U&& value)
-      noexcept(std::conditional_t<Expl, std::is_nothrow_constructible<T, U>,
-          std::is_nothrow_convertible<U, T>>::value)
-      requires(std::conditional_t<Expl, std::is_constructible<T, U>,
-          std::is_convertible<U, T>>::value)
-      { return static_cast<T>(std::forward<U>(value)); }
-  ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_CONVERSION_ACCESSOR, operator T)
+struct implicit_conversion_dispatch
+    : details::cast_dispatch_base<false, false> {
+  template <class T>
+  T&& operator()(T&& self) noexcept { return std::forward<T>(self); }
 };
-#undef ___PRO_DEF_CONVERSION_ACCESSOR
+struct explicit_conversion_dispatch
+    : details::cast_dispatch_base<true, false> {
+  template <class T>
+  auto operator()(T&& self) noexcept
+      { return details::explicit_conversion_adapter<T>{std::forward<T>(self)}; }
+};
+using conversion_dispatch = explicit_conversion_dispatch;
 
 #define ___PRO_EXPAND_IMPL(__X) __X
 #define ___PRO_EXPAND_MACRO_IMPL( \
