@@ -1201,7 +1201,7 @@ using overload_return_type = typename overload_traits<O>::return_type;
 template <bool Expl, bool Nullable>
 struct cast_dispatch_base {
   ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_CAST_ACCESSOR,
-      operator overload_return_type<__Os>);
+      operator overload_return_type<__Os>)
 };
 #undef ___PRO_DEF_CAST_ACCESSOR
 
