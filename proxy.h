@@ -29,6 +29,12 @@
 #define ___PRO_ENFORCE_EBO
 #endif  // _MSC_VER
 
+#ifdef NDEBUG
+#define ___PRO_DEBUG(...)
+#else
+#define ___PRO_DEBUG(...) __VA_ARGS__
+#endif  // NDEBUG
+
 #define __msft_lib_proxy 202410L
 
 namespace pro {
@@ -688,24 +694,24 @@ class proxy : public details::facade_traits<F>::direct_accessor {
   using _IA = details::proxy_indirect_accessor<F>;
 
  public:
-#ifdef NDEBUG
-  proxy() noexcept = default;
-#else
   proxy() noexcept {
-    if constexpr (_Traits::has_indirection) {
-      std::ignore = static_cast<_IA* (proxy::*)() noexcept>(&proxy::operator->);
-      std::ignore = static_cast<const _IA* (proxy::*)() const noexcept>(
-          &proxy::operator->);
-      std::ignore = static_cast<_IA& (proxy::*)() & noexcept>(&proxy::operator*);
-      std::ignore = static_cast<const _IA& (proxy::*)() const& noexcept>(
-          &proxy::operator*);
-      std::ignore = static_cast<_IA&& (proxy::*)() && noexcept>(
-          &proxy::operator*);
-      std::ignore = static_cast<const _IA&& (proxy::*)() const&& noexcept>(
-          &proxy::operator*);
-    }
+    ___PRO_DEBUG(
+      if constexpr (_Traits::has_indirection) {
+        std::ignore = static_cast<_IA* (proxy::*)() noexcept>(
+            &proxy::operator->);
+        std::ignore = static_cast<const _IA* (proxy::*)() const noexcept>(
+            &proxy::operator->);
+        std::ignore = static_cast<_IA& (proxy::*)() & noexcept>(
+            &proxy::operator*);
+        std::ignore = static_cast<const _IA& (proxy::*)() const& noexcept>(
+            &proxy::operator*);
+        std::ignore = static_cast<_IA&& (proxy::*)() && noexcept>(
+            &proxy::operator*);
+        std::ignore = static_cast<const _IA&& (proxy::*)() const&& noexcept>(
+            &proxy::operator*);
+      }
+    )
   }
-#endif  // NDEBUG
   proxy(std::nullptr_t) noexcept : proxy() {}
   proxy(const proxy&) noexcept requires(F::constraints.copyability ==
       constraint_level::trivial) = default;
@@ -1177,12 +1183,9 @@ proxy<F> make_proxy(T&& value) {
     __MACRO(const&& noexcept, noexcept, const accessor&& __self, \
         ::std::forward<const accessor>(__self), __VA_ARGS__);
 
-#ifdef NDEBUG
-#define ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(...)
-#else
 #define ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(...) \
-    accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; }
-#endif  // NDEBUG
+    ___PRO_DEBUG( \
+        accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; })
 
 namespace details {
 
@@ -1191,6 +1194,7 @@ using overload_return_type = typename overload_traits<O>::return_type;
 #define ___PRO_DEF_CAST_ACCESSOR(Q, SELF, ...) \
     template <class F, class C, class T> \
     struct accessor<F, C, T() Q> { \
+      ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(operator T) \
       explicit(Expl) operator T() Q { \
         if constexpr (Nullable) { \
           if (!access_proxy<F>(SELF).has_value()) { return nullptr; } \
@@ -1441,14 +1445,14 @@ struct operator_dispatch;
     template <class F, class C, class R> \
     struct accessor<F, C, R() Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__ () Q \
+      R __VA_ARGS__() Q \
           { return proxy_invoke<C, R() Q>(access_proxy<F>(SELF)); } \
     }
 #define ___PRO_DEF_LHS_ANY_OP_ACCESSOR(Q, SELF, ...) \
     template <class F, class C, class R, class... Args> \
     struct accessor<F, C, R(Args...) Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__ (Args... args) Q { \
+      R __VA_ARGS__(Args... args) Q { \
         return proxy_invoke<C, R(Args...) Q>( \
             access_proxy<F>(SELF), std::forward<Args>(args)...); \
       } \
@@ -1483,30 +1487,21 @@ struct operator_dispatch;
           operator __VA_ARGS__) \
     };
 
-#ifdef NDEBUG
 #define ___PRO_DEF_RHS_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg) Q> { \
-      friend R operator __VA_ARGS__ (Arg arg, SELF) NE { \
+      friend R operator __VA_ARGS__(Arg arg, SELF) NE { \
         return proxy_invoke<C, R(Arg) Q>( \
             access_proxy<F>(FW_SELF), std::forward<Arg>(arg)); \
       } \
-    }
-#else
-#define ___PRO_DEF_RHS_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
-    template <class F, class C, class R, class Arg> \
-    struct accessor<F, C, R(Arg) Q> { \
+___PRO_DEBUG( \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
-      friend R operator __VA_ARGS__ (Arg arg, SELF) NE { \
-        return proxy_invoke<C, R(Arg) Q>( \
-            access_proxy<F>(FW_SELF), std::forward<Arg>(arg)); \
-      } \
     \
      private: \
       static inline R _symbol_guard(Arg arg, SELF) NE \
           { return std::forward<Arg>(arg) __VA_ARGS__ FW_SELF; } \
+) \
     }
-#endif  // NDEBUG
 #define ___PRO_RHS_OP_DISPATCH_IMPL(...) \
     template <> \
     struct operator_dispatch<#__VA_ARGS__, true> { \
@@ -1530,7 +1525,7 @@ struct operator_dispatch;
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg) Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      decltype(auto) __VA_ARGS__ (Arg arg) Q { \
+      decltype(auto) __VA_ARGS__(Arg arg) Q { \
         proxy_invoke<C, R(Arg) Q>( \
             access_proxy<F>(SELF), std::forward<Arg>(arg)); \
         if constexpr (C::is_direct) { \
@@ -1540,30 +1535,21 @@ struct operator_dispatch;
         } \
       } \
     }
-#ifdef NDEBUG
 #define ___PRO_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
     template <class F, class C, class R, class Arg> \
     struct accessor<F, C, R(Arg&) Q> { \
-      friend Arg& operator __VA_ARGS__ (Arg& arg, SELF) NE { \
+      friend Arg& operator __VA_ARGS__(Arg& arg, SELF) NE { \
         proxy_invoke<C, R(Arg&) Q>(access_proxy<F>(FW_SELF), arg); \
         return arg; \
       } \
-    }
-#else
-#define ___PRO_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(Q, NE, SELF, FW_SELF, ...) \
-    template <class F, class C, class R, class Arg> \
-    struct accessor<F, C, R(Arg&) Q> { \
+___PRO_DEBUG( \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
-      friend Arg& operator __VA_ARGS__ (Arg& arg, SELF) NE { \
-        proxy_invoke<C, R(Arg&) Q>(access_proxy<F>(FW_SELF), arg); \
-        return arg; \
-      } \
     \
      private: \
       static inline Arg& _symbol_guard(Arg& arg, SELF) NE \
           { return arg __VA_ARGS__ FW_SELF; } \
+) \
     }
-#endif  // NDEBUG
 #define ___PRO_ASSIGNMENT_OP_DISPATCH_IMPL(...) \
     template <> \
     struct operator_dispatch<#__VA_ARGS__, false> { \
@@ -1685,7 +1671,7 @@ using conversion_dispatch = explicit_conversion_dispatch;
     template <class __F, class __C, class __R, class... __Args> \
     struct accessor<__F, __C, __R(__Args...) __Q> { \
       ___PRO_GEN_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __R __VA_ARGS__ (__Args... __args) __Q { \
+      __R __VA_ARGS__(__Args... __args) __Q { \
         return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
             ::pro::access_proxy<__F>(__SELF), \
             ::std::forward<__Args>(__args)...); \
@@ -1706,33 +1692,23 @@ using conversion_dispatch = explicit_conversion_dispatch;
 #define PRO_DEF_MEM_DISPATCH(__NAME, ...) \
     ___PRO_EXPAND_MACRO(___PRO_DEF_MEM_DISPATCH, __NAME, __VA_ARGS__)
 
-#ifdef NDEBUG
 #define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF, __FW_SELF, ...) \
     template <class __F, class __C, class __R, class... __Args> \
     struct accessor<__F, __C, __R(__Args...) __Q> { \
-      friend __R __VA_ARGS__ (__SELF, __Args... __args) __NE { \
-        return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
-            ::pro::access_proxy<__F>(__FW_SELF), \
-            ::std::forward<__Args>(__args)...); \
-      } \
-    }
-#else
-#define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF, __FW_SELF, ...) \
-    template <class __F, class __C, class __R, class... __Args> \
-    struct accessor<__F, __C, __R(__Args...) __Q> { \
-      accessor() noexcept { ::std::ignore = &accessor::_symbol_guard; } \
       friend __R __VA_ARGS__(__SELF, __Args... __args) __NE { \
         return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
             ::pro::access_proxy<__F>(__FW_SELF), \
             ::std::forward<__Args>(__args)...); \
       } \
+___PRO_DEBUG( \
+      accessor() noexcept { ::std::ignore = &accessor::_symbol_guard; } \
     \
      private: \
       static inline __R _symbol_guard(__SELF, __Args... __args) __NE { \
         return __VA_ARGS__(__FW_SELF, ::std::forward<__Args>(__args)...); \
       } \
+) \
     }
-#endif  // NDEBUG
 #define ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
     struct __NAME { \
       template <class __T, class... __Args> \
