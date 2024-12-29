@@ -737,8 +737,10 @@ concept proxiable = facade<F> && sizeof(P) <= F::constraints.max_size &&
     details::facade_traits<F>::template conv_applicable_ptr<P> &&
     details::facade_traits<F>::template refl_applicable_ptr<P>;
 
-template <class F>
-struct proxy_indirect_accessor
+template <class F> struct proxy_indirect_accessor {};
+template <class F> requires(!std::is_same_v<typename details::facade_traits<F>
+    ::indirect_accessor, details::composite_accessor_impl<>>)
+struct proxy_indirect_accessor<F>
     : details::facade_traits<F>::indirect_accessor {};
 
 template <class F>
