@@ -22,7 +22,7 @@ struct TraitsReflector {
   template <class F, class R>
   struct accessor {
     const TraitsReflector& ReflectTraits() const noexcept {
-      return pro::proxy_reflect<R>(pro::access_proxy<F>(*this));
+      return pro::proxy_reflect<R::is_direct, TraitsReflector>(pro::access_proxy<F>(*this));
     }
   };
 
