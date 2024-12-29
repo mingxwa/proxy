@@ -19,10 +19,10 @@ struct TraitsReflector {
         is_nothrow_destructible_(std::is_nothrow_destructible_v<T>),
         is_trivial_(std::is_trivial_v<T>) {}
 
-  template <class F, class R>
+  template <class F, bool IS_DIRECT, class R>
   struct accessor {
     const TraitsReflector& ReflectTraits() const noexcept {
-      return pro::proxy_reflect<R::is_direct, TraitsReflector>(pro::access_proxy<F>(*this));
+      return pro::proxy_reflect<IS_DIRECT, R>(pro::access_proxy<F>(*this));
     }
   };
 
