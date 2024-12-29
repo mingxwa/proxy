@@ -23,7 +23,7 @@ struct SboReflector {
   template <class F, class R>
   struct accessor {
     const SboReflector& ReflectSbo() const noexcept {
-      return pro::proxy_reflect<R>(pro::access_proxy<F>(*this));
+      return pro::proxy_reflect<R::is_direct, SboReflector>(pro::access_proxy<F>(*this));
     }
   };
 

@@ -393,16 +393,16 @@ struct conv_traits<C>
 
 template <class P>
 using ptr_element_t = typename std::pointer_traits<P>::element_type;
-template <class R>
+template <bool IS_DIRECT, class R>
 struct refl_meta {
-  template <class P> requires(R::is_direct)
+  template <class P> requires(IS_DIRECT)
   constexpr explicit refl_meta(std::in_place_type_t<P>)
       : reflector(std::in_place_type<P>) {}
-  template <class P> requires(!R::is_direct)
+  template <class P> requires(!IS_DIRECT)
   constexpr explicit refl_meta(std::in_place_type_t<P>)
       : reflector(std::in_place_type<ptr_element_t<P>>) {}
 
-  typename R::reflector_type reflector;
+  R reflector;
 };
 
 template <class R, class T, bool IS_DIRECT>
@@ -423,6 +423,8 @@ template <class R>
     requires(requires { typename R::reflector_type; } &&
         is_is_direct_well_formed<R>())
 struct refl_traits<R> : applicable_traits {
+  using meta = refl_meta<R::is_direct, typename R::reflector_type>;
+
   template <class P>
   static constexpr bool applicable_ptr =
       is_reflector_well_formed<typename R::reflector_type, P, R::is_direct>();
@@ -555,8 +557,10 @@ struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
       (conv_traits<Cs>::template applicable_ptr<P> && ...);
 };
 template <class F, class... Rs>
-struct facade_refl_traits_impl {
-  using refl_meta = composite_meta<details::refl_meta<Rs>...>;
+struct facade_refl_traits_impl : inapplicable_traits {};
+template <class F, class... Rs> requires(refl_traits<Rs>::applicable && ...)
+struct facade_refl_traits_impl<F, Rs...> : applicable_traits {
+  using refl_meta = composite_meta<typename refl_traits<Rs>::meta...>;
   using refl_indirect_accessor = composite_accessor<false, F, Rs...>;
   using refl_direct_accessor = composite_accessor<true, F, Rs...>;
 
@@ -575,7 +579,9 @@ template <class F>
         is_tuple_like_well_formed<typename F::convention_types>() &&
         instantiated_t<facade_conv_traits_impl, typename F::convention_types, F>
             ::applicable &&
-        is_tuple_like_well_formed<typename F::reflection_types>())
+        is_tuple_like_well_formed<typename F::reflection_types>() &&
+        instantiated_t<facade_refl_traits_impl, typename F::reflection_types, F>
+            ::applicable)
 struct facade_traits<F>
     : instantiated_t<facade_conv_traits_impl, typename F::convention_types, F>,
       instantiated_t<facade_refl_traits_impl, typename F::reflection_types, F> {
@@ -596,8 +602,6 @@ struct facade_traits<F>
   using direct_accessor = merged_composite_accessor<
       typename facade_traits::conv_direct_accessor,
       typename facade_traits::refl_direct_accessor>;
-  static constexpr bool has_indirection = !std::is_same_v<
-      typename facade_traits::indirect_accessor, composite_accessor_impl<>>;
 };
 
 using ptr_prototype = void*[2];
@@ -657,14 +661,13 @@ struct proxy_helper {
     assert(p.has_value());
     return *p.meta_.operator->();
   }
-  template <class C, class O, qualifier_type Q, class... Args>
+  template <bool IS_DIRECT, class D, class O, qualifier_type Q, class... Args>
   static decltype(auto) invoke(add_qualifier_t<proxy<F>, Q> p, Args&&... args) {
     auto dispatcher = get_meta(p)
         .template dispatcher_meta<typename overload_traits<O>
-        ::template meta_provider<C::is_direct, typename C::dispatch_type>>
-        ::dispatcher;
-    if constexpr (C::is_direct &&
-        overload_traits<O>::qualifier == qualifier_type::rv) {
+        ::template meta_provider<IS_DIRECT, D>>::dispatcher;
+    if constexpr (
+        IS_DIRECT && overload_traits<O>::qualifier == qualifier_type::rv) {
       meta_ptr_reset_guard guard{p.meta_};
       return dispatcher(std::forward<add_qualifier_t<std::byte, Q>>(*p.ptr_),
           std::forward<Args>(args)...);
@@ -734,9 +737,8 @@ concept proxiable = facade<F> && sizeof(P) <= F::constraints.max_size &&
     details::facade_traits<F>::template conv_applicable_ptr<P> &&
     details::facade_traits<F>::template refl_applicable_ptr<P>;
 
-template <class F> struct proxy_indirect_accessor {};
-template <class F> requires(details::facade_traits<F>::has_indirection)
-struct proxy_indirect_accessor<F>
+template <class F>
+struct proxy_indirect_accessor
     : details::facade_traits<F>::indirect_accessor {};
 
 template <class F>
@@ -748,20 +750,18 @@ class proxy : public details::facade_traits<F>::direct_accessor {
  public:
   proxy() noexcept {
     ___PRO_DEBUG(
-      if constexpr (_Traits::has_indirection) {
-        std::ignore = static_cast<proxy_indirect_accessor<F>*
-            (proxy::*)() noexcept>(&proxy::operator->);
-        std::ignore = static_cast<const proxy_indirect_accessor<F>*
-            (proxy::*)() const noexcept>(&proxy::operator->);
-        std::ignore = static_cast<proxy_indirect_accessor<F>&
-            (proxy::*)() & noexcept>(&proxy::operator*);
-        std::ignore = static_cast<const proxy_indirect_accessor<F>&
-            (proxy::*)() const& noexcept>(&proxy::operator*);
-        std::ignore = static_cast<proxy_indirect_accessor<F>&& (proxy::*)()
-            && noexcept>(&proxy::operator*);
-        std::ignore = static_cast<const proxy_indirect_accessor<F>&&
-            (proxy::*)() const&& noexcept>(&proxy::operator*);
-      }
+      std::ignore = static_cast<proxy_indirect_accessor<F>*
+          (proxy::*)() noexcept>(&proxy::operator->);
+      std::ignore = static_cast<const proxy_indirect_accessor<F>*
+          (proxy::*)() const noexcept>(&proxy::operator->);
+      std::ignore = static_cast<proxy_indirect_accessor<F>&
+          (proxy::*)() & noexcept>(&proxy::operator*);
+      std::ignore = static_cast<const proxy_indirect_accessor<F>&
+          (proxy::*)() const& noexcept>(&proxy::operator*);
+      std::ignore = static_cast<proxy_indirect_accessor<F>&&
+          (proxy::*)() && noexcept>(&proxy::operator*);
+      std::ignore = static_cast<const proxy_indirect_accessor<F>&&
+          (proxy::*)() const&& noexcept>(&proxy::operator*);
     )
   }
   proxy(std::nullptr_t) noexcept : proxy() {}
@@ -913,18 +913,14 @@ class proxy : public details::facade_traits<F>::direct_accessor {
           F::constraints.destructibility >= constraint_level::nontrivial)
       { reset(); return initialize<P>(il, std::forward<Args>(args)...); }
   proxy_indirect_accessor<F>* operator->() noexcept
-      requires(_Traits::has_indirection) { return std::addressof(ia_); }
+      { return std::addressof(ia_); }
   const proxy_indirect_accessor<F>* operator->() const noexcept
-      requires(_Traits::has_indirection) { return std::addressof(ia_); }
-  proxy_indirect_accessor<F>& operator*() & noexcept
-      requires(_Traits::has_indirection) { return ia_; }
-  const proxy_indirect_accessor<F>& operator*() const& noexcept
-      requires(_Traits::has_indirection) { return ia_; }
+      { return std::addressof(ia_); }
+  proxy_indirect_accessor<F>& operator*() & noexcept { return ia_; }
+  const proxy_indirect_accessor<F>& operator*() const& noexcept { return ia_; }
   proxy_indirect_accessor<F>&& operator*() && noexcept
-      requires(_Traits::has_indirection)
-      { return std::forward<proxy_indirect_accessor<F>>(ia_); }
+      { return std::move(ia_); }
   const proxy_indirect_accessor<F>&& operator*() const&& noexcept
-      requires(_Traits::has_indirection)
       { return std::forward<const proxy_indirect_accessor<F>>(ia_); }
 
   friend void swap(proxy& lhs, proxy& rhs) noexcept(noexcept(lhs.swap(rhs)))
@@ -949,32 +945,36 @@ class proxy : public details::facade_traits<F>::direct_accessor {
   alignas(F::constraints.max_align) std::byte ptr_[F::constraints.max_size];
 };
 
-template <class C, class O, class F, class... Args>
-decltype(auto) proxy_invoke(proxy<F>& p, Args&&... args) {
-  return details::proxy_helper<F>::template invoke<
-      C, O, details::qualifier_type::lv>(p, std::forward<Args>(args)...);
+template <bool IS_DIRECT, class D, class O, class F, class... Args>
+auto proxy_invoke(proxy<F>& p, Args&&... args)
+    -> typename details::overload_traits<O>::return_type {
+  return details::proxy_helper<F>::template invoke<IS_DIRECT, D, O,
+      details::qualifier_type::lv>(p, std::forward<Args>(args)...);
 }
-template <class C, class O, class F, class... Args>
-decltype(auto) proxy_invoke(const proxy<F>& p, Args&&... args) {
-  return details::proxy_helper<F>::template invoke<
-      C, O, details::qualifier_type::const_lv>(p, std::forward<Args>(args)...);
+template <bool IS_DIRECT, class D, class O, class F, class... Args>
+auto proxy_invoke(const proxy<F>& p, Args&&... args)
+    -> typename details::overload_traits<O>::return_type {
+  return details::proxy_helper<F>::template invoke<IS_DIRECT, D, O,
+      details::qualifier_type::const_lv>(p, std::forward<Args>(args)...);
 }
-template <class C, class O, class F, class... Args>
-decltype(auto) proxy_invoke(proxy<F>&& p, Args&&... args) {
+template <bool IS_DIRECT, class D, class O, class F, class... Args>
+auto proxy_invoke(proxy<F>&& p, Args&&... args)
+    -> typename details::overload_traits<O>::return_type {
   return details::proxy_helper<F>::template invoke<
-      C, O, details::qualifier_type::rv>(
-      std::forward<proxy<F>>(p), std::forward<Args>(args)...);
+      IS_DIRECT, D, O, details::qualifier_type::rv>(
+      std::move(p), std::forward<Args>(args)...);
 }
-template <class C, class O, class F, class... Args>
-decltype(auto) proxy_invoke(const proxy<F>&& p, Args&&... args) {
+template <bool IS_DIRECT, class D, class O, class F, class... Args>
+auto proxy_invoke(const proxy<F>&& p, Args&&... args)
+    -> typename details::overload_traits<O>::return_type {
   return details::proxy_helper<F>::template invoke<
-      C, O, details::qualifier_type::const_rv>(
-      std::forward<const proxy<F>>(p), std::forward<Args>(args)...);
+      IS_DIRECT, D, O, details::qualifier_type::const_rv>(
+      std::move(p), std::forward<Args>(args)...);
 }
 
-template <class R, class F>
-const auto& proxy_reflect(const proxy<F>& p) noexcept {
-  return static_cast<const details::refl_meta<R>&>(
+template <bool IS_DIRECT, class R, class F>
+const R& proxy_reflect(const proxy<F>& p) noexcept {
+  return static_cast<const details::refl_meta<IS_DIRECT, R>&>(
       details::proxy_helper<F>::get_meta(p)).reflector;
 }
 
@@ -1282,7 +1282,7 @@ using adl_accessor_arg_t =
         if constexpr (Nullable) { \
           if (!SELF.has_value()) { return nullptr; } \
         } \
-        return proxy_invoke<__C, T() Q>(SELF); \
+        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, T() Q>(SELF); \
       } \
     }
 template <bool Expl, bool Nullable>
@@ -1570,6 +1570,7 @@ struct proxy_cast_context {
   void* result_ptr;
 };
 
+struct proxy_cast_dispatch;
 template <class F, class C, class O>
 struct proxy_cast_accessor_impl {
   using _Self =
@@ -1583,14 +1584,14 @@ struct proxy_cast_accessor_impl {
       void* result = nullptr;
       proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = true,
           .is_const = std::is_const_v<U>, .result_ptr = &result};
-      proxy_invoke<C, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
       if (result == nullptr) { ___PRO_THROW(bad_proxy_cast{}); }
       return *static_cast<U*>(result);
     } else {
       std::optional<std::remove_const_t<T>> result;
       proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = false,
           .is_const = false, .result_ptr = &result};
-      proxy_invoke<C, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
       if (!result.has_value()) { ___PRO_THROW(bad_proxy_cast{}); }
       return std::move(*result);
     }
@@ -1602,7 +1603,7 @@ struct proxy_cast_accessor_impl {
     void* result = nullptr;
     proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = true,
         .is_const = std::is_const_v<T>, .result_ptr = &result};
-    proxy_invoke<C, O>(access_proxy<F>(*self), ctx);
+    proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(*self), ctx);
     return static_cast<T*>(result);
   }
 };
@@ -1645,7 +1646,7 @@ struct proxy_typeid_reflector {
         const adl_accessor_arg_t<F, R>& self) noexcept {
       const proxy<F>& p = access_proxy<F>(self);
       if (!p.has_value()) { return typeid(void); }
-      const proxy_typeid_reflector& refl = proxy_reflect<R>(p);
+      const proxy_typeid_reflector& refl = proxy_reflect<R::is_direct, proxy_typeid_reflector>(p);
       return *refl.info;
     }
 ___PRO_DEBUG(
@@ -1772,14 +1773,14 @@ struct operator_dispatch;
     template <class __F, class __C, class R> \
     struct accessor<__F, __C, R() Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__() Q { return proxy_invoke<__C, R() Q>(SELF); } \
+      R __VA_ARGS__() Q { return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R() Q>(SELF); } \
     }
 #define ___PRO_DEF_LHS_ANY_OP_ACCESSOR(Q, SELF, ...) \
     template <class __F, class __C, class R, class... Args> \
     struct accessor<__F, __C, R(Args...) Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       R __VA_ARGS__(Args... args) Q { \
-        return proxy_invoke<__C, R(Args...) Q>( \
+        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Args...) Q>( \
             SELF, std::forward<Args>(args)...); \
       } \
     }
@@ -1817,7 +1818,7 @@ struct operator_dispatch;
     template <class __F, class __C, class R, class Arg> \
     struct accessor<__F, __C, R(Arg) Q> { \
       friend R operator __VA_ARGS__(Arg arg, SELF_ARG) NE { \
-        return proxy_invoke<__C, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
+        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
       } \
 ___PRO_DEBUG( \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
@@ -1853,7 +1854,7 @@ ___PRO_DEBUG( \
     struct accessor<__F, __C, R(Arg) Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       decltype(auto) __VA_ARGS__(Arg arg) Q { \
-        proxy_invoke<__C, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
+        proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
         if constexpr (__C::is_direct) { \
           return SELF; \
         } else { \
@@ -1865,7 +1866,7 @@ ___PRO_DEBUG( \
     template <class __F, class __C, class R, class Arg> \
     struct accessor<__F, __C, R(Arg&) Q> { \
       friend Arg& operator __VA_ARGS__(Arg& arg, SELF_ARG) NE { \
-        proxy_invoke<__C, R(Arg&) Q>(SELF, arg); \
+        proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg&) Q>(SELF, arg); \
         return arg; \
       } \
 ___PRO_DEBUG( \
@@ -2011,7 +2012,7 @@ struct weak_dispatch : D {
     struct accessor<__F, __C, __R(__Args...) __Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       __R __VA_ARGS__(__Args... __args) __Q { \
-        return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
+        return ::pro::proxy_invoke<__C::is_direct, typename __C::dispatch_type, __R(__Args...) __Q>( \
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
     }
@@ -2034,7 +2035,7 @@ struct weak_dispatch : D {
     template <class __F, class __C, class __R, class... __Args> \
     struct accessor<__F, __C, __R(__Args...) __Q> { \
       friend __R __VA_ARGS__(__SELF_ARG, __Args... __args) __NE { \
-        return ::pro::proxy_invoke<__C, __R(__Args...) __Q>( \
+        return ::pro::proxy_invoke<__C::is_direct, typename __C::dispatch_type, __R(__Args...) __Q>( \
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
 ___PRO_DEBUG( \
