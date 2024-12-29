@@ -491,14 +491,14 @@ template <class T>
     requires(std::is_nothrow_default_constructible_v<T> &&
         std::is_trivially_copyable_v<T> && !std::is_final_v<T>)
 struct accessor_traits_impl<T> : std::type_identity<T> {};
-template <class SFINAE, class T, class... Args>
-struct sfinae_accessor_traits : std::type_identity<void> {};
-template <class T, class... Args>
-struct sfinae_accessor_traits<
-    std::void_t<typename T::template accessor<Args...>>, T, Args...>
-    : accessor_traits_impl<typename T::template accessor<Args...>> {};
-template <class T, class... Args>
-using accessor_t = typename sfinae_accessor_traits<void, T, Args...>::type;
+template <class T, class F>
+struct accessor_traits : std::type_identity<void> {};
+template <class T, class F>
+    requires(requires { typename T::template accessor<F>; })
+struct accessor_traits<T, F>
+    : accessor_traits_impl<typename T::template accessor<F>> {};
+template <class T, class F>
+using accessor_t = typename accessor_traits<T, F>::type;
 
 template <bool IS_DIRECT, class F, class O, class I>
 struct composite_accessor_reduction : std::type_identity<O> {};
@@ -1199,13 +1199,14 @@ using proxy_view = proxy<observer_facade<F>>;
     { return __VA_ARGS__; }
 
 #define ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(__MACRO, ...) \
-    template <class __F, class __C, class... __Os> \
+    template <class __F, bool __IS_DIRECT, class __D, class... __Os> \
     struct ___PRO_ENFORCE_EBO accessor { accessor() = delete; }; \
-    template <class __F, class __C, class... __Os> \
-        requires(sizeof...(__Os) > 1u && \
-            (::std::is_constructible_v<accessor<__F, __C, __Os>> && ...)) \
-    struct accessor<__F, __C, __Os...> : accessor<__F, __C, __Os>... \
-        { using accessor<__F, __C, __Os>::__VA_ARGS__...; }; \
+    template <class __F, bool __IS_DIRECT, class __D, class... __Os> \
+        requires(sizeof...(__Os) > 1u && (::std::is_constructible_v< \
+            accessor<__F, __IS_DIRECT, __D, __Os>> && ...)) \
+    struct accessor<__F, __IS_DIRECT, __D, __Os...> \
+        : accessor<__F, __IS_DIRECT, __D, __Os>... \
+        { using accessor<__F, __IS_DIRECT, __D, __Os>::__VA_ARGS__...; }; \
     __MACRO(, ::pro::access_proxy<__F>(*this), __VA_ARGS__); \
     __MACRO(noexcept, ::pro::access_proxy<__F>(*this), __VA_ARGS__); \
     __MACRO(&, ::pro::access_proxy<__F>(*this), __VA_ARGS__); \
@@ -1223,14 +1224,15 @@ using proxy_view = proxy<observer_facade<F>>;
     __MACRO(const&& noexcept, ::pro::access_proxy<__F>( \
         ::std::forward<const accessor>(*this)), __VA_ARGS__);
 
-#define ___PRO_ADL_ARG ::pro::details::adl_accessor_arg_t<__F, __C>
+#define ___PRO_ADL_ARG ::pro::details::adl_accessor_arg_t<__F, __IS_DIRECT>
 #define ___PRO_DEF_FREE_ACCESSOR_TEMPLATE(__MACRO, ...) \
-    template <class __F, class __C, class... __Os> \
+    template <class __F, bool __IS_DIRECT, class __D, class... __Os> \
     struct ___PRO_ENFORCE_EBO accessor { accessor() = delete; }; \
-    template <class __F, class __C, class... __Os> \
-        requires(sizeof...(__Os) > 1u && \
-            (::std::is_constructible_v<accessor<__F, __C, __Os>> && ...)) \
-    struct accessor<__F, __C, __Os...> : accessor<__F, __C, __Os>... {}; \
+    template <class __F, bool __IS_DIRECT, class __D, class... __Os> \
+        requires(sizeof...(__Os) > 1u && (::std::is_constructible_v< \
+            accessor<__F, __IS_DIRECT, __D, __Os>> && ...)) \
+    struct accessor<__F, __IS_DIRECT, __D, __Os...> \
+        : accessor<__F, __IS_DIRECT, __D, __Os>... {}; \
     __MACRO(,, ___PRO_ADL_ARG& __self, ::pro::access_proxy<__F>(__self), \
         __VA_ARGS__); \
     __MACRO(noexcept, noexcept, ___PRO_ADL_ARG& __self, \
@@ -1272,19 +1274,19 @@ class bad_proxy_cast : public std::bad_cast {
 
 namespace details {
 
-template <class F, class C>
+template <class F, bool IS_DIRECT>
 using adl_accessor_arg_t =
-    std::conditional_t<C::is_direct, proxy<F>, proxy_indirect_accessor<F>>;
+    std::conditional_t<IS_DIRECT, proxy<F>, proxy_indirect_accessor<F>>;
 
 #define ___PRO_DEF_CAST_ACCESSOR(Q, SELF, ...) \
-    template <class __F, class __C, class T> \
-    struct accessor<__F, __C, T() Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class T> \
+    struct accessor<__F, __IS_DIRECT, __D, T() Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(operator T) \
       explicit(Expl) operator T() Q { \
         if constexpr (Nullable) { \
           if (!SELF.has_value()) { return nullptr; } \
         } \
-        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, T() Q>(SELF); \
+        return proxy_invoke<__IS_DIRECT, __D, T() Q>(SELF); \
       } \
     }
 template <bool Expl, bool Nullable>
@@ -1364,20 +1366,31 @@ consteval std::size_t max_align_of(std::size_t value) {
   return value < alignof(std::max_align_t) ? value : alignof(std::max_align_t);
 }
 
+template <class T, class F, bool IS_DIRECT, class... Args>
+struct accessor_instantiation_traits : std::type_identity<void> {};
+template <class T, class F, bool IS_DIRECT, class... Args> requires(
+    requires { typename T::template accessor<F, IS_DIRECT, T, Args...>; })
+struct accessor_instantiation_traits<T, F, IS_DIRECT, Args...>
+    : std::type_identity<
+          typename T::template accessor<F, IS_DIRECT, T, Args...>> {};
+template <class T, class F, bool IS_DIRECT, class... Args>
+using instantiated_accessor_t =
+    typename accessor_instantiation_traits<T, F, IS_DIRECT, Args...>::type;
+
 template <bool IS_DIRECT, class D, class... Os>
 struct conv_impl {
   static constexpr bool is_direct = IS_DIRECT;
   using dispatch_type = D;
   using overload_types = std::tuple<Os...>;
   template <class F>
-  using accessor = accessor_t<D, F, conv_impl, Os...>;
+  using accessor = instantiated_accessor_t<D, F, IS_DIRECT, Os...>;
 };
 template <bool IS_DIRECT, class R>
 struct refl_impl {
   static constexpr bool is_direct = IS_DIRECT;
   using reflector_type = R;
   template <class F>
-  using accessor = accessor_t<R, F, refl_impl>;
+  using accessor = instantiated_accessor_t<R, F, IS_DIRECT>;
 };
 template <class Cs, class Rs, proxiable_ptr_constraints C>
 struct facade_impl {
@@ -1573,10 +1586,10 @@ struct proxy_cast_context {
 };
 
 struct proxy_cast_dispatch;
-template <class F, class C, class O>
+template <class F, bool IS_DIRECT, class D, class O>
 struct proxy_cast_accessor_impl {
-  using _Self =
-      add_qualifier_t<adl_accessor_arg_t<F, C>, overload_traits<O>::qualifier>;
+  using _Self = add_qualifier_t<
+      adl_accessor_arg_t<F, IS_DIRECT>, overload_traits<O>::qualifier>;
   template <class T>
   friend T proxy_cast(_Self self) {
     static_assert(!std::is_rvalue_reference_v<T>);
@@ -1586,14 +1599,16 @@ struct proxy_cast_accessor_impl {
       void* result = nullptr;
       proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = true,
           .is_const = std::is_const_v<U>, .result_ptr = &result};
-      proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      proxy_invoke<IS_DIRECT, D, O>(
+          access_proxy<F>(std::forward<_Self>(self)), ctx);
       if (result == nullptr) { ___PRO_THROW(bad_proxy_cast{}); }
       return *static_cast<U*>(result);
     } else {
       std::optional<std::remove_const_t<T>> result;
       proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = false,
           .is_const = false, .result_ptr = &result};
-      proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(std::forward<_Self>(self)), ctx);
+      proxy_invoke<IS_DIRECT, D, O>(
+          access_proxy<F>(std::forward<_Self>(self)), ctx);
       if (!result.has_value()) { ___PRO_THROW(bad_proxy_cast{}); }
       return std::move(*result);
     }
@@ -1605,15 +1620,16 @@ struct proxy_cast_accessor_impl {
     void* result = nullptr;
     proxy_cast_context ctx{.type_ptr = &typeid(T), .is_ref = true,
         .is_const = std::is_const_v<T>, .result_ptr = &result};
-    proxy_invoke<C::is_direct, typename C::dispatch_type, O>(access_proxy<F>(*self), ctx);
+    proxy_invoke<IS_DIRECT, D, O>(access_proxy<F>(*self), ctx);
     return static_cast<T*>(result);
   }
 };
 
 #define ___PRO_DEF_PROXY_CAST_ACCESSOR(Q, ...) \
-    template <class F, class C> \
-    struct accessor<F, C, void(proxy_cast_context) Q> \
-        : proxy_cast_accessor_impl<F, C, void(proxy_cast_context) Q> {}
+    template <class F, bool IS_DIRECT, class D> \
+    struct accessor<F, IS_DIRECT, D, void(proxy_cast_context) Q> \
+        : proxy_cast_accessor_impl<F, IS_DIRECT, D, \
+              void(proxy_cast_context) Q> {}
 struct proxy_cast_dispatch {
   template <class T>
   void operator()(T&& self, proxy_cast_context ctx) {
@@ -1642,13 +1658,13 @@ struct proxy_typeid_reflector {
       : info(&typeid(T)) {}
   constexpr proxy_typeid_reflector(const proxy_typeid_reflector&) = default;
 
-  template <class F, class R>
+  template <class F, bool IS_DIRECT, class R>
   struct accessor {
     friend const std::type_info& proxy_typeid(
-        const adl_accessor_arg_t<F, R>& self) noexcept {
+        const adl_accessor_arg_t<F, IS_DIRECT>& self) noexcept {
       const proxy<F>& p = access_proxy<F>(self);
       if (!p.has_value()) { return typeid(void); }
-      const proxy_typeid_reflector& refl = proxy_reflect<R::is_direct, proxy_typeid_reflector>(p);
+      const proxy_typeid_reflector& refl = proxy_reflect<IS_DIRECT, R>(p);
       return *refl.info;
     }
 ___PRO_DEBUG(
@@ -1656,7 +1672,7 @@ ___PRO_DEBUG(
 
    private:
     static inline const std::type_info& _symbol_guard(
-        const adl_accessor_arg_t<F, R>& self) noexcept
+        const adl_accessor_arg_t<F, IS_DIRECT>& self) noexcept
         { return proxy_typeid(self); }
 )
   };
@@ -1772,17 +1788,18 @@ template <details::sign Sign, bool Rhs = false>
 struct operator_dispatch;
 
 #define ___PRO_DEF_LHS_LEFT_OP_ACCESSOR(Q, SELF, ...) \
-    template <class __F, class __C, class R> \
-    struct accessor<__F, __C, R() Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class R> \
+    struct accessor<__F, __IS_DIRECT, __D, R() Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      R __VA_ARGS__() Q { return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R() Q>(SELF); } \
+      R __VA_ARGS__() Q \
+          { return proxy_invoke<__IS_DIRECT, __D, R() Q>(SELF); } \
     }
 #define ___PRO_DEF_LHS_ANY_OP_ACCESSOR(Q, SELF, ...) \
-    template <class __F, class __C, class R, class... Args> \
-    struct accessor<__F, __C, R(Args...) Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class R, class... Args> \
+    struct accessor<__F, __IS_DIRECT, __D, R(Args...) Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       R __VA_ARGS__(Args... args) Q { \
-        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Args...) Q>( \
+        return proxy_invoke<__IS_DIRECT, __D, R(Args...) Q>( \
             SELF, std::forward<Args>(args)...); \
       } \
     }
@@ -1817,10 +1834,11 @@ struct operator_dispatch;
     };
 
 #define ___PRO_DEF_RHS_OP_ACCESSOR(Q, NE, SELF_ARG, SELF, ...) \
-    template <class __F, class __C, class R, class Arg> \
-    struct accessor<__F, __C, R(Arg) Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class R, class Arg> \
+    struct accessor<__F, __IS_DIRECT, __D, R(Arg) Q> { \
       friend R operator __VA_ARGS__(Arg arg, SELF_ARG) NE { \
-        return proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
+        return proxy_invoke<__IS_DIRECT, __D, R(Arg) Q>( \
+            SELF, std::forward<Arg>(arg)); \
       } \
 ___PRO_DEBUG( \
       accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
@@ -1852,12 +1870,13 @@ ___PRO_DEBUG( \
     ___PRO_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
 
 #define ___PRO_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(Q, SELF, ...) \
-    template <class __F, class __C, class R, class Arg> \
-    struct accessor<__F, __C, R(Arg) Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class R, class Arg> \
+    struct accessor<__F, __IS_DIRECT, __D, R(Arg) Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       decltype(auto) __VA_ARGS__(Arg arg) Q { \
-        proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg) Q>(SELF, std::forward<Arg>(arg)); \
-        if constexpr (__C::is_direct) { \
+        proxy_invoke<__IS_DIRECT, __D, R(Arg) Q>( \
+            SELF, std::forward<Arg>(arg)); \
+        if constexpr (__IS_DIRECT) { \
           return SELF; \
         } else { \
           return *SELF; \
@@ -1865,10 +1884,10 @@ ___PRO_DEBUG( \
       } \
     }
 #define ___PRO_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(Q, NE, SELF_ARG, SELF, ...) \
-    template <class __F, class __C, class R, class Arg> \
-    struct accessor<__F, __C, R(Arg&) Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class R, class Arg> \
+    struct accessor<__F, __IS_DIRECT, __D, R(Arg&) Q> { \
       friend Arg& operator __VA_ARGS__(Arg& arg, SELF_ARG) NE { \
-        proxy_invoke<__C::is_direct, typename __C::dispatch_type, R(Arg&) Q>(SELF, arg); \
+        proxy_invoke<__IS_DIRECT, __D, R(Arg&) Q>(SELF, arg); \
         return arg; \
       } \
 ___PRO_DEBUG( \
@@ -2010,11 +2029,12 @@ struct weak_dispatch : D {
         __MACRO, __VA_ARGS__, 3, 2)(__VA_ARGS__))
 
 #define ___PRO_DEF_MEM_ACCESSOR(__Q, __SELF, ...) \
-    template <class __F, class __C, class __R, class... __Args> \
-    struct accessor<__F, __C, __R(__Args...) __Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class __R, \
+        class... __Args> \
+    struct accessor<__F, __IS_DIRECT, __D, __R(__Args...) __Q> { \
       ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
       __R __VA_ARGS__(__Args... __args) __Q { \
-        return ::pro::proxy_invoke<__C::is_direct, typename __C::dispatch_type, __R(__Args...) __Q>( \
+        return ::pro::proxy_invoke<__IS_DIRECT, __D, __R(__Args...) __Q>( \
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
     }
@@ -2034,10 +2054,11 @@ struct weak_dispatch : D {
     ___PRO_EXPAND_MACRO(___PRO_DEF_MEM_DISPATCH, __NAME, __VA_ARGS__)
 
 #define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF_ARG, __SELF, ...) \
-    template <class __F, class __C, class __R, class... __Args> \
-    struct accessor<__F, __C, __R(__Args...) __Q> { \
+    template <class __F, bool __IS_DIRECT, class __D, class __R, \
+        class... __Args> \
+    struct accessor<__F, __IS_DIRECT, __D, __R(__Args...) __Q> { \
       friend __R __VA_ARGS__(__SELF_ARG, __Args... __args) __NE { \
-        return ::pro::proxy_invoke<__C::is_direct, typename __C::dispatch_type, __R(__Args...) __Q>( \
+        return ::pro::proxy_invoke<__IS_DIRECT, __D, __R(__Args...) __Q>( \
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
 ___PRO_DEBUG( \
