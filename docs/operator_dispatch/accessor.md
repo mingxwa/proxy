@@ -94,7 +94,7 @@ struct accessor<F, IsDirect, D, R(Arg) cv ref noex> {
 }
 ```
 
-`(7)` Provides a `friend operator sop(Arg arg, accessor_arg cv ref self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, accessor_arg cv ref self)` is equivalent to `return proxy_invoke<C, R(Arg) cv ref noex>(ACCESS_PROXY_EXPR, std::forward<Arg>(arg))`.
+`(7)` Provides a `friend operator sop(Arg arg, accessor_arg cv ref self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, accessor_arg cv ref self)` is equivalent to `return proxy_invoke<IsDirect, D, R(Arg) cv ref noex>(ACCESS_PROXY_EXPR, std::forward<Arg>(arg))`.
 
 ### Assignment SOPs
 
