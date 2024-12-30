@@ -1,25 +1,25 @@
 # Function template `proxy_invoke`
 
 ```cpp
-template <bool IS_DIRECT, class D, class O, class F, class... Args>
+template <bool IsDirect, class D, class O, class F, class... Args>
 /* see below */ proxy_invoke(proxy<F>& p, Args&&... args);
 
-template <bool IS_DIRECT, class D, class O, class F, class... Args>
+template <bool IsDirect, class D, class O, class F, class... Args>
 /* see below */ proxy_invoke(const proxy<F>& p, Args&&... args);
 
-template <bool IS_DIRECT, class D, class O, class F, class... Args>
+template <bool IsDirect, class D, class O, class F, class... Args>
 /* see below */ proxy_invoke(proxy<F>&& p, Args&&... args);
 
-template <bool IS_DIRECT, class D, class O, class F, class... Args>
+template <bool IsDirect, class D, class O, class F, class... Args>
 /* see below */ proxy_invoke(const proxy<F>&& p, Args&&... args);
 ```
 
-Invokes a `proxy` with a specified dispatch type, an overload type, and arguments. There shall be a convention type `Conv` defined in `typename F::convention_types` where `Conv::is_direct == IS_DIRECT && std::is_same_v<typename Conv::dispatch_type, D>` is `true`. `O` is required to be defined in `typename Conv::overload_types`.
+Invokes a `proxy` with a specified dispatch type, an overload type, and arguments. There shall be a convention type `Conv` defined in `typename F::convention_types` where `Conv::is_direct == IsDirect && std::is_same_v<typename Conv::dispatch_type, D>` is `true`. `O` is required to be defined in `typename Conv::overload_types`.
 
 Let `ptr` be the contained value of `p` with the same cv ref-qualifiers, `Args2...` be the argument types of `O`, `R` be the return type of `O`,
 
-- if `IS_DIRECT` is `true`, let `v` be `std::forward<decltype(ptr)>(ptr)`, or otherwise,
-- if `IS_DIRECT` is `false`, let `v` be `*std::forward<decltype(ptr)>(ptr)`,
+- if `IsDirect` is `true`, let `v` be `std::forward<decltype(ptr)>(ptr)`, or otherwise,
+- if `IsDirect` is `false`, let `v` be `*std::forward<decltype(ptr)>(ptr)`,
 
 equivalent to:
 
