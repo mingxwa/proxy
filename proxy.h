@@ -1163,11 +1163,15 @@ proxy<F> make_proxy_inplace(T&& value)
 }
 
 #if __STDC_HOSTED__
-template <facade F, class T, class Alloc, class... Args>
+template <class T, class F>
+concept proxiable_target = inplace_proxiable_target<T, F> ||
+    proxiable<details::allocated_ptr<T, std::allocator<T>>, F>;
+
+template <facade F, proxiable_target<F> T, class Alloc, class... Args>
 proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args) {
   return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
 }
-template <facade F, class T, class Alloc, class U, class... Args>
+template <facade F, proxiable_target<F> T, class Alloc, class U, class... Args>
 proxy<F> allocate_proxy(const Alloc& alloc, std::initializer_list<U> il,
     Args&&... args) {
   return details::allocate_proxy_impl<F, T>(
@@ -1178,10 +1182,10 @@ proxy<F> allocate_proxy(const Alloc& alloc, T&& value) {
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
-template <facade F, class T, class... Args>
+template <facade F, proxiable_target<F> T, class... Args>
 proxy<F> make_proxy(Args&&... args)
     { return details::make_proxy_impl<F, T>(std::forward<Args>(args)...); }
-template <facade F, class T, class U, class... Args>
+template <facade F, proxiable_target<F> T, class U, class... Args>
 proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
     { return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...); }
 template <facade F, class T>
