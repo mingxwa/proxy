@@ -478,30 +478,8 @@ struct lifetime_meta_traits<MP, constraint_level::nontrivial>
 template <template <bool> class MP, constraint_level C>
 using lifetime_meta_t = typename lifetime_meta_traits<MP, C>::type;
 
-template <class T>
-struct direct_storage {
-  template <class... Args>
-  explicit direct_storage(Args&&... args)
-      : value_(std::forward<Args>(args)...) {}
-  direct_storage(const direct_storage&) = default;
-  direct_storage(direct_storage&&) = default;
-  direct_storage& operator=(const direct_storage&) = default;
-  direct_storage& operator=(direct_storage&&) = default;
-
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
-  T& operator*() & noexcept { return value_; }
-  const T& operator*() const& noexcept { return value_; }
-  T&& operator*() && noexcept { return std::move(value_); }
-  const T&& operator*() const&& noexcept { return std::move(value_); }
-
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  T value_;
-};
-
 template <class... As>
 class ___PRO_ENFORCE_EBO composite_accessor_impl : public As... {
-  friend struct direct_storage<composite_accessor_impl>;
   template <class> friend class pro::proxy;
   template <class> friend struct pro::proxy_indirect_accessor;
 
@@ -684,6 +662,27 @@ struct meta_ptr_reset_guard {
   MP& meta_;
 };
 
+template <class T>
+struct direct_storage {
+  template <class... Args>
+  explicit direct_storage(Args&&... args)
+      : value_(std::forward<Args>(args)...) {}
+  direct_storage(const direct_storage&) = default;
+  direct_storage(direct_storage&&) = default;
+  direct_storage& operator=(const direct_storage&) = default;
+  direct_storage& operator=(direct_storage&&) = default;
+
+  T* operator->() noexcept { return &value_; }
+  const T* operator->() const noexcept { return &value_; }
+  T& operator*() & noexcept { return value_; }
+  const T& operator*() const& noexcept { return value_; }
+  T&& operator*() && noexcept { return std::move(value_); }
+  const T&& operator*() const&& noexcept { return std::move(value_); }
+
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  T value_;
+};
+
 template <class F>
 struct proxy_helper {
   static inline const auto& get_meta(const proxy<F>& p) noexcept {
@@ -769,7 +768,8 @@ template <class F> struct proxy_indirect_accessor {};
 template <class F> requires(!std::is_same_v<typename details::facade_traits<F>
     ::indirect_accessor, details::composite_accessor_impl<>>)
 struct proxy_indirect_accessor<F>
-    : details::facade_traits<F>::indirect_accessor {};
+    : details::facade_traits<F>::indirect_accessor
+    { friend struct details::direct_storage<proxy_indirect_accessor>; };
 
 template <class F>
 class proxy : public details::facade_traits<F>::direct_accessor,
