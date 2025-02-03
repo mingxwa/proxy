@@ -1047,16 +1047,22 @@ void deallocate(const Alloc& alloc, T* ptr) {
   al.deallocate(ptr, 1);
 }
 template <class T>
-struct raii_storage {
+struct direct_storage {
   template <class... Args>
-  explicit raii_storage(Args&&... args) : value(std::forward<Args>(args)...) {}
+  explicit direct_storage(Args&&... args)
+      : value_(std::forward<Args>(args)...) {}
+  direct_storage(const direct_storage&) = default;
+  direct_storage(direct_storage&&) = default;
 
-  T& operator*() & noexcept { return value; }
-  const T& operator*() const& noexcept { return value; }
-  T&& operator*() && noexcept { return std::move(value); }
-  const T&& operator*() const&& noexcept { return std::move(value); }
+  T* operator->() noexcept { return &value_; }
+  const T* operator->() const noexcept { return &value_; }
+  T& operator*() & noexcept { return value_; }
+  const T& operator*() const& noexcept { return value_; }
+  T&& operator*() && noexcept { return std::move(value_); }
+  const T&& operator*() const&& noexcept { return std::move(value_); }
 
-  T value;
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  T value_;
 };
 template <class Alloc>
 struct alloc_aware {
@@ -1086,32 +1092,31 @@ class heap_ptr_base {
 
 template <class T, class Alloc>
 class allocated_ptr
-    : private alloc_aware<Alloc>, public heap_ptr_base<raii_storage<T>> {
+    : private alloc_aware<Alloc>, public heap_ptr_base<direct_storage<T>> {
  public:
   template <class... Args>
   allocated_ptr(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), heap_ptr_base<raii_storage<T>>(
-            allocate<raii_storage<T>>(this->alloc, std::forward<Args>(args)...))
-      {}
+      : alloc_aware<Alloc>(alloc), heap_ptr_base<direct_storage<T>>(allocate<
+          direct_storage<T>>(this->alloc, std::forward<Args>(args)...)) {}
   allocated_ptr(const allocated_ptr& rhs)
       requires(std::is_copy_constructible_v<T>)
-      : alloc_aware<Alloc>(rhs), heap_ptr_base<raii_storage<T>>(
-            rhs.ptr_ == nullptr ? nullptr : allocate<raii_storage<T>>(
+      : alloc_aware<Alloc>(rhs), heap_ptr_base<direct_storage<T>>(
+            rhs.ptr_ == nullptr ? nullptr : allocate<direct_storage<T>>(
                 this->alloc, std::as_const(*rhs.ptr_))) {}
   allocated_ptr(allocated_ptr&& rhs)
       noexcept(std::is_nothrow_move_constructible_v<Alloc>)
       : alloc_aware<Alloc>(rhs),
-        heap_ptr_base<raii_storage<T>>(std::exchange(rhs.ptr_, nullptr)) {}
+        heap_ptr_base<direct_storage<T>>(std::exchange(rhs.ptr_, nullptr)) {}
   ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>)
       { if (this->ptr_ != nullptr) { deallocate(this->alloc, this->ptr_); } }
 };
 
 template <class T, class Alloc>
-struct compact_ptr_storage : alloc_aware<Alloc>, raii_storage<T> {
+struct compact_ptr_storage : alloc_aware<Alloc>, direct_storage<T> {
   template <class... Args>
   explicit compact_ptr_storage(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), raii_storage<T>(std::forward<Args>(args)...)
-      {}
+      : alloc_aware<Alloc>(alloc),
+            direct_storage<T>(std::forward<Args>(args)...) {}
 };
 template <class T, class Alloc>
 class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
@@ -1124,7 +1129,7 @@ class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
   compact_ptr(const compact_ptr& rhs) requires(std::is_copy_constructible_v<T>)
       : heap_ptr_base<compact_ptr_storage<T, Alloc>>(rhs.ptr_ == nullptr ?
             nullptr : allocate<compact_ptr_storage<T, Alloc>>(rhs.ptr_->alloc,
-                rhs.ptr_->alloc, std::as_const(rhs.ptr_->value))) {}
+                rhs.ptr_->alloc, *rhs)) {}
   compact_ptr(compact_ptr&& rhs) noexcept
       : heap_ptr_base<compact_ptr_storage<T, Alloc>>(
             std::exchange(rhs.ptr_, nullptr)) {}
@@ -1134,11 +1139,11 @@ class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
 };
 
 template <class T, class Alloc>
-struct shared_compact_ptr_storage : alloc_aware<Alloc>, raii_storage<T> {
+struct shared_compact_ptr_storage : alloc_aware<Alloc>, direct_storage<T> {
   template <class... Args>
   explicit shared_compact_ptr_storage(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), raii_storage<T>(std::forward<Args>(args)...),
-        ref_count(1u) {}
+      : alloc_aware<Alloc>(alloc),
+            direct_storage<T>(std::forward<Args>(args)...), ref_count(1u) {}
 
   std::atomic_size_t ref_count;
 };
