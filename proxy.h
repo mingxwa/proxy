@@ -741,8 +741,8 @@ class inplace_ptr {
   inplace_ptr& operator=(const inplace_ptr&) = default;
   inplace_ptr& operator=(inplace_ptr&&) = default;
 
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
+  T* operator->() noexcept { return std::addressof(value_); }
+  const T* operator->() const noexcept { return std::addressof(value_); }
   T& operator*() & noexcept { return value_; }
   const T& operator*() const& noexcept { return value_; }
   T&& operator*() && noexcept { return std::move(value_); }
@@ -782,22 +782,7 @@ class proxy : public details::facade_traits<F>::direct_accessor,
   using _Traits = details::facade_traits<F>;
 
  public:
-  proxy() noexcept {
-    /*___PRO_DEBUG(
-      std::ignore = static_cast<proxy_indirect_accessor<F>*
-          (proxy::*)() noexcept>(&proxy::operator->);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>*
-          (proxy::*)() const noexcept>(&proxy::operator->);
-      std::ignore = static_cast<proxy_indirect_accessor<F>&
-          (proxy::*)() & noexcept>(&proxy::operator*);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>&
-          (proxy::*)() const& noexcept>(&proxy::operator*);
-      std::ignore = static_cast<proxy_indirect_accessor<F>&&
-          (proxy::*)() && noexcept>(&proxy::operator*);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>&&
-          (proxy::*)() const&& noexcept>(&proxy::operator*);
-    )*/
-  }
+  proxy() noexcept { ___PRO_DEBUG(std::ignore = &_symbol_guard;) }
   proxy(std::nullptr_t) noexcept : proxy() {}
   proxy(const proxy&) noexcept requires(F::constraints.copyability ==
       constraint_level::trivial) = default;
@@ -960,6 +945,11 @@ class proxy : public details::facade_traits<F>::direct_accessor,
     if constexpr (std::is_constructible_v<bool, P&>) { assert(result); }
     meta_ = details::meta_ptr<typename _Traits::meta>{std::in_place_type<P>};
     return result;
+  }
+
+  static inline void _symbol_guard(proxy& self, const proxy& cself) noexcept {
+    self.operator->(); *self; *std::move(self);
+    cself.operator->(); *cself; *std::move(cself);
   }
 
   details::meta_ptr<typename _Traits::meta> meta_;
@@ -1846,7 +1836,7 @@ struct proxy_typeid_reflector {
       return *refl.info;
     }
 ___PRO_DEBUG(
-    accessor() noexcept { std::ignore = &accessor::_symbol_guard; }
+    accessor() noexcept { std::ignore = &_symbol_guard; }
 
    private:
     static inline const std::type_info& _symbol_guard(
@@ -2024,7 +2014,7 @@ struct operator_dispatch;
             SELF, std::forward<Arg>(arg)); \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline R _symbol_guard(Arg arg, SELF_ARG) NE { \
@@ -2073,7 +2063,7 @@ ___PRO_DEBUG( \
         return arg; \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline Arg& _symbol_guard(Arg& arg, SELF_ARG) NE \
@@ -2242,7 +2232,7 @@ struct weak_dispatch : D {
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { ::std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { ::std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline __R _symbol_guard(__SELF_ARG, __Args... __args) __NE { \
