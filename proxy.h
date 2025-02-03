@@ -804,7 +804,8 @@ class proxy : public details::facade_traits<F>::direct_accessor,
   proxy(const proxy& rhs)
       noexcept(F::constraints.copyability == constraint_level::nothrow)
       requires(F::constraints.copyability == constraint_level::nontrivial ||
-          F::constraints.copyability == constraint_level::nothrow) {
+          F::constraints.copyability == constraint_level::nothrow)
+      : details::inplace_ptr<proxy_indirect_accessor<F>>() {  // Make GCC happy
     if (rhs.meta_.has_value()) {
       rhs.meta_->_Traits::copyability_meta::dispatcher(*ptr_, *rhs.ptr_);
       meta_ = rhs.meta_;
