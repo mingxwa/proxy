@@ -478,10 +478,32 @@ struct lifetime_meta_traits<MP, constraint_level::nontrivial>
 template <template <bool> class MP, constraint_level C>
 using lifetime_meta_t = typename lifetime_meta_traits<MP, C>::type;
 
+template <class T>
+struct direct_storage {
+  template <class... Args>
+  explicit direct_storage(Args&&... args)
+      : value_(std::forward<Args>(args)...) {}
+  direct_storage(const direct_storage&) = default;
+  direct_storage(direct_storage&&) = default;
+  direct_storage& operator=(const direct_storage&) = default;
+  direct_storage& operator=(direct_storage&&) = default;
+
+  T* operator->() noexcept { return &value_; }
+  const T* operator->() const noexcept { return &value_; }
+  T& operator*() & noexcept { return value_; }
+  const T& operator*() const& noexcept { return value_; }
+  T&& operator*() && noexcept { return std::move(value_); }
+  const T&& operator*() const&& noexcept { return std::move(value_); }
+
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  T value_;
+};
+
 template <class... As>
 class ___PRO_ENFORCE_EBO composite_accessor_impl : public As... {
+  friend struct direct_storage<composite_accessor_impl>;
   template <class> friend class pro::proxy;
-  template <class F> friend struct pro::proxy_indirect_accessor;
+  template <class> friend struct pro::proxy_indirect_accessor;
 
   composite_accessor_impl() noexcept = default;
   composite_accessor_impl(const composite_accessor_impl&) noexcept = default;
@@ -710,7 +732,7 @@ struct proxy_helper {
 #pragma diagnostic push
 #pragma diag_suppress offset_in_non_POD_nonstandard
 #endif  // defined(__NVCOMPILER)
-      constexpr std::size_t offset = offsetof(proxy<F>, ia_);
+      constexpr std::size_t offset = offsetof(proxy<F>, value_);
 #if defined(__INTEL_COMPILER)
 #pragma warning pop
 #elif defined(__GNUC__) || defined(__clang__)
@@ -750,14 +772,15 @@ struct proxy_indirect_accessor<F>
     : details::facade_traits<F>::indirect_accessor {};
 
 template <class F>
-class proxy : public details::facade_traits<F>::direct_accessor {
+class proxy : public details::facade_traits<F>::direct_accessor,
+    public details::direct_storage<proxy_indirect_accessor<F>> {
   static_assert(facade<F>);
   friend struct details::proxy_helper<F>;
   using _Traits = details::facade_traits<F>;
 
  public:
   proxy() noexcept {
-    ___PRO_DEBUG(
+    /*___PRO_DEBUG(
       std::ignore = static_cast<proxy_indirect_accessor<F>*
           (proxy::*)() noexcept>(&proxy::operator->);
       std::ignore = static_cast<const proxy_indirect_accessor<F>*
@@ -770,7 +793,7 @@ class proxy : public details::facade_traits<F>::direct_accessor {
           (proxy::*)() && noexcept>(&proxy::operator*);
       std::ignore = static_cast<const proxy_indirect_accessor<F>&&
           (proxy::*)() const&& noexcept>(&proxy::operator*);
-    )
+    )*/
   }
   proxy(std::nullptr_t) noexcept : proxy() {}
   proxy(const proxy&) noexcept requires(F::constraints.copyability ==
@@ -919,16 +942,6 @@ class proxy : public details::facade_traits<F>::direct_accessor {
       requires(std::is_constructible_v<P, std::initializer_list<U>&, Args...> &&
           F::constraints.destructibility >= constraint_level::nontrivial)
       { reset(); return initialize<P>(il, std::forward<Args>(args)...); }
-  proxy_indirect_accessor<F>* operator->() noexcept
-      { return std::addressof(ia_); }
-  const proxy_indirect_accessor<F>* operator->() const noexcept
-      { return std::addressof(ia_); }
-  proxy_indirect_accessor<F>& operator*() & noexcept { return ia_; }
-  const proxy_indirect_accessor<F>& operator*() const& noexcept { return ia_; }
-  proxy_indirect_accessor<F>&& operator*() && noexcept
-      { return std::move(ia_); }
-  const proxy_indirect_accessor<F>&& operator*() const&& noexcept
-      { return std::move(ia_); }
 
   friend void swap(proxy& lhs, proxy& rhs) noexcept(noexcept(lhs.swap(rhs)))
       { lhs.swap(rhs); }
@@ -945,8 +958,6 @@ class proxy : public details::facade_traits<F>::direct_accessor {
     return result;
   }
 
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  proxy_indirect_accessor<F> ia_;
   details::meta_ptr<typename _Traits::meta> meta_;
   alignas(F::constraints.max_align) std::byte ptr_[F::constraints.max_size];
 };
@@ -1046,24 +1057,6 @@ void deallocate(const Alloc& alloc, T* ptr) {
   std::destroy_at(ptr);
   al.deallocate(ptr, 1);
 }
-template <class T>
-struct direct_storage {
-  template <class... Args>
-  explicit direct_storage(Args&&... args)
-      : value_(std::forward<Args>(args)...) {}
-  direct_storage(const direct_storage&) = default;
-  direct_storage(direct_storage&&) = default;
-
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
-  T& operator*() & noexcept { return value_; }
-  const T& operator*() const& noexcept { return value_; }
-  T&& operator*() && noexcept { return std::move(value_); }
-  const T&& operator*() const&& noexcept { return std::move(value_); }
-
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  T value_;
-};
 template <class Alloc>
 struct alloc_aware {
  public:
