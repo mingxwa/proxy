@@ -662,27 +662,6 @@ struct meta_ptr_reset_guard {
   MP& meta_;
 };
 
-template <class T>
-struct direct_storage {
-  template <class... Args>
-  explicit direct_storage(Args&&... args)
-      : value_(std::forward<Args>(args)...) {}
-  direct_storage(const direct_storage&) = default;
-  direct_storage(direct_storage&&) = default;
-  direct_storage& operator=(const direct_storage&) = default;
-  direct_storage& operator=(direct_storage&&) = default;
-
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
-  T& operator*() & noexcept { return value_; }
-  const T& operator*() const& noexcept { return value_; }
-  T&& operator*() && noexcept { return std::move(value_); }
-  const T&& operator*() const&& noexcept { return std::move(value_); }
-
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  T value_;
-};
-
 template <class F>
 struct proxy_helper {
   static inline const auto& get_meta(const proxy<F>& p) noexcept {
@@ -750,6 +729,30 @@ struct proxy_helper {
   }
 };
 
+template <class T>
+class inplace_ptr {
+  template <class> friend struct proxy_helper;
+
+ public:
+  template <class... Args>
+  explicit inplace_ptr(Args&&... args) : value_(std::forward<Args>(args)...) {}
+  inplace_ptr(const inplace_ptr&) = default;
+  inplace_ptr(inplace_ptr&&) = default;
+  inplace_ptr& operator=(const inplace_ptr&) = default;
+  inplace_ptr& operator=(inplace_ptr&&) = default;
+
+  T* operator->() noexcept { return &value_; }
+  const T* operator->() const noexcept { return &value_; }
+  T& operator*() & noexcept { return value_; }
+  const T& operator*() const& noexcept { return value_; }
+  T&& operator*() && noexcept { return std::move(value_); }
+  const T&& operator*() const&& noexcept { return std::move(value_); }
+
+ private:
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  T value_;
+};
+
 }  // namespace details
 
 template <class F>
@@ -769,11 +772,11 @@ template <class F> requires(!std::is_same_v<typename details::facade_traits<F>
     ::indirect_accessor, details::composite_accessor_impl<>>)
 struct proxy_indirect_accessor<F>
     : details::facade_traits<F>::indirect_accessor
-    { friend struct details::direct_storage<proxy_indirect_accessor>; };
+    { friend class details::inplace_ptr<proxy_indirect_accessor>; };
 
 template <class F>
 class proxy : public details::facade_traits<F>::direct_accessor,
-    public details::direct_storage<proxy_indirect_accessor<F>> {
+    public details::inplace_ptr<proxy_indirect_accessor<F>> {
   static_assert(facade<F>);
   friend struct details::proxy_helper<F>;
   using _Traits = details::facade_traits<F>;
@@ -1018,28 +1021,6 @@ const proxy<F>&& access_proxy(const A&& a) noexcept {
 
 namespace details {
 
-template <class T>
-class inplace_ptr {
- public:
-  template <class... Args>
-  inplace_ptr(Args&&... args) : value_(std::forward<Args>(args)...) {}
-  inplace_ptr(const inplace_ptr&)
-      noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
-  inplace_ptr(inplace_ptr&&)
-      noexcept(std::is_nothrow_move_constructible_v<T>) = default;
-
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
-  T& operator*() & noexcept { return value_; }
-  const T& operator*() const& noexcept { return value_; }
-  T&& operator*() && noexcept { return std::forward<T>(value_); }
-  const T&& operator*() const&& noexcept
-      { return std::forward<const T>(value_); }
-
- private:
-  T value_;
-};
-
 #if __STDC_HOSTED__
 template <class T, class Alloc, class... Args>
 T* allocate(const Alloc& alloc, Args&&... args) {
@@ -1085,31 +1066,31 @@ class heap_ptr_base {
 
 template <class T, class Alloc>
 class allocated_ptr
-    : private alloc_aware<Alloc>, public heap_ptr_base<direct_storage<T>> {
+    : private alloc_aware<Alloc>, public heap_ptr_base<inplace_ptr<T>> {
  public:
   template <class... Args>
   allocated_ptr(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), heap_ptr_base<direct_storage<T>>(allocate<
-          direct_storage<T>>(this->alloc, std::forward<Args>(args)...)) {}
+      : alloc_aware<Alloc>(alloc), heap_ptr_base<inplace_ptr<T>>(allocate<
+          inplace_ptr<T>>(this->alloc, std::forward<Args>(args)...)) {}
   allocated_ptr(const allocated_ptr& rhs)
       requires(std::is_copy_constructible_v<T>)
-      : alloc_aware<Alloc>(rhs), heap_ptr_base<direct_storage<T>>(
-            rhs.ptr_ == nullptr ? nullptr : allocate<direct_storage<T>>(
+      : alloc_aware<Alloc>(rhs), heap_ptr_base<inplace_ptr<T>>(
+            rhs.ptr_ == nullptr ? nullptr : allocate<inplace_ptr<T>>(
                 this->alloc, std::as_const(*rhs.ptr_))) {}
   allocated_ptr(allocated_ptr&& rhs)
       noexcept(std::is_nothrow_move_constructible_v<Alloc>)
       : alloc_aware<Alloc>(rhs),
-        heap_ptr_base<direct_storage<T>>(std::exchange(rhs.ptr_, nullptr)) {}
+        heap_ptr_base<inplace_ptr<T>>(std::exchange(rhs.ptr_, nullptr)) {}
   ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>)
       { if (this->ptr_ != nullptr) { deallocate(this->alloc, this->ptr_); } }
 };
 
 template <class T, class Alloc>
-struct compact_ptr_storage : alloc_aware<Alloc>, direct_storage<T> {
+struct compact_ptr_storage : alloc_aware<Alloc>, inplace_ptr<T> {
   template <class... Args>
   explicit compact_ptr_storage(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc),
-            direct_storage<T>(std::forward<Args>(args)...) {}
+      : alloc_aware<Alloc>(alloc), inplace_ptr<T>(std::forward<Args>(args)...)
+      {}
 };
 template <class T, class Alloc>
 class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
@@ -1132,11 +1113,11 @@ class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
 };
 
 template <class T, class Alloc>
-struct shared_compact_ptr_storage : alloc_aware<Alloc>, direct_storage<T> {
+struct shared_compact_ptr_storage : alloc_aware<Alloc>, inplace_ptr<T> {
   template <class... Args>
   explicit shared_compact_ptr_storage(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc),
-            direct_storage<T>(std::forward<Args>(args)...), ref_count(1u) {}
+      : alloc_aware<Alloc>(alloc), inplace_ptr<T>(std::forward<Args>(args)...),
+        ref_count(1u) {}
 
   std::atomic_size_t ref_count;
 };
