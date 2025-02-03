@@ -18,6 +18,7 @@
 #include <utility>
 
 #if __STDC_HOSTED__
+#include <atomic>
 #include <format>
 #endif  // __STDC_HOSTED__
 
@@ -1046,9 +1047,14 @@ void deallocate(const Alloc& alloc, T* ptr) {
   al.deallocate(ptr, 1);
 }
 template <class T>
-struct heap_storage {
+struct raii_storage {
   template <class... Args>
-  explicit heap_storage(Args&&... args) : value(std::forward<Args>(args)...) {}
+  explicit raii_storage(Args&&... args) : value(std::forward<Args>(args)...) {}
+
+  T& operator*() & noexcept { return value; }
+  const T& operator*() const& noexcept { return value; }
+  T&& operator*() && noexcept { return std::move(value); }
+  const T&& operator*() const&& noexcept { return std::move(value); }
 
   T value;
 };
@@ -1066,12 +1072,13 @@ class heap_ptr_base {
  public:
   explicit heap_ptr_base(T* ptr) noexcept : ptr_(ptr) {}
 
-  auto operator->() noexcept { return &ptr_->value; }
-  auto operator->() const noexcept { return &ptr_->value; }
-  decltype(auto) operator*() & noexcept { return (ptr_->value); }
-  decltype(auto) operator*() const& noexcept { return (ptr_->value); }
-  decltype(auto) operator*() && noexcept { return std::move(ptr_->value); }
-  decltype(auto) operator*() const&& noexcept { return std::move(ptr_->value); }
+  auto operator->() noexcept { return &**ptr_; }
+  auto operator->() const noexcept { return &**ptr_; }
+  decltype(auto) operator*() & noexcept { return **ptr_; }
+  decltype(auto) operator*() const& noexcept { return *std::as_const(*ptr_); }
+  decltype(auto) operator*() && noexcept { return *std::move(*ptr_); }
+  decltype(auto) operator*() const&& noexcept
+      { return *std::move(std::as_const(*ptr_)); }
 
  protected:
   T* ptr_;
@@ -1079,33 +1086,32 @@ class heap_ptr_base {
 
 template <class T, class Alloc>
 class allocated_ptr
-    : private alloc_aware<Alloc>, public heap_ptr_base<heap_storage<T>> {
+    : private alloc_aware<Alloc>, public heap_ptr_base<raii_storage<T>> {
  public:
   template <class... Args>
   allocated_ptr(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), heap_ptr_base<heap_storage<T>>(
-            allocate<heap_storage<T>>(this->alloc, std::forward<Args>(args)...))
+      : alloc_aware<Alloc>(alloc), heap_ptr_base<raii_storage<T>>(
+            allocate<raii_storage<T>>(this->alloc, std::forward<Args>(args)...))
       {}
   allocated_ptr(const allocated_ptr& rhs)
       requires(std::is_copy_constructible_v<T>)
-      : alloc_aware<Alloc>(rhs), heap_ptr_base<heap_storage<T>>(
-            rhs.ptr_ == nullptr ? nullptr : allocate<heap_storage<T>>(
+      : alloc_aware<Alloc>(rhs), heap_ptr_base<raii_storage<T>>(
+            rhs.ptr_ == nullptr ? nullptr : allocate<raii_storage<T>>(
                 this->alloc, std::as_const(*rhs.ptr_))) {}
   allocated_ptr(allocated_ptr&& rhs)
       noexcept(std::is_nothrow_move_constructible_v<Alloc>)
       : alloc_aware<Alloc>(rhs),
-        heap_ptr_base<heap_storage<T>>(std::exchange(rhs.ptr_, nullptr)) {}
+        heap_ptr_base<raii_storage<T>>(std::exchange(rhs.ptr_, nullptr)) {}
   ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>)
       { if (this->ptr_ != nullptr) { deallocate(this->alloc, this->ptr_); } }
 };
 
 template <class T, class Alloc>
-struct compact_ptr_storage : alloc_aware<Alloc>, heap_storage<T> {
+struct compact_ptr_storage : alloc_aware<Alloc>, raii_storage<T> {
   template <class... Args>
   explicit compact_ptr_storage(const Alloc& alloc, Args&&... args)
-      : alloc_aware<Alloc>(alloc), heap_storage<T>(std::forward<Args>(args)...)
+      : alloc_aware<Alloc>(alloc), raii_storage<T>(std::forward<Args>(args)...)
       {}
-  compact_ptr_storage(const compact_ptr_storage&) = default;
 };
 template <class T, class Alloc>
 class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
@@ -1127,6 +1133,72 @@ class compact_ptr : public heap_ptr_base<compact_ptr_storage<T, Alloc>> {
   }
 };
 
+template <class T, class Alloc>
+struct shared_compact_ptr_storage : alloc_aware<Alloc>, raii_storage<T> {
+  template <class... Args>
+  explicit shared_compact_ptr_storage(const Alloc& alloc, Args&&... args)
+      : alloc_aware<Alloc>(alloc), raii_storage<T>(std::forward<Args>(args)...),
+        ref_count(1u) {}
+
+  std::atomic_size_t ref_count;
+};
+template <class T, class Alloc>
+class shared_compact_ptr
+    : public heap_ptr_base<shared_compact_ptr_storage<T, Alloc>> {
+ public:
+  template <class... Args>
+  shared_compact_ptr(const Alloc& alloc, Args&&... args)
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(
+            allocate<shared_compact_ptr_storage<T, Alloc>>(
+                alloc, alloc, std::forward<Args>(args)...)) {}
+  shared_compact_ptr(const shared_compact_ptr& rhs) noexcept
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(rhs.ptr_)
+      { this->ptr_->ref_count.fetch_add(1u, std::memory_order::relaxed); }
+  shared_compact_ptr(shared_compact_ptr&& rhs) noexcept
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(
+            std::exchange(rhs.ptr_, nullptr)) {}
+  ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (this->ptr_ != nullptr &&
+        this->ptr_->ref_count.fetch_sub(1u, std::memory_order::release) == 1u) {
+      std::atomic_thread_fence(std::memory_order::acquire);
+      deallocate(this->ptr_->alloc, this->ptr_);
+    }
+  }
+};
+
+/*template <class T, class Alloc>
+struct strong_weak_compact_ptr_storage : alloc_aware<Alloc>, raii_storage<T> {
+  template <class... Args>
+  explicit shared_compact_ptr_storage(const Alloc& alloc, Args&&... args)
+      : shared_compact_ptr_storage<T, Alloc>(
+            alloc, std::forward<Args>(args)...), weak_count(1u) {}
+
+  std::atomic_size_t weak_count;
+};
+template <class T, class Alloc>
+class strong_compact_ptr
+    : public heap_ptr_base<strong_weak_compact_ptr_storage<T, Alloc>> {
+ public:
+  template <class... Args>
+  shared_compact_ptr(const Alloc& alloc, Args&&... args)
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(
+            allocate<shared_compact_ptr_storage<T, Alloc>>(
+                alloc, alloc, std::forward<Args>(args)...)) {}
+  shared_compact_ptr(const shared_compact_ptr& rhs) noexcept
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(rhs.ptr_)
+      { this->ptr_->ref_count.fetch_add(1u, std::memory_order::relaxed); }
+  shared_compact_ptr(shared_compact_ptr&& rhs) noexcept
+      : heap_ptr_base<shared_compact_ptr_storage<T, Alloc>>(
+            std::exchange(rhs.ptr_, nullptr)) {}
+  ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (this->ptr_ != nullptr &&
+        this->ptr_->ref_count.fetch_sub(1u, std::memory_order::release) == 1u) {
+      std::atomic_thread_fence(std::memory_order::acquire);
+      deallocate(this->ptr_->alloc, this->ptr_);
+    }
+  }
+};*/
+
 template <class F, class T, class Alloc, class... Args>
 proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
   if constexpr (proxiable<allocated_ptr<T, Alloc>, F>) {
@@ -1144,8 +1216,23 @@ proxy<F> make_proxy_impl(Args&&... args) {
         std::forward<Args>(args)...};
   } else {
     return allocate_proxy_impl<F, T>(
-        std::allocator<T>{}, std::forward<Args>(args)...);
+        std::allocator<void>{}, std::forward<Args>(args)...);
   }
+}
+template <class F, class T, class Alloc, class... Args>
+proxy<F> allocate_proxy_shared_impl(const Alloc& alloc, Args&&... args) {
+  if constexpr (proxiable<shared_compact_ptr<T, Alloc>, F>) {
+    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>,
+        alloc, std::forward<Args>(args)...};
+  } else {
+    // TODO
+    throw 123;
+  }
+}
+template <class F, class T, class... Args>
+proxy<F> make_proxy_shared_impl(Args&&... args) {
+  return allocate_proxy_shared_impl<F, T>(
+      std::allocator<void>{}, std::forward<Args>(args)...);
 }
 #endif  // __STDC_HOSTED__
 
@@ -1181,7 +1268,7 @@ proxy<F> make_proxy_inplace(T&& value)
 #if __STDC_HOSTED__
 template <class T, class F>
 concept proxiable_target = inplace_proxiable_target<T, F> ||
-    proxiable<details::allocated_ptr<T, std::allocator<T>>, F>;
+    proxiable<details::allocated_ptr<T, std::allocator<void>>, F>;
 
 template <facade F, proxiable_target<F> T, class Alloc, class... Args>
 proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
@@ -1189,15 +1276,16 @@ proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
   return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
 }
 template <facade F, proxiable_target<F> T, class Alloc, class U, class... Args>
-proxy<F> allocate_proxy(const Alloc& alloc, std::initializer_list<U> il,
-    Args&&... args)
+proxy<F> allocate_proxy(
+    const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
     requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::allocate_proxy_impl<F, T>(
       alloc, il, std::forward<Args>(args)...);
 }
 template <facade F, class Alloc, class T>
 proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
-    requires(std::is_constructible_v<std::decay_t<T>, T>) {
+    requires(proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
@@ -1214,6 +1302,49 @@ proxy<F> make_proxy(T&& value)
     requires(proxiable_target<std::decay_t<T>, F> &&
         std::is_constructible_v<std::decay_t<T>, T>) {
   return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
+}
+
+template <class T, class F>
+concept shared_proxiable_target =
+    proxiable<details::shared_compact_ptr<T, std::allocator<void>>, F>;
+
+template <facade F, shared_proxiable_target<F> T, class Alloc, class... Args>
+proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
+  return details::allocate_proxy_shared_impl<F, T>(
+      alloc, std::forward<Args>(args)...);
+}
+template <facade F, shared_proxiable_target<F> T, class Alloc, class U,
+    class... Args>
+proxy<F> allocate_proxy_shared(
+    const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
+  return details::allocate_proxy_shared_impl<F, T>(
+      alloc, il, std::forward<Args>(args)...);
+}
+template <facade F, class Alloc, class T>
+proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
+    requires(shared_proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
+  return details::allocate_proxy_shared_impl<F, std::decay_t<T>>(
+      alloc, std::forward<T>(value));
+}
+template <facade F, shared_proxiable_target<F> T, class... Args>
+proxy<F> make_proxy_shared(Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
+  return details::make_proxy_shared_impl<F, T>(std::forward<Args>(args)...);
+}
+template <facade F, shared_proxiable_target<F> T, class U, class... Args>
+proxy<F> make_proxy_shared(std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
+  return details::make_proxy_shared_impl<F, T>(il, std::forward<Args>(args)...);
+}
+template <facade F, class T>
+proxy<F> make_proxy_shared(T&& value)
+    requires(shared_proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
+  return details::make_proxy_shared_impl<F, std::decay_t<T>>(
+      std::forward<T>(value));
 }
 #endif  // __STDC_HOSTED__
 
