@@ -18,6 +18,7 @@
 #include <utility>
 
 #if __STDC_HOSTED__
+#include <atomic>
 #include <format>
 #endif  // __STDC_HOSTED__
 
@@ -480,7 +481,7 @@ using lifetime_meta_t = typename lifetime_meta_traits<MP, C>::type;
 template <class... As>
 class ___PRO_ENFORCE_EBO composite_accessor_impl : public As... {
   template <class> friend class pro::proxy;
-  template <class F> friend struct pro::proxy_indirect_accessor;
+  template <class> friend struct pro::proxy_indirect_accessor;
 
   composite_accessor_impl() noexcept = default;
   composite_accessor_impl(const composite_accessor_impl&) noexcept = default;
@@ -709,7 +710,7 @@ struct proxy_helper {
 #pragma diagnostic push
 #pragma diag_suppress offset_in_non_POD_nonstandard
 #endif  // defined(__NVCOMPILER)
-      constexpr std::size_t offset = offsetof(proxy<F>, ia_);
+      constexpr std::size_t offset = offsetof(proxy<F>, value_);
 #if defined(__INTEL_COMPILER)
 #pragma warning pop
 #elif defined(__GNUC__) || defined(__clang__)
@@ -728,6 +729,30 @@ struct proxy_helper {
   }
 };
 
+template <class T>
+class inplace_ptr {
+  template <class> friend struct proxy_helper;
+
+ public:
+  template <class... Args>
+  explicit inplace_ptr(Args&&... args) : value_(std::forward<Args>(args)...) {}
+  inplace_ptr(const inplace_ptr&) = default;
+  inplace_ptr(inplace_ptr&&) = default;
+  inplace_ptr& operator=(const inplace_ptr&) = default;
+  inplace_ptr& operator=(inplace_ptr&&) = default;
+
+  T* operator->() noexcept { return std::addressof(value_); }
+  const T* operator->() const noexcept { return std::addressof(value_); }
+  T& operator*() & noexcept { return value_; }
+  const T& operator*() const& noexcept { return value_; }
+  T&& operator*() && noexcept { return std::move(value_); }
+  const T&& operator*() const&& noexcept { return std::move(value_); }
+
+ private:
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  T value_;
+};
+
 }  // namespace details
 
 template <class F>
@@ -742,42 +767,27 @@ concept proxiable = facade<F> && sizeof(P) <= F::constraints.max_size &&
     details::facade_traits<F>::template conv_applicable_ptr<P> &&
     details::facade_traits<F>::template refl_applicable_ptr<P>;
 
-template <class F> struct proxy_indirect_accessor {};
-template <class F> requires(!std::is_same_v<typename details::facade_traits<F>
-    ::indirect_accessor, details::composite_accessor_impl<>>)
-struct proxy_indirect_accessor<F>
-    : details::facade_traits<F>::indirect_accessor {};
+template <class F>
+struct proxy_indirect_accessor : details::facade_traits<F>::indirect_accessor
+    { friend class details::inplace_ptr<proxy_indirect_accessor>; };
 
 template <class F>
-class proxy : public details::facade_traits<F>::direct_accessor {
+class proxy : public details::facade_traits<F>::direct_accessor,
+    public details::inplace_ptr<proxy_indirect_accessor<F>> {
   static_assert(facade<F>);
   friend struct details::proxy_helper<F>;
   using _Traits = details::facade_traits<F>;
 
  public:
-  proxy() noexcept {
-    ___PRO_DEBUG(
-      std::ignore = static_cast<proxy_indirect_accessor<F>*
-          (proxy::*)() noexcept>(&proxy::operator->);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>*
-          (proxy::*)() const noexcept>(&proxy::operator->);
-      std::ignore = static_cast<proxy_indirect_accessor<F>&
-          (proxy::*)() & noexcept>(&proxy::operator*);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>&
-          (proxy::*)() const& noexcept>(&proxy::operator*);
-      std::ignore = static_cast<proxy_indirect_accessor<F>&&
-          (proxy::*)() && noexcept>(&proxy::operator*);
-      std::ignore = static_cast<const proxy_indirect_accessor<F>&&
-          (proxy::*)() const&& noexcept>(&proxy::operator*);
-    )
-  }
+  proxy() noexcept { ___PRO_DEBUG(std::ignore = &_symbol_guard;) }
   proxy(std::nullptr_t) noexcept : proxy() {}
   proxy(const proxy&) noexcept requires(F::constraints.copyability ==
       constraint_level::trivial) = default;
   proxy(const proxy& rhs)
       noexcept(F::constraints.copyability == constraint_level::nothrow)
       requires(F::constraints.copyability == constraint_level::nontrivial ||
-          F::constraints.copyability == constraint_level::nothrow) {
+          F::constraints.copyability == constraint_level::nothrow)
+      : details::inplace_ptr<proxy_indirect_accessor<F>>() {  // Make GCC happy
     if (rhs.meta_.has_value()) {
       rhs.meta_->_Traits::copyability_meta::dispatcher(*ptr_, *rhs.ptr_);
       meta_ = rhs.meta_;
@@ -918,16 +928,6 @@ class proxy : public details::facade_traits<F>::direct_accessor {
       requires(std::is_constructible_v<P, std::initializer_list<U>&, Args...> &&
           F::constraints.destructibility >= constraint_level::nontrivial)
       { reset(); return initialize<P>(il, std::forward<Args>(args)...); }
-  proxy_indirect_accessor<F>* operator->() noexcept
-      { return std::addressof(ia_); }
-  const proxy_indirect_accessor<F>* operator->() const noexcept
-      { return std::addressof(ia_); }
-  proxy_indirect_accessor<F>& operator*() & noexcept { return ia_; }
-  const proxy_indirect_accessor<F>& operator*() const& noexcept { return ia_; }
-  proxy_indirect_accessor<F>&& operator*() && noexcept
-      { return std::move(ia_); }
-  const proxy_indirect_accessor<F>&& operator*() const&& noexcept
-      { return std::move(ia_); }
 
   friend void swap(proxy& lhs, proxy& rhs) noexcept(noexcept(lhs.swap(rhs)))
       { lhs.swap(rhs); }
@@ -944,8 +944,11 @@ class proxy : public details::facade_traits<F>::direct_accessor {
     return result;
   }
 
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  proxy_indirect_accessor<F> ia_;
+  static inline void _symbol_guard(proxy& self, const proxy& cself) noexcept {
+    self.operator->(); *self; *std::move(self);
+    cself.operator->(); *cself; *std::move(cself);
+  }
+
   details::meta_ptr<typename _Traits::meta> meta_;
   alignas(F::constraints.max_align) std::byte ptr_[F::constraints.max_size];
 };
@@ -1006,114 +1009,214 @@ const proxy<F>&& access_proxy(const A&& a) noexcept {
 
 namespace details {
 
-template <class T>
-class inplace_ptr {
- public:
-  template <class... Args>
-  inplace_ptr(Args&&... args)
-      noexcept(std::is_nothrow_constructible_v<T, Args...>)
-      requires(std::is_constructible_v<T, Args...>)
-      : value_(std::forward<Args>(args)...) {}
-  inplace_ptr(const inplace_ptr&)
-      noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
-  inplace_ptr(inplace_ptr&&)
-      noexcept(std::is_nothrow_move_constructible_v<T>) = default;
-
-  T* operator->() noexcept { return &value_; }
-  const T* operator->() const noexcept { return &value_; }
-  T& operator*() & noexcept { return value_; }
-  const T& operator*() const& noexcept { return value_; }
-  T&& operator*() && noexcept { return std::forward<T>(value_); }
-  const T&& operator*() const&& noexcept
-      { return std::forward<const T>(value_); }
-
- private:
-  T value_;
-};
-
 #if __STDC_HOSTED__
-template <class T, class Alloc>
-static auto rebind_allocator(const Alloc& alloc) {
-  return typename std::allocator_traits<Alloc>::template rebind_alloc<T>(alloc);
-}
 template <class T, class Alloc, class... Args>
-static T* allocate(const Alloc& alloc, Args&&... args) {
-  auto al = rebind_allocator<T>(alloc);
+T* allocate(const Alloc& alloc, Args&&... args) {
+  auto al = typename std::allocator_traits<Alloc>
+      ::template rebind_alloc<T>(alloc);
   auto deleter = [&](T* ptr) { al.deallocate(ptr, 1); };
   std::unique_ptr<T, decltype(deleter)> result{al.allocate(1), deleter};
   std::construct_at(result.get(), std::forward<Args>(args)...);
   return result.release();
 }
 template <class Alloc, class T>
-static void deallocate(const Alloc& alloc, T* ptr) {
-  auto al = rebind_allocator<T>(alloc);
+void deallocate(const Alloc& alloc, T* ptr) {
+  auto al = typename std::allocator_traits<Alloc>
+      ::template rebind_alloc<T>(alloc);
   std::destroy_at(ptr);
   al.deallocate(ptr, 1);
 }
+template <class Alloc>
+struct alloc_aware {
+ public:
+  explicit alloc_aware(const Alloc& alloc) noexcept : alloc(alloc) {}
+  alloc_aware(const alloc_aware&) noexcept = default;
+
+  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  Alloc alloc;
+};
+template <class T>
+class indirect_ptr {
+ public:
+  explicit indirect_ptr(T* ptr) noexcept : ptr_(ptr) {}
+
+  auto operator->() noexcept { return std::addressof(**ptr_); }
+  auto operator->() const noexcept { return std::addressof(**ptr_); }
+  decltype(auto) operator*() & noexcept { return **ptr_; }
+  decltype(auto) operator*() const& noexcept { return *std::as_const(*ptr_); }
+  decltype(auto) operator*() && noexcept { return *std::move(*ptr_); }
+  decltype(auto) operator*() const&& noexcept
+      { return *std::move(std::as_const(*ptr_)); }
+
+ protected:
+  T* ptr_;
+};
 
 template <class T, class Alloc>
-class allocated_ptr {
+class allocated_ptr
+    : private alloc_aware<Alloc>, public indirect_ptr<inplace_ptr<T>> {
  public:
   template <class... Args>
   allocated_ptr(const Alloc& alloc, Args&&... args)
-      requires(std::is_constructible_v<T, Args...>)
-      : alloc_(alloc), ptr_(allocate<T>(alloc, std::forward<Args>(args)...)) {}
+      : alloc_aware<Alloc>(alloc), indirect_ptr<inplace_ptr<T>>(allocate<
+          inplace_ptr<T>>(this->alloc, std::forward<Args>(args)...)) {}
   allocated_ptr(const allocated_ptr& rhs)
       requires(std::is_copy_constructible_v<T>)
-      : alloc_(rhs.alloc_), ptr_(rhs.ptr_ == nullptr ? nullptr :
-            allocate<T>(alloc_, std::as_const(*rhs.ptr_))) {}
+      : alloc_aware<Alloc>(rhs), indirect_ptr<inplace_ptr<T>>(
+            rhs.ptr_ == nullptr ? nullptr : allocate<inplace_ptr<T>>(
+                this->alloc, std::as_const(*rhs.ptr_))) {}
   allocated_ptr(allocated_ptr&& rhs)
       noexcept(std::is_nothrow_move_constructible_v<Alloc>)
-      : alloc_(std::move(rhs.alloc_)), ptr_(std::exchange(rhs.ptr_, nullptr)) {}
-  ~allocated_ptr() { if (ptr_ != nullptr) { deallocate(alloc_, ptr_); } }
+      : alloc_aware<Alloc>(rhs),
+        indirect_ptr<inplace_ptr<T>>(std::exchange(rhs.ptr_, nullptr)) {}
+  ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>)
+      { if (this->ptr_ != nullptr) { deallocate(this->alloc, this->ptr_); } }
+};
 
-  T* operator->() noexcept { return ptr_; }
-  const T* operator->() const noexcept { return ptr_; }
-  T& operator*() & noexcept { return *ptr_; }
-  const T& operator*() const& noexcept { return *ptr_; }
-  T&& operator*() && noexcept { return std::forward<T>(*ptr_); }
-  const T&& operator*() const&& noexcept
-      { return std::forward<const T>(*ptr_); }
-
- private:
-  [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  Alloc alloc_;
-  T* ptr_;
+template <class T, class Alloc>
+struct compact_ptr_storage : alloc_aware<Alloc>, inplace_ptr<T> {
+  template <class... Args>
+  explicit compact_ptr_storage(const Alloc& alloc, Args&&... args)
+      : alloc_aware<Alloc>(alloc), inplace_ptr<T>(std::forward<Args>(args)...)
+      {}
 };
 template <class T, class Alloc>
-class compact_ptr {
+class compact_ptr : public indirect_ptr<compact_ptr_storage<T, Alloc>> {
+  using Storage = compact_ptr_storage<T, Alloc>;
+
  public:
   template <class... Args>
   compact_ptr(const Alloc& alloc, Args&&... args)
-      requires(std::is_constructible_v<T, Args...>)
-      : ptr_(allocate<storage>(alloc, alloc, std::forward<Args>(args)...)) {}
+      : indirect_ptr<Storage>(allocate<Storage>(
+            alloc, alloc, std::forward<Args>(args)...)) {}
   compact_ptr(const compact_ptr& rhs) requires(std::is_copy_constructible_v<T>)
-      : ptr_(rhs.ptr_ == nullptr ? nullptr : allocate<storage>(rhs.ptr_->alloc,
-            rhs.ptr_->alloc, std::as_const(rhs.ptr_->value))) {}
+      : indirect_ptr<Storage>(rhs.ptr_ == nullptr ? nullptr :
+            allocate<Storage>(rhs.ptr_->alloc, rhs.ptr_->alloc, *rhs)) {}
   compact_ptr(compact_ptr&& rhs) noexcept
-      : ptr_(std::exchange(rhs.ptr_, nullptr)) {}
-  ~compact_ptr() { if (ptr_ != nullptr) { deallocate(ptr_->alloc, ptr_); } }
+      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
+  ~compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (this->ptr_ != nullptr) { deallocate(this->ptr_->alloc, this->ptr_); }
+  }
+};
 
-  T* operator->() noexcept { return &ptr_->value; }
-  const T* operator->() const noexcept { return &ptr_->value; }
-  T& operator*() & noexcept { return ptr_->value; }
-  const T& operator*() const& noexcept { return ptr_->value; }
-  T&& operator*() && noexcept { return std::forward<T>(ptr_->value); }
-  const T&& operator*() const&& noexcept
-      { return std::forward<const T>(ptr_->value); }
+template <class T, class Alloc>
+struct shared_compact_ptr_storage : alloc_aware<Alloc>, inplace_ptr<T> {
+  template <class... Args>
+  explicit shared_compact_ptr_storage(const Alloc& alloc, Args&&... args)
+      : alloc_aware<Alloc>(alloc), inplace_ptr<T>(std::forward<Args>(args)...),
+        ref_count(1) {}
+
+  std::atomic_long ref_count;
+};
+template <class T, class Alloc>
+class shared_compact_ptr
+    : public indirect_ptr<shared_compact_ptr_storage<T, Alloc>> {
+  using Storage = shared_compact_ptr_storage<T, Alloc>;
+
+ public:
+  template <class... Args>
+  shared_compact_ptr(const Alloc& alloc, Args&&... args)
+      : indirect_ptr<Storage>(allocate<Storage>(
+            alloc, alloc, std::forward<Args>(args)...)) {}
+  shared_compact_ptr(const shared_compact_ptr& rhs) noexcept
+      : indirect_ptr<Storage>(rhs.ptr_)
+      { this->ptr_->ref_count.fetch_add(1, std::memory_order::relaxed); }
+  shared_compact_ptr(shared_compact_ptr&& rhs) noexcept
+      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
+  ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (this->ptr_ != nullptr &&
+        this->ptr_->ref_count.fetch_sub(1, std::memory_order::release) == 1) {
+      std::atomic_thread_fence(std::memory_order::acquire);
+      deallocate(this->ptr_->alloc, this->ptr_);
+    }
+  }
+};
+
+template <class T, class Alloc>
+struct strong_weak_compact_ptr_storage : alloc_aware<Alloc> {
+  template <class... Args>
+  explicit strong_weak_compact_ptr_storage(const Alloc& alloc, Args&&... args)
+      : alloc_aware<Alloc>(alloc), strong_count(1), weak_count(1) {
+    std::construct_at(
+        reinterpret_cast<T*>(&value), std::forward<Args>(args)...);
+  }
+
+  alignas(alignof(T)) std::byte value[sizeof(T)];
+  std::atomic_long strong_count;
+  std::atomic_long weak_count;
+};
+template <class T, class Alloc> class weak_compact_ptr;
+template <class T, class Alloc>
+class strong_compact_ptr
+    : public indirect_ptr<strong_weak_compact_ptr_storage<T, Alloc>> {
+  friend class weak_compact_ptr<T, Alloc>;
+  using Storage = strong_weak_compact_ptr_storage<T, Alloc>;
+
+ public:
+  template <class... Args>
+  strong_compact_ptr(const Alloc& alloc, Args&&... args)
+      : indirect_ptr<Storage>(allocate<Storage>(
+            alloc, alloc, std::forward<Args>(args)...)) {}
+  strong_compact_ptr(const strong_compact_ptr& rhs) noexcept
+      : indirect_ptr<Storage>(rhs.ptr_)
+      { this->ptr_->strong_count.fetch_add(1, std::memory_order::relaxed); }
+  strong_compact_ptr(strong_compact_ptr&& rhs) noexcept
+      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
+  ~strong_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (this->ptr_ != nullptr && this->ptr_->strong_count.fetch_sub(
+        1, std::memory_order::release) == 1) {
+      std::atomic_thread_fence(std::memory_order::acquire);
+      std::destroy_at(operator->());
+      if (this->ptr_->weak_count.fetch_sub(
+          1u, std::memory_order::release) == 1) {
+        deallocate(this->ptr_->alloc, this->ptr_);
+      }
+    }
+  }
+  explicit operator bool() const noexcept { return this->ptr_ != nullptr; }
+  T* operator->() noexcept
+      { return std::launder(reinterpret_cast<T*>(&this->ptr_->value)); }
+  const T* operator->() const noexcept
+      { return std::launder(reinterpret_cast<const T*>(&this->ptr_->value)); }
+  T& operator*() & noexcept { return *operator->(); }
+  const T& operator*() const& noexcept { return *operator->(); }
+  T&& operator*() && noexcept { return std::move(operator->()); }
+  const T&& operator*() const&& noexcept { return std::move(operator->()); }
 
  private:
-  struct storage {
-    template <class... Args>
-    explicit storage(const Alloc& alloc, Args&&... args)
-        : value(std::forward<Args>(args)...), alloc(alloc) {}
-
-    T value;
-    Alloc alloc;
-  };
-
-  storage* ptr_;
+  explicit strong_compact_ptr(Storage* ptr) noexcept
+      : indirect_ptr<Storage>(ptr) {}
 };
+template <class T, class Alloc>
+class weak_compact_ptr {
+ public:
+  weak_compact_ptr(const strong_compact_ptr<T, Alloc>& rhs) noexcept
+      : ptr_(rhs.ptr_)
+      { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
+  weak_compact_ptr(const weak_compact_ptr& rhs) noexcept : ptr_(rhs.ptr_)
+      { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
+  weak_compact_ptr(weak_compact_ptr&& rhs) noexcept
+      : ptr_(std::exchange(rhs.ptr_, nullptr)) {}
+  ~weak_compact_ptr() noexcept {
+    if (ptr_ != nullptr && ptr_->weak_count.fetch_sub(
+        1u, std::memory_order::relaxed) == 1) {
+      std::atomic_thread_fence(std::memory_order::acquire);
+      deallocate(ptr_->alloc, ptr_);
+    }
+  }
+  strong_compact_ptr<T, Alloc> lock() const noexcept {
+    long ref_count = ptr_->strong_count.load(std::memory_order::relaxed);
+    do {
+      if (ref_count == 0) { return strong_compact_ptr<T, Alloc>{nullptr}; }
+    } while (!ptr_->strong_count.compare_exchange_weak(
+        ref_count, ref_count - 1, std::memory_order::relaxed));
+    return strong_compact_ptr<T, Alloc>{ptr_};
+  }
+
+ private:
+  strong_weak_compact_ptr_storage<T, Alloc>* ptr_;
+};
+
 template <class F, class T, class Alloc, class... Args>
 proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
   if constexpr (proxiable<allocated_ptr<T, Alloc>, F>) {
@@ -1131,8 +1234,23 @@ proxy<F> make_proxy_impl(Args&&... args) {
         std::forward<Args>(args)...};
   } else {
     return allocate_proxy_impl<F, T>(
-        std::allocator<T>{}, std::forward<Args>(args)...);
+        std::allocator<void>{}, std::forward<Args>(args)...);
   }
+}
+template <class F, class T, class Alloc, class... Args>
+proxy<F> allocate_proxy_shared_impl(const Alloc& alloc, Args&&... args) {
+  if constexpr (proxiable<shared_compact_ptr<T, Alloc>, F>) {
+    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>,
+        alloc, std::forward<Args>(args)...};
+  } else {
+    // TODO
+    throw 123;
+  }
+}
+template <class F, class T, class... Args>
+proxy<F> make_proxy_shared_impl(Args&&... args) {
+  return allocate_proxy_shared_impl<F, T>(
+      std::allocator<void>{}, std::forward<Args>(args)...);
 }
 #endif  // __STDC_HOSTED__
 
@@ -1143,50 +1261,108 @@ concept inplace_proxiable_target = proxiable<details::inplace_ptr<T>, F>;
 
 template <facade F, inplace_proxiable_target<F> T, class... Args>
 proxy<F> make_proxy_inplace(Args&&... args)
-    noexcept(std::is_nothrow_constructible_v<T, Args...>) {
+    noexcept(std::is_nothrow_constructible_v<T, Args...>)
+    requires(std::is_constructible_v<T, Args...>) {
   return proxy<F>{std::in_place_type<details::inplace_ptr<T>>,
       std::forward<Args>(args)...};
 }
 template <facade F, inplace_proxiable_target<F> T, class U, class... Args>
 proxy<F> make_proxy_inplace(std::initializer_list<U> il, Args&&... args)
     noexcept(std::is_nothrow_constructible_v<
-        T, std::initializer_list<U>&, Args...>) {
+        T, std::initializer_list<U>&, Args...>)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return proxy<F>{std::in_place_type<details::inplace_ptr<T>>,
       il, std::forward<Args>(args)...};
 }
 template <facade F, class T>
 proxy<F> make_proxy_inplace(T&& value)
     noexcept(std::is_nothrow_constructible_v<std::decay_t<T>, T>)
-    requires(inplace_proxiable_target<std::decay_t<T>, F>) {
+    requires(inplace_proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
   return proxy<F>{std::in_place_type<details::inplace_ptr<std::decay_t<T>>>,
       std::forward<T>(value)};
 }
 
 #if __STDC_HOSTED__
-template <facade F, class T, class Alloc, class... Args>
-proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args) {
+template <class T, class F>
+concept proxiable_target = inplace_proxiable_target<T, F> ||
+    proxiable<details::allocated_ptr<T, std::allocator<void>>, F>;
+
+template <facade F, proxiable_target<F> T, class Alloc, class... Args>
+proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
   return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
 }
-template <facade F, class T, class Alloc, class U, class... Args>
-proxy<F> allocate_proxy(const Alloc& alloc, std::initializer_list<U> il,
-    Args&&... args) {
+template <facade F, proxiable_target<F> T, class Alloc, class U, class... Args>
+proxy<F> allocate_proxy(
+    const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::allocate_proxy_impl<F, T>(
       alloc, il, std::forward<Args>(args)...);
 }
 template <facade F, class Alloc, class T>
-proxy<F> allocate_proxy(const Alloc& alloc, T&& value) {
+proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
+    requires(proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
-template <facade F, class T, class... Args>
+template <facade F, proxiable_target<F> T, class... Args>
 proxy<F> make_proxy(Args&&... args)
+    requires(std::is_constructible_v<T, Args...>)
     { return details::make_proxy_impl<F, T>(std::forward<Args>(args)...); }
-template <facade F, class T, class U, class... Args>
+template <facade F, proxiable_target<F> T, class U, class... Args>
 proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
     { return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...); }
 template <facade F, class T>
-proxy<F> make_proxy(T&& value) {
+proxy<F> make_proxy(T&& value)
+    requires(proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
   return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
+}
+
+template <class T, class F>
+concept shared_proxiable_target =
+    proxiable<details::shared_compact_ptr<T, std::allocator<void>>, F>;
+
+template <facade F, shared_proxiable_target<F> T, class Alloc, class... Args>
+proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
+  return details::allocate_proxy_shared_impl<F, T>(
+      alloc, std::forward<Args>(args)...);
+}
+template <facade F, shared_proxiable_target<F> T, class Alloc, class U,
+    class... Args>
+proxy<F> allocate_proxy_shared(
+    const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
+  return details::allocate_proxy_shared_impl<F, T>(
+      alloc, il, std::forward<Args>(args)...);
+}
+template <facade F, class Alloc, class T>
+proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
+    requires(shared_proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
+  return details::allocate_proxy_shared_impl<F, std::decay_t<T>>(
+      alloc, std::forward<T>(value));
+}
+template <facade F, shared_proxiable_target<F> T, class... Args>
+proxy<F> make_proxy_shared(Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
+  return details::make_proxy_shared_impl<F, T>(std::forward<Args>(args)...);
+}
+template <facade F, shared_proxiable_target<F> T, class U, class... Args>
+proxy<F> make_proxy_shared(std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
+  return details::make_proxy_shared_impl<F, T>(il, std::forward<Args>(args)...);
+}
+template <facade F, class T>
+proxy<F> make_proxy_shared(T&& value)
+    requires(shared_proxiable_target<std::decay_t<T>, F> &&
+        std::is_constructible_v<std::decay_t<T>, T>) {
+  return details::make_proxy_shared_impl<F, std::decay_t<T>>(
+      std::forward<T>(value));
 }
 #endif  // __STDC_HOSTED__
 
@@ -1708,7 +1884,7 @@ struct proxy_typeid_reflector {
       return *refl.info;
     }
 ___PRO_DEBUG(
-    accessor() noexcept { std::ignore = &accessor::_symbol_guard; }
+    accessor() noexcept { std::ignore = &_symbol_guard; }
 
    private:
     static inline const std::type_info& _symbol_guard(
@@ -1886,7 +2062,7 @@ struct operator_dispatch;
             SELF, std::forward<Arg>(arg)); \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline R _symbol_guard(Arg arg, SELF_ARG) NE { \
@@ -1935,7 +2111,7 @@ ___PRO_DEBUG( \
         return arg; \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline Arg& _symbol_guard(Arg& arg, SELF_ARG) NE \
@@ -2104,7 +2280,7 @@ struct weak_dispatch : D {
             __SELF, ::std::forward<__Args>(__args)...); \
       } \
 ___PRO_DEBUG( \
-      accessor() noexcept { ::std::ignore = &accessor::_symbol_guard; } \
+      accessor() noexcept { ::std::ignore = &_symbol_guard; } \
     \
      private: \
       static inline __R _symbol_guard(__SELF_ARG, __Args... __args) __NE { \
