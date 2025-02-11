@@ -4,11 +4,12 @@ This document provides the API specifications for the C++ library Proxy (version
 
 ## Concepts
 
-| Name                                                      | Description                                                  |
-| --------------------------------------------------------- | ------------------------------------------------------------ |
-| [`facade`](facade.md)                                     | Specifies that a type models a "facade"                      |
-| [`inplace_proxiable_target`](inplace_proxiable_target.md) | Specifies that a value type can instantiate a `proxy` without allocation |
-| [`proxiable`](proxiable.md)                               | Specifies that a pointer type can instantiate a `proxy`      |
+| Name                                                         | Description                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| [`facade`](facade.md)                                        | Specifies that a type models a "facade"                      |
+| [`inplace_proxiable_target`](inplace_proxiable_target.md)    | Specifies that a value type can instantiate a `proxy` via `make_proxy_inplace` |
+| [`proxiable_target`](proxiable_target.md)<br />*(since 3.3)* | Specifies that a value type can instantiate a `proxy` via `make_proxy` |
+| [`proxiable`](proxiable.md)                                  | Specifies that a pointer type can instantiate a `proxy`      |
 
 ## Classes
 
