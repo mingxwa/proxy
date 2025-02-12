@@ -1255,7 +1255,7 @@ proxy<F> make_proxy_impl(Args&&... args) {
 template <class F, class T, class Alloc, class... Args>
 proxy<F> allocate_proxy_shared_impl(const Alloc& alloc, Args&&... args) {
   if constexpr (proxiable<shared_compact_ptr<T, Alloc>, F>) {
-    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>,
+    return proxy<F>{std::in_place_type<strong_compact_ptr<T, Alloc>>,
         alloc, std::forward<Args>(args)...};
   } else {
     // TODO
@@ -1387,6 +1387,12 @@ struct observer_facade;
 template <class F>
 using proxy_view = proxy<observer_facade<F>>;
 
+template <class F>
+struct weak_facade;
+
+template <class F>
+using weak_proxy = proxy<weak_facade<F>>;
+
 #define ___PRO_DIRECT_FUNC_IMPL(...) \
     noexcept(noexcept(__VA_ARGS__)) requires(requires { __VA_ARGS__; }) \
     { return __VA_ARGS__; }
@@ -1455,6 +1461,86 @@ using proxy_view = proxy<observer_facade<F>>;
 #define ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(...) \
     ___PRO_DEBUG( \
         accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; })
+
+#define ___PRO_EXPAND_IMPL(__X) __X
+#define ___PRO_EXPAND_MACRO_IMPL(__MACRO, __1, __2, __3, __NAME, ...) \
+    __MACRO##_##__NAME
+#define ___PRO_EXPAND_MACRO(__MACRO, ...) \
+    ___PRO_EXPAND_IMPL(___PRO_EXPAND_MACRO_IMPL( \
+        __MACRO, __VA_ARGS__, 3, 2)(__VA_ARGS__))
+
+#define ___PRO_DEF_MEM_ACCESSOR(__Q, __SELF, ...) \
+    template <class __F, bool __IsDirect, class __D, class __R, \
+        class... __Args> \
+    struct accessor<__F, __IsDirect, __D, __R(__Args...) __Q> { \
+      ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
+      __R __VA_ARGS__(__Args... __args) __Q { \
+        return ::pro::proxy_invoke<__IsDirect, __D, __R(__Args...) __Q>( \
+            __SELF, ::std::forward<__Args>(__args)...); \
+      } \
+    }
+#define ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
+    struct __NAME { \
+      template <class __T, class... __Args> \
+      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
+          ___PRO_DIRECT_FUNC_IMPL(::std::forward<__T>(__self) \
+              .__FUNC(::std::forward<__Args>(__args)...)) \
+      ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_MEM_ACCESSOR, __FNAME) \
+    }
+#define ___PRO_DEF_MEM_DISPATCH_2(__NAME, __FUNC) \
+    ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
+#define ___PRO_DEF_MEM_DISPATCH_3(__NAME, __FUNC, __FNAME) \
+    ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
+#define PRO_DEF_MEM_DISPATCH(__NAME, ...) \
+    ___PRO_EXPAND_MACRO(___PRO_DEF_MEM_DISPATCH, __NAME, __VA_ARGS__)
+
+#define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF_ARG, __SELF, ...) \
+    template <class __F, bool __IsDirect, class __D, class __R, \
+        class... __Args> \
+    struct accessor<__F, __IsDirect, __D, __R(__Args...) __Q> { \
+      friend __R __VA_ARGS__(__SELF_ARG, __Args... __args) __NE { \
+        return ::pro::proxy_invoke<__IsDirect, __D, __R(__Args...) __Q>( \
+            __SELF, ::std::forward<__Args>(__args)...); \
+      } \
+___PRO_DEBUG( \
+      accessor() noexcept { ::std::ignore = &_symbol_guard; } \
+    \
+     private: \
+      static inline __R _symbol_guard(__SELF_ARG, __Args... __args) __NE { \
+        return __VA_ARGS__(::std::forward<decltype(__self)>(__self), \
+            ::std::forward<__Args>(__args)...); \
+      } \
+) \
+    }
+#define ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
+    struct __NAME { \
+      template <class __T, class... __Args> \
+      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
+          ___PRO_DIRECT_FUNC_IMPL(__FUNC(::std::forward<__T>(__self), \
+              ::std::forward<__Args>(__args)...)) \
+      ___PRO_DEF_FREE_ACCESSOR_TEMPLATE(___PRO_DEF_FREE_ACCESSOR, __FNAME) \
+    }
+#define ___PRO_DEF_FREE_DISPATCH_2(__NAME, __FUNC) \
+    ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
+#define ___PRO_DEF_FREE_DISPATCH_3(__NAME, __FUNC, __FNAME) \
+    ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
+#define PRO_DEF_FREE_DISPATCH(__NAME, ...) \
+    ___PRO_EXPAND_MACRO(___PRO_DEF_FREE_DISPATCH, __NAME, __VA_ARGS__)
+
+#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
+    struct __NAME { \
+      template <class __T, class... __Args> \
+      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
+          ___PRO_DIRECT_FUNC_IMPL(__FUNC(::std::forward<__T>(__self), \
+              ::std::forward<__Args>(__args)...)) \
+      ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_MEM_ACCESSOR, __FNAME) \
+    }
+#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_2(__NAME, __FUNC) \
+    ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
+#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_3(__NAME, __FUNC, __FNAME) \
+    ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
+#define PRO_DEF_FREE_AS_MEM_DISPATCH(__NAME, ...) \
+    ___PRO_EXPAND_MACRO(___PRO_DEF_FREE_AS_MEM_DISPATCH, __NAME, __VA_ARGS__)
 
 #ifdef __cpp_rtti
 class bad_proxy_cast : public std::bad_cast {
@@ -1745,6 +1831,49 @@ using proxy_view_overload = proxy_view<F>() noexcept;
 template <class F>
 using proxy_view_const_overload = proxy_view<const F>() const noexcept;
 
+template <class P, class W>
+struct shared_ptr_weak_convertible {
+  template <class F>
+  operator proxy<weak_facade<F>>() const noexcept {
+    if (static_cast<bool>(ptr)) { return W{ptr}; }
+    return nullptr;
+  }
+
+  const P& ptr;
+};
+struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
+  template <class T>
+  auto operator()(const std::shared_ptr<T>& self) const noexcept {
+    return shared_ptr_weak_convertible<
+        std::shared_ptr<T>, std::weak_ptr<T>>{self};
+  }
+  template <class T, class Alloc>
+  auto operator()(const strong_compact_ptr<T, Alloc>& self) const noexcept {
+    return shared_ptr_weak_convertible<
+        strong_compact_ptr<T, Alloc>, weak_compact_ptr<T, Alloc>>{self};
+  }
+};
+template <class F>
+using weak_conversion_overload = weak_proxy<F>() const noexcept;
+
+template <class P>
+struct nullable_ptr_convertible {
+  template <class F>
+  operator proxy<F>() noexcept {
+    if (static_cast<bool>(ptr)) { return std::move(ptr); }
+    return nullptr;
+  }
+
+  P ptr;
+};
+template <class T>
+nullable_ptr_convertible<std::shared_ptr<T>> free_lock_impl(
+    const std::weak_ptr<T>& self) noexcept { return self.lock(); }
+template <class T, class Alloc>
+nullable_ptr_convertible<strong_compact_ptr<T, Alloc>> free_lock_impl(
+    const weak_compact_ptr<T, Alloc>& self) noexcept { return self.lock(); }
+PRO_DEF_FREE_AS_MEM_DISPATCH(mem_lock, lock, free_lock_impl);
+
 template <std::size_t N>
 struct sign {
   consteval sign(const char (&str)[N])
@@ -1991,6 +2120,9 @@ struct basic_facade_builder {
   using support_const_view = add_direct_convention<
       details::proxy_view_dispatch,
       facade_aware_overload_t<details::proxy_view_const_overload>>;
+  using support_weak_ownership = add_direct_convention<
+      details::weak_conversion_dispatch,
+      facade_aware_overload_t<details::weak_conversion_overload>>;
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
 };
@@ -2006,6 +2138,14 @@ struct observer_facade
       .copyability = constraint_level::trivial,
       .relocatability = constraint_level::trivial,
       .destructibility = constraint_level::trivial};
+};
+
+template <class F>
+struct weak_facade {
+  using convention_types = std::tuple<details::conv_impl<
+      true, details::mem_lock, proxy<F>() const noexcept>>;
+  using reflection_types = std::tuple<>;
+  static constexpr auto constraints = F::constraints;
 };
 
 using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
@@ -2248,86 +2388,6 @@ struct weak_dispatch : D {
   [[noreturn]] details::wildcard operator()(std::nullptr_t, Args&&...) const
       { ___PRO_THROW(not_implemented{}); }
 };
-
-#define ___PRO_EXPAND_IMPL(__X) __X
-#define ___PRO_EXPAND_MACRO_IMPL(__MACRO, __1, __2, __3, __NAME, ...) \
-    __MACRO##_##__NAME
-#define ___PRO_EXPAND_MACRO(__MACRO, ...) \
-    ___PRO_EXPAND_IMPL(___PRO_EXPAND_MACRO_IMPL( \
-        __MACRO, __VA_ARGS__, 3, 2)(__VA_ARGS__))
-
-#define ___PRO_DEF_MEM_ACCESSOR(__Q, __SELF, ...) \
-    template <class __F, bool __IsDirect, class __D, class __R, \
-        class... __Args> \
-    struct accessor<__F, __IsDirect, __D, __R(__Args...) __Q> { \
-      ___PRO_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__) \
-      __R __VA_ARGS__(__Args... __args) __Q { \
-        return ::pro::proxy_invoke<__IsDirect, __D, __R(__Args...) __Q>( \
-            __SELF, ::std::forward<__Args>(__args)...); \
-      } \
-    }
-#define ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
-    struct __NAME { \
-      template <class __T, class... __Args> \
-      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
-          ___PRO_DIRECT_FUNC_IMPL(::std::forward<__T>(__self) \
-              .__FUNC(::std::forward<__Args>(__args)...)) \
-      ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_MEM_ACCESSOR, __FNAME) \
-    }
-#define ___PRO_DEF_MEM_DISPATCH_2(__NAME, __FUNC) \
-    ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
-#define ___PRO_DEF_MEM_DISPATCH_3(__NAME, __FUNC, __FNAME) \
-    ___PRO_DEF_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
-#define PRO_DEF_MEM_DISPATCH(__NAME, ...) \
-    ___PRO_EXPAND_MACRO(___PRO_DEF_MEM_DISPATCH, __NAME, __VA_ARGS__)
-
-#define ___PRO_DEF_FREE_ACCESSOR(__Q, __NE, __SELF_ARG, __SELF, ...) \
-    template <class __F, bool __IsDirect, class __D, class __R, \
-        class... __Args> \
-    struct accessor<__F, __IsDirect, __D, __R(__Args...) __Q> { \
-      friend __R __VA_ARGS__(__SELF_ARG, __Args... __args) __NE { \
-        return ::pro::proxy_invoke<__IsDirect, __D, __R(__Args...) __Q>( \
-            __SELF, ::std::forward<__Args>(__args)...); \
-      } \
-___PRO_DEBUG( \
-      accessor() noexcept { ::std::ignore = &_symbol_guard; } \
-    \
-     private: \
-      static inline __R _symbol_guard(__SELF_ARG, __Args... __args) __NE { \
-        return __VA_ARGS__(::std::forward<decltype(__self)>(__self), \
-            ::std::forward<__Args>(__args)...); \
-      } \
-) \
-    }
-#define ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
-    struct __NAME { \
-      template <class __T, class... __Args> \
-      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
-          ___PRO_DIRECT_FUNC_IMPL(__FUNC(::std::forward<__T>(__self), \
-              ::std::forward<__Args>(__args)...)) \
-      ___PRO_DEF_FREE_ACCESSOR_TEMPLATE(___PRO_DEF_FREE_ACCESSOR, __FNAME) \
-    }
-#define ___PRO_DEF_FREE_DISPATCH_2(__NAME, __FUNC) \
-    ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
-#define ___PRO_DEF_FREE_DISPATCH_3(__NAME, __FUNC, __FNAME) \
-    ___PRO_DEF_FREE_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
-#define PRO_DEF_FREE_DISPATCH(__NAME, ...) \
-    ___PRO_EXPAND_MACRO(___PRO_DEF_FREE_DISPATCH, __NAME, __VA_ARGS__)
-
-#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME) \
-    struct __NAME { \
-      template <class __T, class... __Args> \
-      decltype(auto) operator()(__T&& __self, __Args&&... __args) const \
-          ___PRO_DIRECT_FUNC_IMPL(__FUNC(::std::forward<__T>(__self), \
-              ::std::forward<__Args>(__args)...)) \
-      ___PRO_DEF_MEM_ACCESSOR_TEMPLATE(___PRO_DEF_MEM_ACCESSOR, __FNAME) \
-    }
-#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_2(__NAME, __FUNC) \
-    ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FUNC)
-#define ___PRO_DEF_FREE_AS_MEM_DISPATCH_3(__NAME, __FUNC, __FNAME) \
-    ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
-#define PRO_DEF_FREE_AS_MEM_DISPATCH(__NAME, ...) \
-    ___PRO_EXPAND_MACRO(___PRO_DEF_FREE_AS_MEM_DISPATCH, __NAME, __VA_ARGS__)
 
 #define PRO_DEF_WEAK_DISPATCH(__NAME, __D, __FUNC) \
     struct [[deprecated("'PRO_DEF_WEAK_DISPATCH' is deprecated. " \
