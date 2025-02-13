@@ -768,6 +768,13 @@ class inplace_ptr {
   T value_;
 };
 
+template <class P>
+bool is_not_null(const P& p) {
+  if constexpr (std::is_constructible_v<bool, const P&>)
+      { return static_cast<bool>(p); }
+  return true;
+}
+
 }  // namespace details
 
 template <class F>
@@ -828,7 +835,10 @@ class proxy : public details::facade_traits<F>::direct_accessor,
       requires(!details::is_in_place_type<std::decay_t<P>> &&
           proxiable<std::decay_t<P>, F> &&
           std::is_constructible_v<std::decay_t<P>, P>)
-      : proxy() { initialize<std::decay_t<P>>(std::forward<P>(ptr)); }
+      : proxy() {
+    if (details::is_not_null(ptr))
+        { initialize<std::decay_t<P>>(std::forward<P>(ptr)); }
+  }
   template <proxiable<F> P, class... Args>
   explicit proxy(std::in_place_type_t<P>, Args&&... args)
       noexcept(std::is_nothrow_constructible_v<P, Args...>)
@@ -882,11 +892,15 @@ class proxy : public details::facade_traits<F>::direct_accessor,
       requires(proxiable<std::decay_t<P>, F> &&
           std::is_constructible_v<std::decay_t<P>, P> &&
           F::constraints.destructibility >= constraint_level::nontrivial) {
-    if constexpr (std::is_nothrow_constructible_v<std::decay_t<P>, P>) {
-      std::destroy_at(this);
-      initialize<std::decay_t<P>>(std::forward<P>(ptr));
+    if (details::is_not_null(ptr)) {
+      if constexpr (std::is_nothrow_constructible_v<std::decay_t<P>, P>) {
+        std::destroy_at(this);
+        initialize<std::decay_t<P>>(std::forward<P>(ptr));
+      } else {
+        *this = proxy{std::forward<P>(ptr)};
+      }
     } else {
-      *this = proxy{std::forward<P>(ptr)};
+      reset();
     }
     return *this;
   }
@@ -913,7 +927,7 @@ class proxy : public details::facade_traits<F>::direct_accessor,
     if constexpr (F::constraints.relocatability == constraint_level::trivial ||
         F::constraints.copyability == constraint_level::trivial) {
       std::swap(meta_, rhs.meta_);
-      std::swap(ptr_, rhs.ptr);
+      std::swap(ptr_, rhs.ptr_);
     } else {
       if (meta_.has_value()) {
         if (rhs.meta_.has_value()) {
@@ -954,7 +968,7 @@ class proxy : public details::facade_traits<F>::direct_accessor,
   P& initialize(Args&&... args) {
     P& result = *std::construct_at(
         reinterpret_cast<P*>(ptr_), std::forward<Args>(args)...);
-    if constexpr (std::is_constructible_v<bool, P&>) { assert(result); }
+    assert(details::is_not_null(result));
     meta_ = details::meta_ptr<typename _Traits::meta>{std::in_place_type<P>};
     return result;
   }
@@ -1055,6 +1069,7 @@ class indirect_ptr {
  public:
   explicit indirect_ptr(T* ptr) noexcept : ptr_(ptr) {}
 
+  explicit operator bool() const noexcept { return ptr_ != nullptr; }
   auto operator->() noexcept { return std::addressof(**ptr_); }
   auto operator->() const noexcept { return std::addressof(**ptr_); }
   decltype(auto) operator*() & noexcept { return **ptr_; }
@@ -1134,8 +1149,10 @@ class shared_compact_ptr
       : indirect_ptr<Storage>(allocate<Storage>(
             alloc, alloc, std::forward<Args>(args)...)) {}
   shared_compact_ptr(const shared_compact_ptr& rhs) noexcept
-      : indirect_ptr<Storage>(rhs.ptr_)
-      { this->ptr_->ref_count.fetch_add(1, std::memory_order::relaxed); }
+      : indirect_ptr<Storage>(rhs.ptr_) {
+    if (this->ptr_ != nullptr)
+        { this->ptr_->ref_count.fetch_add(1, std::memory_order::relaxed); }
+  }
   shared_compact_ptr(shared_compact_ptr&& rhs) noexcept
       : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
   ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
@@ -1173,8 +1190,10 @@ class strong_compact_ptr
       : indirect_ptr<Storage>(allocate<Storage>(
             alloc, alloc, std::forward<Args>(args)...)) {}
   strong_compact_ptr(const strong_compact_ptr& rhs) noexcept
-      : indirect_ptr<Storage>(rhs.ptr_)
-      { this->ptr_->strong_count.fetch_add(1, std::memory_order::relaxed); }
+      : indirect_ptr<Storage>(rhs.ptr_) {
+    if (this->ptr_ != nullptr)
+        { this->ptr_->strong_count.fetch_add(1, std::memory_order::relaxed); }
+  }
   strong_compact_ptr(strong_compact_ptr&& rhs) noexcept
       : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
   ~strong_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
@@ -1206,10 +1225,14 @@ template <class T, class Alloc>
 class weak_compact_ptr {
  public:
   weak_compact_ptr(const strong_compact_ptr<T, Alloc>& rhs) noexcept
-      : ptr_(rhs.ptr_)
-      { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
-  weak_compact_ptr(const weak_compact_ptr& rhs) noexcept : ptr_(rhs.ptr_)
-      { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
+      : ptr_(rhs.ptr_) {
+    if (ptr_ != nullptr)
+        { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
+  }
+  weak_compact_ptr(const weak_compact_ptr& rhs) noexcept : ptr_(rhs.ptr_) {
+    if (ptr_ != nullptr)
+        { ptr_->weak_count.fetch_add(1, std::memory_order::relaxed); }
+  }
   weak_compact_ptr(weak_compact_ptr&& rhs) noexcept
       : ptr_(std::exchange(rhs.ptr_, nullptr)) {}
   ~weak_compact_ptr() noexcept {
@@ -1219,6 +1242,7 @@ class weak_compact_ptr {
       deallocate(ptr_->alloc, ptr_);
     }
   }
+  explicit operator bool() const noexcept { return ptr_ != nullptr; }
   strong_compact_ptr<T, Alloc> lock() const noexcept {
     long ref_count = ptr_->strong_count.load(std::memory_order::relaxed);
     do {
@@ -1831,48 +1855,18 @@ using proxy_view_overload = proxy_view<F>() noexcept;
 template <class F>
 using proxy_view_const_overload = proxy_view<const F>() const noexcept;
 
-template <class P, class W>
-struct shared_ptr_weak_convertible {
-  template <class F>
-  operator proxy<weak_facade<F>>() const noexcept {
-    if (static_cast<bool>(ptr)) { return W{ptr}; }
-    return nullptr;
-  }
-
-  const P& ptr;
-};
 struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
   template <class T>
-  auto operator()(const std::shared_ptr<T>& self) const noexcept {
-    return shared_ptr_weak_convertible<
-        std::shared_ptr<T>, std::weak_ptr<T>>{self};
-  }
+  auto operator()(const std::shared_ptr<T>& self) const noexcept
+      { return std::weak_ptr<T>{self}; }
   template <class T, class Alloc>
-  auto operator()(const strong_compact_ptr<T, Alloc>& self) const noexcept {
-    return shared_ptr_weak_convertible<
-        strong_compact_ptr<T, Alloc>, weak_compact_ptr<T, Alloc>>{self};
-  }
+  auto operator()(const strong_compact_ptr<T, Alloc>& self) const noexcept
+      { return weak_compact_ptr<T, Alloc>{self}; }
 };
 template <class F>
 using weak_conversion_overload = weak_proxy<F>() const noexcept;
 
-template <class P>
-struct nullable_ptr_convertible {
-  template <class F>
-  operator proxy<F>() noexcept {
-    if (static_cast<bool>(ptr)) { return std::move(ptr); }
-    return nullptr;
-  }
-
-  P ptr;
-};
-template <class T>
-nullable_ptr_convertible<std::shared_ptr<T>> free_lock_impl(
-    const std::weak_ptr<T>& self) noexcept { return self.lock(); }
-template <class T, class Alloc>
-nullable_ptr_convertible<strong_compact_ptr<T, Alloc>> free_lock_impl(
-    const weak_compact_ptr<T, Alloc>& self) noexcept { return self.lock(); }
-PRO_DEF_FREE_AS_MEM_DISPATCH(mem_lock, lock, free_lock_impl);
+PRO_DEF_MEM_DISPATCH(mem_lock, lock);
 
 template <std::size_t N>
 struct sign {
