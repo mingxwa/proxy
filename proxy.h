@@ -770,9 +770,11 @@ class inplace_ptr {
 
 template <class P>
 bool is_not_null(const P& p) {
-  if constexpr (std::is_constructible_v<bool, const P&>)
-      { return static_cast<bool>(p); }
-  return true;
+  if constexpr (std::is_constructible_v<bool, const P&>) {
+    return static_cast<bool>(p);
+  } else {
+    return true;
+  }
 }
 
 }  // namespace details
