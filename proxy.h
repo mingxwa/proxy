@@ -1258,6 +1258,17 @@ class weak_compact_ptr {
   strong_weak_compact_ptr_storage<T, Alloc>* ptr_;
 };
 
+struct weak_conversion_dispatch;
+template <class... Cs>
+struct weak_ownership_support_traits_impl : inapplicable_traits {};
+template <class... Cs>
+    requires(std::is_same_v<
+        typename Cs::dispatch_type, weak_conversion_dispatch> || ...)
+struct weak_ownership_support_traits_impl<Cs...> : applicable_traits {};
+template <class F>
+struct weak_ownership_support_traits : instantiated_t<
+    weak_ownership_support_traits_impl, typename F::convention_types> {};
+
 template <class F, class T, class Alloc, class... Args>
 proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
   if constexpr (proxiable<allocated_ptr<T, Alloc>, F>) {
@@ -1280,12 +1291,12 @@ proxy<F> make_proxy_impl(Args&&... args) {
 }
 template <class F, class T, class Alloc, class... Args>
 proxy<F> allocate_proxy_shared_impl(const Alloc& alloc, Args&&... args) {
-  if constexpr (proxiable<shared_compact_ptr<T, Alloc>, F>) {
+  if constexpr (weak_ownership_support_traits<F>::applicable) {
     return proxy<F>{std::in_place_type<strong_compact_ptr<T, Alloc>>,
         alloc, std::forward<Args>(args)...};
   } else {
-    // TODO
-    throw 123;
+    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>,
+        alloc, std::forward<Args>(args)...};
   }
 }
 template <class F, class T, class... Args>
@@ -1365,7 +1376,10 @@ proxy<F> make_proxy(T&& value)
 
 template <class T, class F>
 concept shared_proxiable_target =
-    proxiable<details::shared_compact_ptr<T, std::allocator<void>>, F>;
+    (details::weak_ownership_support_traits<F>::applicable &&
+        proxiable<details::strong_compact_ptr<T, std::allocator<void>>, F>) ||
+    (!details::weak_ownership_support_traits<F>::applicable &&
+        proxiable<details::shared_compact_ptr<T, std::allocator<void>>, F>);
 
 template <facade F, shared_proxiable_target<F> T, class Alloc, class... Args>
 proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
@@ -1405,19 +1419,24 @@ proxy<F> make_proxy_shared(T&& value)
   return details::make_proxy_shared_impl<F, std::decay_t<T>>(
       std::forward<T>(value));
 }
+
+template <class F>
+struct weak_facade;
+template <class F>
+using weak_proxy = proxy<weak_facade<F>>;
 #endif  // __STDC_HOSTED__
 
 template <class F>
 struct observer_facade;
-
 template <class F>
 using proxy_view = proxy<observer_facade<F>>;
 
-template <class F>
-struct weak_facade;
-
-template <class F>
-using weak_proxy = proxy<weak_facade<F>>;
+#ifdef __cpp_rtti
+class bad_proxy_cast : public std::bad_cast {
+ public:
+  char const* what() const noexcept override { return "pro::bad_proxy_cast"; }
+};
+#endif  // __cpp_rtti
 
 #define ___PRO_DIRECT_FUNC_IMPL(...) \
     noexcept(noexcept(__VA_ARGS__)) requires(requires { __VA_ARGS__; }) \
@@ -1567,13 +1586,6 @@ ___PRO_DEBUG( \
     ___PRO_DEF_FREE_AS_MEM_DISPATCH_IMPL(__NAME, __FUNC, __FNAME)
 #define PRO_DEF_FREE_AS_MEM_DISPATCH(__NAME, ...) \
     ___PRO_EXPAND_MACRO(___PRO_DEF_FREE_AS_MEM_DISPATCH, __NAME, __VA_ARGS__)
-
-#ifdef __cpp_rtti
-class bad_proxy_cast : public std::bad_cast {
- public:
-  char const* what() const noexcept override { return "pro::bad_proxy_cast"; }
-};
-#endif  // __cpp_rtti
 
 namespace details {
 
@@ -1857,19 +1869,6 @@ using proxy_view_overload = proxy_view<F>() noexcept;
 template <class F>
 using proxy_view_const_overload = proxy_view<const F>() const noexcept;
 
-struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
-  template <class T>
-  auto operator()(const std::shared_ptr<T>& self) const noexcept
-      { return std::weak_ptr<T>{self}; }
-  template <class T, class Alloc>
-  auto operator()(const strong_compact_ptr<T, Alloc>& self) const noexcept
-      { return weak_compact_ptr<T, Alloc>{self}; }
-};
-template <class F>
-using weak_conversion_overload = weak_proxy<F>() const noexcept;
-
-PRO_DEF_MEM_DISPATCH(mem_lock, lock);
-
 template <std::size_t N>
 struct sign {
   consteval sign(const char (&str)[N])
@@ -1881,6 +1880,28 @@ template <std::size_t N>
 sign(const char (&str)[N]) -> sign<N>;
 
 #if __STDC_HOSTED__
+template <class Strong, class Weak>
+struct weak_convertible {
+  explicit weak_convertible(const Strong& ptr) : ptr_(ptr) {}
+  template <class F>
+  operator proxy<weak_facade<F>>() const noexcept { return Weak{ptr_}; }
+
+  const Strong& ptr_;
+};
+struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
+  template <class T>
+  auto operator()(const std::shared_ptr<T>& self) const noexcept
+      { return weak_convertible<std::shared_ptr<T>, std::weak_ptr<T>>{self}; }
+  template <class T, class Alloc>
+  auto operator()(const strong_compact_ptr<T, Alloc>& self) const noexcept {
+    return weak_convertible<
+        strong_compact_ptr<T, Alloc>, weak_compact_ptr<T, Alloc>>{self};
+  }
+};
+template <class F>
+using weak_conversion_overload = weak_proxy<F>() const noexcept;
+PRO_DEF_MEM_DISPATCH(mem_lock, lock);
+
 template <class CharT> struct format_overload_traits;
 template <>
 struct format_overload_traits<char>
@@ -2081,6 +2102,9 @@ struct basic_facade_builder {
   using support_destruction = basic_facade_builder<
       Cs, Rs, details::make_destructible(C, CL)>;
 #if __STDC_HOSTED__
+  using support_weak_ownership = add_direct_convention<
+      details::weak_conversion_dispatch,
+      facade_aware_overload_t<details::weak_conversion_overload>>;
   using support_format = add_convention<
       details::format_dispatch, details::format_overload_t<char>>;
   using support_wformat = add_convention<
@@ -2116,12 +2140,26 @@ struct basic_facade_builder {
   using support_const_view = add_direct_convention<
       details::proxy_view_dispatch,
       facade_aware_overload_t<details::proxy_view_const_overload>>;
-  using support_weak_ownership = add_direct_convention<
-      details::weak_conversion_dispatch,
-      facade_aware_overload_t<details::weak_conversion_overload>>;
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
 };
+using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
+    proxiable_ptr_constraints{
+        .max_size = details::invalid_size,
+        .max_align = details::invalid_size,
+        .copyability = details::invalid_cl,
+        .relocatability = details::invalid_cl,
+        .destructibility = details::invalid_cl}>;
+
+#if __STDC_HOSTED__
+template <class F>
+struct weak_facade {
+  using convention_types = std::tuple<details::conv_impl<
+      true, details::mem_lock, proxy<F>() const noexcept>>;
+  using reflection_types = std::tuple<>;
+  static constexpr auto constraints = F::constraints;
+};
+#endif  // __STDC_HOSTED__
 
 template <class F>
 struct observer_facade
@@ -2135,22 +2173,6 @@ struct observer_facade
       .relocatability = constraint_level::trivial,
       .destructibility = constraint_level::trivial};
 };
-
-template <class F>
-struct weak_facade {
-  using convention_types = std::tuple<details::conv_impl<
-      true, details::mem_lock, proxy<F>() const noexcept>>;
-  using reflection_types = std::tuple<>;
-  static constexpr auto constraints = F::constraints;
-};
-
-using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
-    proxiable_ptr_constraints{
-        .max_size = details::invalid_size,
-        .max_align = details::invalid_size,
-        .copyability = details::invalid_cl,
-        .relocatability = details::invalid_cl,
-        .destructibility = details::invalid_cl}>;
 
 template <details::sign Sign, bool Rhs = false>
 struct operator_dispatch;
