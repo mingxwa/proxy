@@ -1208,8 +1208,19 @@ proxy<F> make_proxy(T&& value) {
 template <class F>
 struct observer_facade;
 
+namespace details {
+
 template <class F>
-using proxy_view = proxy<observer_facade<F>>;
+struct proxy_view_compatibility_adapter : std::type_identity<F> {};
+template <class F>
+struct proxy_view_compatibility_adapter<const F>
+    { using type [[deprecated("Use proxy_view without const instead.")]] = F; };
+
+}  // namespace details
+
+template <class F>
+using proxy_view = proxy<observer_facade<
+    typename details::proxy_view_compatibility_adapter<F>::type>>;
 
 #define ___PRO_DIRECT_FUNC_IMPL(...) \
     noexcept(noexcept(__VA_ARGS__)) requires(requires { __VA_ARGS__; }) \
