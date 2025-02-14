@@ -1211,10 +1211,13 @@ struct observer_facade;
 namespace details {
 
 template <class F>
+struct [[deprecated("Use proxy_view without const instead.")]]
+    deprecated_proxy_view_compatibility_adapter : std::type_identity<F> {};
+template <class F>
 struct proxy_view_compatibility_adapter : std::type_identity<F> {};
 template <class F>
 struct proxy_view_compatibility_adapter<const F>
-    { using type [[deprecated("Use proxy_view without const instead.")]] = F; };
+    : deprecated_proxy_view_compatibility_adapter<F> {};
 
 }  // namespace details
 
