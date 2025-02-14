@@ -1825,14 +1825,12 @@ struct basic_facade_builder {
           details::proxy_typeid_reflector>>, C>;
   using support_rtti = support_indirect_rtti;
 #endif  // __cpp_rtti
-  template <class F>
-  using add_view [[deprecated(
-      "Use support_view and support_const_view instead.")]] =
-      add_direct_convention<
-          details::proxy_view_dispatch, details::proxy_view_overload<F>>;
   using support_view = add_direct_convention<
       details::proxy_view_dispatch,
       facade_aware_overload_t<details::proxy_view_overload>>;
+  template <class F>
+  using add_view [[deprecated(
+      "Use support_view and support_const_view instead.")]] = support_view;
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
 };
