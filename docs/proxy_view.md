@@ -2,10 +2,10 @@
 
 ```cpp
 template <class F>
-struct observer_facade;
+struct observer_facade;  // since 3.2.0
 
 template <class F>
-using proxy_view = proxy<observer_facade<F>>;
+using proxy_view = proxy<observer_facade<F>>;  // since 3.2.0
 ```
 
 Class template `observer_facade` is a [facade](facade.md) type for raw pointers potentially dereferenced from a `proxy` object. To instantiate `observer_facade<F>`, `F` shall model [concept `facade`](facade.md).

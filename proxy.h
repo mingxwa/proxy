@@ -52,7 +52,7 @@
 #define ___PRO_DEBUG(...) __VA_ARGS__
 #endif  // NDEBUG
 
-#define __msft_lib_proxy 202501L
+#define __msft_lib_proxy 202502L
 
 namespace pro {
 

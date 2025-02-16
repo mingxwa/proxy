@@ -2,7 +2,7 @@
 
 ```cpp
 template <class F>
-using add_view = basic_facade_builder</* see below */>;
+using add_view = basic_facade_builder</* see below */>;  // since 3.2.0, deprecated since 3.2.1
 ```
 
 The alias template `add_view` of `basic_facade_builder<Cs, Rs, C>` adds necessary convention types to allow implicit conversion from [`proxy`](../proxy.md)`<F1>` to [`proxy_view`](../proxy_view.md)`<F>` where `F1` is a [facade](../facade.md) type built from `basic_facade_builder`.
