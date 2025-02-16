@@ -45,4 +45,4 @@ int main() {
 
 ## See Also
 
-[`basic_facade_builder::add_view`](basic_facade_builder/add_view.md)
+[`basic_facade_builder::support_view`](basic_facade_builder/support_view.md)

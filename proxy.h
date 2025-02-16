@@ -1828,9 +1828,6 @@ struct basic_facade_builder {
   using support_view = add_direct_convention<
       details::proxy_view_dispatch,
       facade_aware_overload_t<details::proxy_view_overload>>;
-  template <class F>
-  using add_view [[deprecated(
-      "Use support_view and support_const_view instead.")]] = support_view;
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
 };
