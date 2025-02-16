@@ -1825,8 +1825,7 @@ struct basic_facade_builder {
           details::proxy_typeid_reflector>>, C>;
   using support_rtti = support_indirect_rtti;
 #endif  // __cpp_rtti
-  using support_view = add_direct_convention<
-      details::proxy_view_dispatch,
+  using support_view = add_direct_convention<details::proxy_view_dispatch,
       facade_aware_overload_t<details::proxy_view_overload>>;
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
