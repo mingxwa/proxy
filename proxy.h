@@ -1490,10 +1490,10 @@ using merge_facade_conv_t = typename add_upward_conversion_conv<
         F::constraints.relocatability : constraint_level::none>::type;
 
 template <class LR, class CLR, class RR, class CRR>
-struct pointer_view {
+struct observer_ptr {
  public:
-  explicit pointer_view(std::remove_reference_t<LR>* ptr) : ptr_(ptr) {}
-  pointer_view(const pointer_view&) = default;
+  explicit observer_ptr(std::remove_reference_t<LR>* ptr) : ptr_(ptr) {}
+  observer_ptr(const observer_ptr&) = default;
   auto operator->() noexcept { return std::addressof(static_cast<LR>(*ptr_)); }
   auto operator->() const noexcept
       { return std::addressof(static_cast<CLR>(*ptr_)); }
@@ -1509,7 +1509,7 @@ struct proxy_view_dispatch : cast_dispatch_base<false, true> {
   template <class T>
   auto operator()(T& value) const noexcept
       requires(requires { { std::addressof(*value) } noexcept; }) {
-    return pointer_view<decltype(*value), decltype(*std::as_const(value)),
+    return observer_ptr<decltype(*value), decltype(*std::as_const(value)),
         decltype(*std::move(value)), decltype(*std::move(std::as_const(value)))>
         {std::addressof(*value)};
   }

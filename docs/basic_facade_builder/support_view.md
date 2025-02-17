@@ -6,7 +6,7 @@ using support_view = basic_facade_builder</* see below */>;
 
 The member type `support_view` of `basic_facade_builder<Cs, Rs, C>` adds necessary convention types to allow implicit conversion from [`proxy`](../proxy.md)`<F>` to [`proxy_view`](../proxy_view.md)`<F>` where `F` is a [facade](../facade.md) type built from `basic_facade_builder`.
 
-Let `p` be a value of type `proxy<F>`, `ptr` be the contained value of `p` (if any), the conversion from type `proxy<F>&` to type `proxy_view<F>` is equivalent to `return raw-ptr{std::addressof(*ptr)}` if `p` contains a value, or otherwise equivalent to `return nullptr`. `raw-ptr` is an exposition-only type that `*raw-ptr`, `*std::as_const(raw-ptr)`, `*std::move(raw-ptr)` and `*std::move(std::as_const(raw-ptr))` are equivalent to `*ptr`, `*std::as_const(ptr)`, `*std::move(ptr)` and `*std::move(std::as_const(ptr))`, respectively.
+Let `p` be a value of type `proxy<F>`, `ptr` be the contained value of `p` (if any), the conversion from type `proxy<F>&` to type `proxy_view<F>` is equivalent to `return raw-ptr{std::addressof(*ptr)}` if `p` contains a value, or otherwise equivalent to `return nullptr`. `observer-ptr` is an exposition-only type that `*observer-ptr`, `*std::as_const(observer-ptr)`, `*std::move(observer-ptr)` and `*std::move(std::as_const(observer-ptr))` are equivalent to `*ptr`, `*std::as_const(ptr)`, `*std::move(ptr)` and `*std::move(std::as_const(ptr))`, respectively.
 
 ## Notes
 
