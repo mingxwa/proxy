@@ -8,7 +8,7 @@ template <class F>
 using proxy_view = proxy<observer_facade<F>>;  // since 3.2.0
 ```
 
-Class template `observer_facade` is a [facade](facade.md) type for raw pointers potentially dereferenced from a `proxy` object. To instantiate `observer_facade<F>`, `F` shall model [concept `facade`](facade.md).
+Class template `observer_facade` is a [facade](facade.md) type for observer pointers (e.g., raw pointers) potentially dereferenced from a `proxy` object. To instantiate `observer_facade<F>`, `F` shall model [concept `facade`](facade.md).
 
 ## Member Types of `observer_facade`
 
@@ -21,7 +21,7 @@ Class template `observer_facade` is a [facade](facade.md) type for raw pointers 
 
 | Name                               | Description                                                  |
 | ---------------------------------- | ------------------------------------------------------------ |
-| `constraints` [static] [constexpr] | A value of type `proxiable_ptr_constraints` indicating constraints for a raw pointer type. |
+| `constraints` [static] [constexpr] | A value of type `proxiable_ptr_constraints` indicating constraints for an observer pointer type. |
 
 ## Example
 
