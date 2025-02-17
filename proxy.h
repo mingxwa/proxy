@@ -67,7 +67,7 @@ struct proxiable_ptr_constraints {
 };
 
 template <template <class> class O>
-struct facade_aware_overload_t {};
+struct facade_aware_overload_t { facade_aware_overload_t() = delete; };
 
 template <class F> struct proxy_indirect_accessor;
 template <class F> class proxy;

@@ -2,8 +2,14 @@
 
 ```cpp
 template <template <class> class O>
-struct facade_aware_overload_t {};
+struct facade_aware_overload_t { facade_aware_overload_t() = delete; };
 ```
+
+Class template `facade_aware_overload_t<O>` specifies a facade-aware overload template `O`. It is useful when modeling an [overload](ProOverload.md) type of a [facade](facade.md) type that recursively depends on the facade type itself.
+
+## Notes
+
+The implementation of [`basic_facade_builder::support_view`](basic_facade_builder/support_view.md) relies on with this feature.
 
 ## Example
 
@@ -53,4 +59,3 @@ int main() {
 ## See Also
 
 - [*ProOverload* requirements](ProOverload.md)
-- [`basic_facade_builder::support_view`](basic_facade_builder/support_view.md)
