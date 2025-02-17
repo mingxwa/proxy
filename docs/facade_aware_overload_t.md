@@ -9,7 +9,7 @@ Class template `facade_aware_overload_t<O>` specifies a facade-aware overload te
 
 ## Notes
 
-The implementation of [`basic_facade_builder::support_view`](basic_facade_builder/support_view.md) relies on with this feature.
+`facade_aware_overload_t` can be used to define a convention in a base facade type, and is portable to the definition of another facade type via [`basic_facade_builder::add_facade`](basic_facade_builder/add_facade.md). It can also effectively avoid a facade type being implicitly instantiated when it is incomplete.
 
 ## Example
 
@@ -59,3 +59,4 @@ int main() {
 ## See Also
 
 - [*ProOverload* requirements](ProOverload.md)
+- [`basic_facade_builder::support_view`](basic_facade_builder/support_view.md)
