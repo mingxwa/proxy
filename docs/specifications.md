@@ -52,14 +52,14 @@ This document provides the API specifications for the C++ library Proxy (version
 
 ## Named Requirements
 
-| Name                                          | Description                                                  |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| [*ProAccessible*](ProAccessible.md)           | Specifies that a type provides accessibility to `proxy`      |
-| [*ProBasicConvention*](ProBasicConvention.md) | Specifies that a type potentially models a "convention"      |
-| [*ProBasicFacade*](ProBasicFacade.md)         | Specifies that a type potentially models a "facade" of `proxy` |
-| [*ProBasicReflection*](ProBasicReflection.md) | Specifies that a type potentially models a "reflection"      |
-| [*ProConvention*](ProConvention.md)           | Specifies that a type models a "convention"                  |
-| [*ProDispatch*](ProDispatch.md)               | Specifies that a type models a "dispatch"                    |
-| [*ProFacade*](ProFacade.md)                   | Specifies that a type models a "facade" of `proxy`           |
-| [*ProOverload*](ProOverload.md)               | Specifies that a type models an "overload"                   |
-| [*ProReflection*](ProReflection.md)           | Specifies that a type models a "reflection"                  |
+| Name                                                         | Description                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| [*ProAccessible*](ProAccessible.md)                          | Specifies that a type provides accessibility to `proxy`      |
+| [*ProBasicConvention*](ProBasicConvention.md)                | Specifies that a type potentially models a "convention"      |
+| [*ProBasicFacade*](ProBasicFacade.md)                        | Specifies that a type potentially models a "facade" of `proxy` |
+| [*ProBasicReflection*](ProBasicReflection.md)<br />*(since 3.1.0)* | Specifies that a type potentially models a "reflection"      |
+| [*ProConvention*](ProConvention.md)                          | Specifies that a type models a "convention"                  |
+| [*ProDispatch*](ProDispatch.md)                              | Specifies that a type models a "dispatch"                    |
+| [*ProFacade*](ProFacade.md)                                  | Specifies that a type models a "facade" of `proxy`           |
+| [*ProOverload*](ProOverload.md)                              | Specifies that a type models an "overload"                   |
+| [*ProReflection*](ProReflection.md)<br />*(since 3.1.0)*     | Specifies that a type models a "reflection"                  |
