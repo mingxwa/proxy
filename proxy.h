@@ -52,6 +52,12 @@
 #define ___PRO_DEBUG(...) __VA_ARGS__
 #endif  // NDEBUG
 
+#ifdef __cpp_lib_unreachable
+#define ___PRO_UNREACHABLE() std::unreachable()
+#else
+#define ___PRO_UNREACHABLE() std::abort()
+#endif  // __cpp_lib_unreachable
+
 #define __msft_lib_proxy 202502L
 
 namespace pro {
@@ -102,9 +108,10 @@ struct recursive_reduction<R, O, I, Is...>
 template <template <class, class> class R, class O, class... Is>
 using recursive_reduction_t = typename recursive_reduction<R, O, Is...>::type;
 
+template <auto V> struct constant { static constexpr auto value = V; };
 template <class Expr>
 consteval bool is_consteval(Expr)
-    { return requires { typename std::bool_constant<(Expr{}(), false)>; }; }
+    { return requires { typename constant<(Expr{}(), 0)>; }; }
 
 template <class T, std::size_t I>
 concept has_tuple_element = requires { typename std::tuple_element_t<I, T>; };
@@ -389,6 +396,10 @@ consteval bool is_is_direct_well_formed() {
   return false;
 }
 
+template <class P, class F, class IsDirect, class D, class O>
+constexpr bool proxiable_diagnostics_convention_not_implemented =
+    overload_substitution_traits<O>
+        ::template applicable_ptr<IsDirect::value, D, P>;
 template <class C, class F, class... Os>
 struct conv_traits_impl : inapplicable_traits {};
 template <class C, class F, class... Os>
@@ -403,6 +414,17 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
   static constexpr bool applicable_ptr =
       (overload_substitution_traits<Os>::template applicable_ptr<
           C::is_direct, typename C::dispatch_type, P> && ...);
+
+  template <class P, class O>
+  static consteval void diagnose_overload_proxiable() {
+    static_assert(proxiable_diagnostics_convention_not_implemented<
+        P, F, constant<C::is_direct>, typename C::dispatch_type, O>,
+        "context semantics: <pointer type, facade type, is direct convention, "
+        "dispatch type, overload type>");
+  }
+  template <class P>
+  static consteval void diagnose_proxiable()
+      { (diagnose_overload_proxiable<P, Os>(), ...); }
 };
 template <class C, class F> struct conv_traits : inapplicable_traits {};
 template <class C, class F>
@@ -431,7 +453,7 @@ struct refl_meta {
   R reflector;
 };
 
-template <class R, class T, bool IsDirect>
+template <class T, bool IsDirect, class R>
 consteval bool is_reflector_well_formed() {
   if constexpr (IsDirect) {
     if constexpr (std::is_constructible_v<R, std::in_place_type_t<T>>) {
@@ -440,10 +462,13 @@ consteval bool is_reflector_well_formed() {
       }
     }
   } else if constexpr (requires { typename ptr_element_t<T>; }) {
-    return is_reflector_well_formed<R, ptr_element_t<T>, true>();
+    return is_reflector_well_formed<ptr_element_t<T>, true, R>();
   }
   return false;
 }
+template <class P, class F, class IsDirect, class R>
+constexpr bool proxiable_diagnostics_reflection_not_implemented =
+    is_reflector_well_formed<P, IsDirect::value, R>();
 template <class R> struct refl_traits : inapplicable_traits {};
 template <class R>
     requires(requires { typename R::reflector_type; } &&
@@ -453,7 +478,15 @@ struct refl_traits<R> : applicable_traits {
 
   template <class P>
   static constexpr bool applicable_ptr =
-      is_reflector_well_formed<typename R::reflector_type, P, R::is_direct>();
+      is_reflector_well_formed<P, R::is_direct, typename R::reflector_type>();
+
+  template <class P, class F>
+  static consteval void diagnose_proxiable() {
+    static_assert(proxiable_diagnostics_reflection_not_implemented<
+        P, F, constant<R::is_direct>, typename R::reflector_type>,
+        "context semantics: <pointer type, facade type, is direct reflection, "
+        "reflector type>");
+  }
 };
 
 template <bool NE>
@@ -584,6 +617,10 @@ struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
   static constexpr bool is_invocable = std::is_base_of_v<dispatcher_meta<
       typename overload_traits<O>::template meta_provider<IsDirect, D>>,
       conv_meta>;
+
+  template <class P>
+  static consteval void diagnose_conv_proxiable()
+      { (conv_traits<Cs, F>::template diagnose_proxiable<P>() && ...); }
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl : inapplicable_traits {};
@@ -596,7 +633,26 @@ struct facade_refl_traits_impl<F, Rs...> : applicable_traits {
   template <class P>
   static constexpr bool refl_applicable_ptr =
       (refl_traits<Rs>::template applicable_ptr<P> && ...);
+
+  template <class P>
+  static consteval void diagnose_refl_proxiable()
+      { (refl_traits<Rs>::template diagnose_proxiable<P, F>(), ...); }
 };
+template <class P, class F, class ActualSize, class MaxSize>
+constexpr bool proxiable_diagnostics_size_too_large =
+    ActualSize::value <= MaxSize::value;
+template <class P, class F, class ActualAlign, class MaxAlign>
+constexpr bool proxiable_diagnostics_alignment_too_large =
+    ActualAlign::value <= MaxAlign::value;
+template <class P, class F, class RequiredCopyability>
+constexpr bool proxiable_diagnostics_insufficient_copyability =
+    has_copyability<P>(RequiredCopyability::value);
+template <class P, class F, class RequiredRelocatability>
+constexpr bool proxiable_diagnostics_insufficient_relocatability =
+    has_copyability<P>(RequiredRelocatability::value);
+template <class P, class F, class RequiredDestructibility>
+constexpr bool proxiable_diagnostics_insufficient_destructibility =
+    has_copyability<P>(RequiredDestructibility::value);
 template <class F> struct facade_traits : inapplicable_traits {};
 template <class F>
     requires(
@@ -631,6 +687,40 @@ struct facade_traits<F>
   using direct_accessor = merged_composite_accessor<
       typename facade_traits::conv_direct_accessor,
       typename facade_traits::refl_direct_accessor>;
+
+  template <class P>
+  static constexpr bool applicable_ptr = sizeof(P) <= F::constraints.max_size &&
+      alignof(P) <= F::constraints.max_align &&
+      has_copyability<P>(F::constraints.copyability) &&
+      has_relocatability<P>(F::constraints.relocatability) &&
+      has_destructibility<P>(F::constraints.destructibility) &&
+      facade_traits::template conv_applicable_ptr<P> &&
+      facade_traits::template refl_applicable_ptr<P>;
+
+  template <class P>
+  static consteval void diagnose_proxiable() {
+    static_assert(proxiable_diagnostics_size_too_large<
+        P, F, constant<sizeof(P)>, constant<F::constraints.max_size>>,
+        "context semantics: <pointer type, facade type, actual size, "
+        "max size>");
+    static_assert(proxiable_diagnostics_alignment_too_large<
+        P, F, constant<alignof(P)>, constant<F::constraints.max_align>>,
+        "context semantics: <pointer type, facade type, actual alignment, "
+        "max alignment>");
+    static_assert(proxiable_diagnostics_insufficient_copyability<
+        P, F, constant<F::constraints.copyability>>,
+        "context semantics: <pointer type, facade type, required copyability>");
+    static_assert(proxiable_diagnostics_insufficient_relocatability<
+        P, F, constant<F::constraints.relocatability>>,
+        "context semantics: <pointer type, facade type, "
+        "required relocatability>");
+    static_assert(proxiable_diagnostics_insufficient_destructibility<
+        P, F, constant<F::constraints.destructibility>>,
+        "context semantics: <pointer type, facade type, "
+        "required destructibility>");
+    facade_traits::template diagnose_conv_proxiable<P>();
+    facade_traits::template diagnose_refl_proxiable<P>();
+  }
 };
 
 using ptr_prototype = void*[2];
@@ -757,13 +847,8 @@ template <class F>
 concept facade = details::facade_traits<F>::applicable;
 
 template <class P, class F>
-concept proxiable = facade<F> && sizeof(P) <= F::constraints.max_size &&
-    alignof(P) <= F::constraints.max_align &&
-    details::has_copyability<P>(F::constraints.copyability) &&
-    details::has_relocatability<P>(F::constraints.relocatability) &&
-    details::has_destructibility<P>(F::constraints.destructibility) &&
-    details::facade_traits<F>::template conv_applicable_ptr<P> &&
-    details::facade_traits<F>::template refl_applicable_ptr<P>;
+concept proxiable =
+    facade<F> && details::facade_traits<F>::template applicable_ptr<P>;
 
 template <class F> struct proxy_indirect_accessor {};
 template <class F> requires(!std::is_same_v<typename details::facade_traits<F>
@@ -823,9 +908,7 @@ class proxy : public details::facade_traits<F>::direct_accessor {
   }
   template <class P>
   proxy(P&& ptr) noexcept(std::is_nothrow_constructible_v<std::decay_t<P>, P>)
-      requires(!details::is_in_place_type<std::decay_t<P>> &&
-          proxiable<std::decay_t<P>, F> &&
-          std::is_constructible_v<std::decay_t<P>, P>)
+      requires(!details::is_in_place_type<std::decay_t<P>>)
       : proxy() { initialize<std::decay_t<P>>(std::forward<P>(ptr)); }
   template <proxiable<F> P, class... Args>
   explicit proxy(std::in_place_type_t<P>, Args&&... args)
@@ -960,11 +1043,17 @@ class proxy : public details::facade_traits<F>::direct_accessor {
  private:
   template <class P, class... Args>
   P& initialize(Args&&... args) {
-    P& result = *std::construct_at(
-        reinterpret_cast<P*>(ptr_), std::forward<Args>(args)...);
-    if constexpr (std::is_constructible_v<bool, P&>) { assert(result); }
-    meta_ = details::meta_ptr<typename _Traits::meta>{std::in_place_type<P>};
-    return result;
+    if constexpr (proxiable<P, F> && std::is_constructible_v<P, Args...>) {
+      P& result = *std::construct_at(
+          reinterpret_cast<P*>(ptr_), std::forward<Args>(args)...);
+      if constexpr (std::is_constructible_v<bool, P&>) { assert(result); }
+      meta_ = details::meta_ptr<typename _Traits::meta>{std::in_place_type<P>};
+      return result;
+    } else {
+      _Traits::template diagnose_proxiable<P>();
+      static_assert(std::is_constructible_v<P, Args...>);
+      ___PRO_UNREACHABLE();
+    }
   }
 
   [[___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
@@ -1759,13 +1848,7 @@ struct wildcard {
   wildcard() = delete;
 
   template <class T>
-  [[noreturn]] operator T() const {
-#ifdef __cpp_lib_unreachable
-    std::unreachable();
-#else
-    std::abort();
-#endif  // __cpp_lib_unreachable
-  }
+  [[noreturn]] operator T() const { ___PRO_UNREACHABLE(); }
 };
 
 }  // namespace details
