@@ -339,22 +339,20 @@ struct overload_traits<R(Args...) const&& noexcept>
     : overload_traits_impl<qualifier_type::const_rv, true, R, Args...> {};
 
 template <class O>
-struct overload_substitution_traits : inapplicable_traits {
-  template <class> using type = O;
-  template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr =
-      overload_traits<O>::template applicable_ptr<IsDirect, D, P>;
-};
+struct overload_substitution_traits
+    : inapplicable_traits { template <class> using type = O; };
 template <template <class> class O>
 struct overload_substitution_traits<facade_aware_overload_t<O>>
-    : applicable_traits {
-  template <class F> using type = O<F>;
-  template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr = true;
-};
+    : applicable_traits { template <class F> using type = O<F>; };
 template <class O, class F>
 using substituted_overload_t =
     typename overload_substitution_traits<O>::template type<F>;
+template <class P, class F, bool IsDirect, class D, class O>
+consteval void diagnose_proxiable_conv() {
+  static_assert(overload_traits<substituted_overload_t<O, F>>
+      ::template applicable_ptr<IsDirect, D, P>,
+      "not proxiable due to a required convention not implemented");
+}
 
 template <class MP>
 struct dispatcher_meta {
@@ -398,7 +396,7 @@ consteval bool is_is_direct_well_formed() {
 
 template <class P, class F, class IsDirect, class D, class O>
 constexpr bool proxiable_diagnostics_convention_not_implemented =
-    overload_substitution_traits<O>
+    overload_traits<substituted_overload_t<O, F>>
         ::template applicable_ptr<IsDirect::value, D, P>;
 template <class C, class F, class... Os>
 struct conv_traits_impl : inapplicable_traits {};
@@ -412,19 +410,14 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
 
   template <class P>
   static constexpr bool applicable_ptr =
-      (overload_substitution_traits<Os>::template applicable_ptr<
+      (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
           C::is_direct, typename C::dispatch_type, P> && ...);
 
-  template <class P, class O>
-  static consteval void diagnose_overload_proxiable() {
-    static_assert(proxiable_diagnostics_convention_not_implemented<
-        P, F, constant<C::is_direct>, typename C::dispatch_type, O>,
-        "context semantics: <pointer type, facade type, is direct convention, "
-        "dispatch type, overload type>");
-  }
   template <class P>
-  static consteval void diagnose_proxiable()
-      { (diagnose_overload_proxiable<P, Os>(), ...); }
+  static consteval void diagnose_proxiable() {
+    (diagnose_proxiable_conv<
+        P, F, C::is_direct, typename C::dispatch_type, Os>(), ...);
+  }
 };
 template <class C, class F> struct conv_traits : inapplicable_traits {};
 template <class C, class F>
@@ -467,8 +460,11 @@ consteval bool is_reflector_well_formed() {
   return false;
 }
 template <class P, class F, class IsDirect, class R>
-constexpr bool proxiable_diagnostics_reflection_not_implemented =
-    is_reflector_well_formed<P, IsDirect::value, R>();
+consteval void diagnose_proxiable_refl() {
+  static_assert(is_reflector_well_formed<P, IsDirect, R>(),
+      "not proxiable due to a required reflection not implemented");
+}
+
 template <class R> struct refl_traits : inapplicable_traits {};
 template <class R>
     requires(requires { typename R::reflector_type; } &&
@@ -482,10 +478,7 @@ struct refl_traits<R> : applicable_traits {
 
   template <class P, class F>
   static consteval void diagnose_proxiable() {
-    static_assert(proxiable_diagnostics_reflection_not_implemented<
-        P, F, constant<R::is_direct>, typename R::reflector_type>,
-        "context semantics: <pointer type, facade type, is direct reflection, "
-        "reflector type>");
+    diagnose_proxiable_refl<P, F, R::is_direct, typename R::reflector_type>();
   }
 };
 
@@ -591,6 +584,31 @@ struct in_place_type_traits<std::in_place_type_t<T>> : applicable_traits {};
 template <class T>
 constexpr bool is_in_place_type = in_place_type_traits<T>::applicable;
 
+template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
+consteval void diagnose_proxiable_size() {
+  static_assert(ActualSize <= MaxSize, "not proxiable due to size too large");
+}
+template <class P, class F, std::size_t ActualAlign, std::size_t MaxAlign>
+consteval void diagnose_proxiable_align() {
+  static_assert(ActualAlign <= MaxAlign,
+      "not proxiable due to alignment too large");
+}
+template <class P, class F, constraint_level RequiredCopyability>
+consteval void diagnose_proxiable_copyability() {
+  static_assert(has_copyability<P>(RequiredCopyability),
+      "not proxiable due to insufficient copyability");
+}
+template <class P, class F, constraint_level RequiredRelocatability>
+consteval void diagnose_proxiable_relocatability() {
+  static_assert(has_relocatability<P>(RequiredRelocatability),
+      "not proxiable due to insufficient relocatability");
+}
+template <class P, class F, constraint_level RequiredDestructibility>
+consteval void diagnose_proxiable_destructibility() {
+  static_assert(has_destructibility<P>(RequiredDestructibility),
+      "not proxiable due to insufficient destructibility");
+}
+
 template <class F>
 consteval bool is_facade_constraints_well_formed() {
   if constexpr (requires {
@@ -619,8 +637,8 @@ struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
       conv_meta>;
 
   template <class P>
-  static consteval void diagnose_conv_proxiable()
-      { (conv_traits<Cs, F>::template diagnose_proxiable<P>() && ...); }
+  static consteval void diagnose_proxiable_convs()
+      { (conv_traits<Cs, F>::template diagnose_proxiable<P>(), ...); }
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl : inapplicable_traits {};
@@ -635,24 +653,9 @@ struct facade_refl_traits_impl<F, Rs...> : applicable_traits {
       (refl_traits<Rs>::template applicable_ptr<P> && ...);
 
   template <class P>
-  static consteval void diagnose_refl_proxiable()
+  static consteval void diagnose_proxiable_refls()
       { (refl_traits<Rs>::template diagnose_proxiable<P, F>(), ...); }
 };
-template <class P, class F, class ActualSize, class MaxSize>
-constexpr bool proxiable_diagnostics_size_too_large =
-    ActualSize::value <= MaxSize::value;
-template <class P, class F, class ActualAlign, class MaxAlign>
-constexpr bool proxiable_diagnostics_alignment_too_large =
-    ActualAlign::value <= MaxAlign::value;
-template <class P, class F, class RequiredCopyability>
-constexpr bool proxiable_diagnostics_insufficient_copyability =
-    has_copyability<P>(RequiredCopyability::value);
-template <class P, class F, class RequiredRelocatability>
-constexpr bool proxiable_diagnostics_insufficient_relocatability =
-    has_copyability<P>(RequiredRelocatability::value);
-template <class P, class F, class RequiredDestructibility>
-constexpr bool proxiable_diagnostics_insufficient_destructibility =
-    has_copyability<P>(RequiredDestructibility::value);
 template <class F> struct facade_traits : inapplicable_traits {};
 template <class F>
     requires(
@@ -699,27 +702,13 @@ struct facade_traits<F>
 
   template <class P>
   static consteval void diagnose_proxiable() {
-    static_assert(proxiable_diagnostics_size_too_large<
-        P, F, constant<sizeof(P)>, constant<F::constraints.max_size>>,
-        "context semantics: <pointer type, facade type, actual size, "
-        "max size>");
-    static_assert(proxiable_diagnostics_alignment_too_large<
-        P, F, constant<alignof(P)>, constant<F::constraints.max_align>>,
-        "context semantics: <pointer type, facade type, actual alignment, "
-        "max alignment>");
-    static_assert(proxiable_diagnostics_insufficient_copyability<
-        P, F, constant<F::constraints.copyability>>,
-        "context semantics: <pointer type, facade type, required copyability>");
-    static_assert(proxiable_diagnostics_insufficient_relocatability<
-        P, F, constant<F::constraints.relocatability>>,
-        "context semantics: <pointer type, facade type, "
-        "required relocatability>");
-    static_assert(proxiable_diagnostics_insufficient_destructibility<
-        P, F, constant<F::constraints.destructibility>>,
-        "context semantics: <pointer type, facade type, "
-        "required destructibility>");
-    facade_traits::template diagnose_conv_proxiable<P>();
-    facade_traits::template diagnose_refl_proxiable<P>();
+    diagnose_proxiable_size<P, F, sizeof(P), F::constraints.max_size>();
+    diagnose_proxiable_align<P, F, alignof(P), F::constraints.max_align>();
+    diagnose_proxiable_copyability<P, F, F::constraints.copyability>();
+    diagnose_proxiable_relocatability<P, F, F::constraints.relocatability>();
+    diagnose_proxiable_destructibility<P, F, F::constraints.destructibility>();
+    facade_traits::template diagnose_proxiable_convs<P>();
+    facade_traits::template diagnose_proxiable_refls<P>();
   }
 };
 
