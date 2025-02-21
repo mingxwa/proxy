@@ -40,6 +40,12 @@
 #define ___PRO_THROW(...) std::abort()
 #endif  // __cpp_exceptions
 
+#ifdef __cpp_lib_unreachable
+#define ___PRO_UNREACHABLE() std::unreachable()
+#else
+#define ___PRO_UNREACHABLE() std::abort()
+#endif  // __cpp_lib_unreachable
+
 #ifdef _MSC_VER
 #define ___PRO_ENFORCE_EBO __declspec(empty_bases)
 #else
@@ -51,12 +57,6 @@
 #else
 #define ___PRO_DEBUG(...) __VA_ARGS__
 #endif  // NDEBUG
-
-#ifdef __cpp_lib_unreachable
-#define ___PRO_UNREACHABLE() std::unreachable()
-#else
-#define ___PRO_UNREACHABLE() std::abort()
-#endif  // __cpp_lib_unreachable
 
 #define __msft_lib_proxy 202502L
 
@@ -108,10 +108,9 @@ struct recursive_reduction<R, O, I, Is...>
 template <template <class, class> class R, class O, class... Is>
 using recursive_reduction_t = typename recursive_reduction<R, O, Is...>::type;
 
-template <auto V> struct constant { static constexpr auto value = V; };
 template <class Expr>
 consteval bool is_consteval(Expr)
-    { return requires { typename constant<(Expr{}(), 0)>; }; }
+    { return requires { typename std::bool_constant<(Expr{}(), false)>; }; }
 
 template <class T, std::size_t I>
 concept has_tuple_element = requires { typename std::tuple_element_t<I, T>; };
@@ -348,7 +347,7 @@ template <class O, class F>
 using substituted_overload_t =
     typename overload_substitution_traits<O>::template type<F>;
 template <class P, class F, bool IsDirect, class D, class O>
-consteval void diagnose_proxiable_conv() {
+consteval void diagnose_proxiable_required_convention_not_implemented() {
   static_assert(overload_traits<substituted_overload_t<O, F>>
       ::template applicable_ptr<IsDirect, D, P>,
       "not proxiable due to a required convention not implemented");
@@ -394,10 +393,6 @@ consteval bool is_is_direct_well_formed() {
   return false;
 }
 
-template <class P, class F, class IsDirect, class D, class O>
-constexpr bool proxiable_diagnostics_convention_not_implemented =
-    overload_traits<substituted_overload_t<O, F>>
-        ::template applicable_ptr<IsDirect::value, D, P>;
 template <class C, class F, class... Os>
 struct conv_traits_impl : inapplicable_traits {};
 template <class C, class F, class... Os>
@@ -415,7 +410,7 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
 
   template <class P>
   static consteval void diagnose_proxiable() {
-    (diagnose_proxiable_conv<
+    (diagnose_proxiable_required_convention_not_implemented<
         P, F, C::is_direct, typename C::dispatch_type, Os>(), ...);
   }
 };
@@ -460,7 +455,7 @@ consteval bool is_reflector_well_formed() {
   return false;
 }
 template <class P, class F, class IsDirect, class R>
-consteval void diagnose_proxiable_refl() {
+consteval void diagnose_proxiable_required_reflection_not_implemented() {
   static_assert(is_reflector_well_formed<P, IsDirect, R>(),
       "not proxiable due to a required reflection not implemented");
 }
@@ -478,7 +473,8 @@ struct refl_traits<R> : applicable_traits {
 
   template <class P, class F>
   static consteval void diagnose_proxiable() {
-    diagnose_proxiable_refl<P, F, R::is_direct, typename R::reflector_type>();
+    diagnose_proxiable_required_reflection_not_implemented<
+        P, F, R::is_direct, typename R::reflector_type>();
   }
 };
 
@@ -578,33 +574,35 @@ template <class A1, class A2>
 using merged_composite_accessor =
     typename composite_accessor_merge_traits<A1, A2>::type;
 
+template <class P> struct proxy_traits : inapplicable_traits {};
+template <class F>
+struct proxy_traits<proxy<F>> : applicable_traits { using facade_type = F; };
+
 template <class T> struct in_place_type_traits : inapplicable_traits {};
 template <class T>
 struct in_place_type_traits<std::in_place_type_t<T>> : applicable_traits {};
-template <class T>
-constexpr bool is_in_place_type = in_place_type_traits<T>::applicable;
 
 template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
-consteval void diagnose_proxiable_size() {
+consteval void diagnose_proxiable_size_too_large() {
   static_assert(ActualSize <= MaxSize, "not proxiable due to size too large");
 }
 template <class P, class F, std::size_t ActualAlign, std::size_t MaxAlign>
-consteval void diagnose_proxiable_align() {
+consteval void diagnose_proxiable_align_too_large() {
   static_assert(ActualAlign <= MaxAlign,
       "not proxiable due to alignment too large");
 }
 template <class P, class F, constraint_level RequiredCopyability>
-consteval void diagnose_proxiable_copyability() {
+consteval void diagnose_proxiable_insufficient_copyability() {
   static_assert(has_copyability<P>(RequiredCopyability),
       "not proxiable due to insufficient copyability");
 }
 template <class P, class F, constraint_level RequiredRelocatability>
-consteval void diagnose_proxiable_relocatability() {
+consteval void diagnose_proxiable_insufficient_relocatability() {
   static_assert(has_relocatability<P>(RequiredRelocatability),
       "not proxiable due to insufficient relocatability");
 }
 template <class P, class F, constraint_level RequiredDestructibility>
-consteval void diagnose_proxiable_destructibility() {
+consteval void diagnose_proxiable_insufficient_destructibility() {
   static_assert(has_destructibility<P>(RequiredDestructibility),
       "not proxiable due to insufficient destructibility");
 }
@@ -637,7 +635,7 @@ struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
       conv_meta>;
 
   template <class P>
-  static consteval void diagnose_proxiable_convs()
+  static consteval void diagnose_proxiable_conv()
       { (conv_traits<Cs, F>::template diagnose_proxiable<P>(), ...); }
 };
 template <class F, class... Rs>
@@ -653,7 +651,7 @@ struct facade_refl_traits_impl<F, Rs...> : applicable_traits {
       (refl_traits<Rs>::template applicable_ptr<P> && ...);
 
   template <class P>
-  static consteval void diagnose_proxiable_refls()
+  static consteval void diagnose_proxiable_refl()
       { (refl_traits<Rs>::template diagnose_proxiable<P, F>(), ...); }
 };
 template <class F> struct facade_traits : inapplicable_traits {};
@@ -702,13 +700,18 @@ struct facade_traits<F>
 
   template <class P>
   static consteval void diagnose_proxiable() {
-    diagnose_proxiable_size<P, F, sizeof(P), F::constraints.max_size>();
-    diagnose_proxiable_align<P, F, alignof(P), F::constraints.max_align>();
-    diagnose_proxiable_copyability<P, F, F::constraints.copyability>();
-    diagnose_proxiable_relocatability<P, F, F::constraints.relocatability>();
-    diagnose_proxiable_destructibility<P, F, F::constraints.destructibility>();
-    facade_traits::template diagnose_proxiable_convs<P>();
-    facade_traits::template diagnose_proxiable_refls<P>();
+    diagnose_proxiable_size_too_large<
+        P, F, sizeof(P), F::constraints.max_size>();
+    diagnose_proxiable_align_too_large<
+        P, F, alignof(P), F::constraints.max_align>();
+    diagnose_proxiable_insufficient_copyability<
+        P, F, F::constraints.copyability>();
+    diagnose_proxiable_insufficient_relocatability<
+        P, F, F::constraints.relocatability>();
+    diagnose_proxiable_insufficient_destructibility<
+        P, F, F::constraints.destructibility>();
+    facade_traits::template diagnose_proxiable_conv<P>();
+    facade_traits::template diagnose_proxiable_refl<P>();
   }
 };
 
@@ -897,14 +900,16 @@ class proxy : public details::facade_traits<F>::direct_accessor {
   }
   template <class P>
   proxy(P&& ptr) noexcept(std::is_nothrow_constructible_v<std::decay_t<P>, P>)
-      requires(!details::is_in_place_type<std::decay_t<P>>)
+      requires(!details::proxy_traits<std::decay_t<P>>::applicable &&
+          !details::in_place_type_traits<std::decay_t<P>>::applicable &&
+          std::is_constructible_v<std::decay_t<P>, P>)
       : proxy() { initialize<std::decay_t<P>>(std::forward<P>(ptr)); }
-  template <proxiable<F> P, class... Args>
+  template <class P, class... Args>
   explicit proxy(std::in_place_type_t<P>, Args&&... args)
       noexcept(std::is_nothrow_constructible_v<P, Args...>)
       requires(std::is_constructible_v<P, Args...>)
       : proxy() { initialize<P>(std::forward<Args>(args)...); }
-  template <proxiable<F> P, class U, class... Args>
+  template <class P, class U, class... Args>
   explicit proxy(std::in_place_type_t<P>, std::initializer_list<U> il,
           Args&&... args)
       noexcept(std::is_nothrow_constructible_v<
@@ -949,7 +954,7 @@ class proxy : public details::facade_traits<F>::direct_accessor {
   proxy& operator=(P&& ptr)
       noexcept(std::is_nothrow_constructible_v<std::decay_t<P>, P> &&
           F::constraints.destructibility >= constraint_level::nothrow)
-      requires(proxiable<std::decay_t<P>, F> &&
+      requires(!details::proxy_traits<std::decay_t<P>>::applicable &&
           std::is_constructible_v<std::decay_t<P>, P> &&
           F::constraints.destructibility >= constraint_level::nontrivial) {
     if constexpr (std::is_nothrow_constructible_v<std::decay_t<P>, P>) {
@@ -998,14 +1003,14 @@ class proxy : public details::facade_traits<F>::direct_accessor {
       }
     }
   }
-  template <proxiable<F> P, class... Args>
+  template <class P, class... Args>
   P& emplace(Args&&... args)
       noexcept(std::is_nothrow_constructible_v<P, Args...> &&
           F::constraints.destructibility >= constraint_level::nothrow)
       requires(std::is_constructible_v<P, Args...> &&
           F::constraints.destructibility >= constraint_level::nontrivial)
       { reset(); return initialize<P>(std::forward<Args>(args)...); }
-  template <proxiable<F> P, class U, class... Args>
+  template <class P, class U, class... Args>
   P& emplace(std::initializer_list<U> il, Args&&... args)
       noexcept(std::is_nothrow_constructible_v<
           P, std::initializer_list<U>&, Args...> &&
@@ -1032,15 +1037,15 @@ class proxy : public details::facade_traits<F>::direct_accessor {
  private:
   template <class P, class... Args>
   P& initialize(Args&&... args) {
-    if constexpr (proxiable<P, F> && std::is_constructible_v<P, Args...>) {
+    if constexpr (proxiable<P, F>) {
       P& result = *std::construct_at(
           reinterpret_cast<P*>(ptr_), std::forward<Args>(args)...);
       if constexpr (std::is_constructible_v<bool, P&>) { assert(result); }
       meta_ = details::meta_ptr<typename _Traits::meta>{std::in_place_type<P>};
       return result;
     } else {
-      _Traits::template diagnose_proxiable<P>();
-      static_assert(std::is_constructible_v<P, Args...>);
+      ((std::ignore = args), ...);
+      _Traits::template diagnose_proxiable<P>();  // Generates compile error
       ___PRO_UNREACHABLE();
     }
   }
@@ -1111,9 +1116,7 @@ template <class T>
 class inplace_ptr {
  public:
   template <class... Args>
-  inplace_ptr(Args&&... args)
-      noexcept(std::is_nothrow_constructible_v<T, Args...>)
-      requires(std::is_constructible_v<T, Args...>)
+  inplace_ptr(std::in_place_t, Args&&... args)
       : value_(std::forward<Args>(args)...) {}
   inplace_ptr(const inplace_ptr&)
       noexcept(std::is_nothrow_copy_constructible_v<T>) = default;
@@ -1157,7 +1160,6 @@ class allocated_ptr {
  public:
   template <class... Args>
   allocated_ptr(const Alloc& alloc, Args&&... args)
-      requires(std::is_constructible_v<T, Args...>)
       : alloc_(alloc), ptr_(allocate<T>(alloc, std::forward<Args>(args)...)) {}
   allocated_ptr(const allocated_ptr& rhs)
       requires(std::is_copy_constructible_v<T>)
@@ -1186,7 +1188,6 @@ class compact_ptr {
  public:
   template <class... Args>
   compact_ptr(const Alloc& alloc, Args&&... args)
-      requires(std::is_constructible_v<T, Args...>)
       : ptr_(allocate<storage>(alloc, alloc, std::forward<Args>(args)...)) {}
   compact_ptr(const compact_ptr& rhs) requires(std::is_copy_constructible_v<T>)
       : ptr_(rhs.ptr_ == nullptr ? nullptr : allocate<storage>(rhs.ptr_->alloc,
@@ -1228,7 +1229,7 @@ proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
 template <class F, class T, class... Args>
 proxy<F> make_proxy_impl(Args&&... args) {
   if constexpr (proxiable<inplace_ptr<T>, F>) {
-    return proxy<F>{std::in_place_type<inplace_ptr<T>>,
+    return proxy<F>{std::in_place_type<inplace_ptr<T>>, std::in_place,
         std::forward<Args>(args)...};
   } else {
     return allocate_proxy_impl<F, T>(
@@ -1242,51 +1243,63 @@ proxy<F> make_proxy_impl(Args&&... args) {
 template <class T, class F>
 concept inplace_proxiable_target = proxiable<details::inplace_ptr<T>, F>;
 
-template <facade F, inplace_proxiable_target<F> T, class... Args>
+template <facade F, class T, class... Args>
 proxy<F> make_proxy_inplace(Args&&... args)
-    noexcept(std::is_nothrow_constructible_v<T, Args...>) {
-  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>,
+    noexcept(std::is_nothrow_constructible_v<T, Args...>)
+    requires(std::is_constructible_v<T, Args...>) {
+  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
       std::forward<Args>(args)...};
 }
-template <facade F, inplace_proxiable_target<F> T, class U, class... Args>
+template <facade F, class T, class U, class... Args>
 proxy<F> make_proxy_inplace(std::initializer_list<U> il, Args&&... args)
     noexcept(std::is_nothrow_constructible_v<
-        T, std::initializer_list<U>&, Args...>) {
-  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>,
+        T, std::initializer_list<U>&, Args...>)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
+  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
       il, std::forward<Args>(args)...};
 }
 template <facade F, class T>
 proxy<F> make_proxy_inplace(T&& value)
     noexcept(std::is_nothrow_constructible_v<std::decay_t<T>, T>)
-    requires(inplace_proxiable_target<std::decay_t<T>, F>) {
+    requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return proxy<F>{std::in_place_type<details::inplace_ptr<std::decay_t<T>>>,
-      std::forward<T>(value)};
+      std::in_place, std::forward<T>(value)};
 }
 
 #if __STDC_HOSTED__
+template <class T, class F>
+concept proxiable_target = inplace_proxiable_target<T, F> ||
+    proxiable<details::allocated_ptr<T, std::allocator<void>>, F>;
+
 template <facade F, class T, class Alloc, class... Args>
-proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args) {
+proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>) {
   return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
 }
 template <facade F, class T, class Alloc, class U, class... Args>
-proxy<F> allocate_proxy(const Alloc& alloc, std::initializer_list<U> il,
-    Args&&... args) {
+proxy<F> allocate_proxy(
+    const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::allocate_proxy_impl<F, T>(
       alloc, il, std::forward<Args>(args)...);
 }
 template <facade F, class Alloc, class T>
-proxy<F> allocate_proxy(const Alloc& alloc, T&& value) {
+proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
+    requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
 template <facade F, class T, class... Args>
 proxy<F> make_proxy(Args&&... args)
+    requires(std::is_constructible_v<T, Args...>)
     { return details::make_proxy_impl<F, T>(std::forward<Args>(args)...); }
 template <facade F, class T, class U, class... Args>
 proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
     { return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...); }
 template <facade F, class T>
-proxy<F> make_proxy(T&& value) {
+proxy<F> make_proxy(T&& value)
+    requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
 }
 #endif  // __STDC_HOSTED__
@@ -1601,13 +1614,9 @@ struct proxy_view_dispatch : cast_dispatch_base<false, true> {
   }
 };
 
-template <class P> struct facade_of_traits;
-template <class F>
-struct facade_of_traits<proxy<F>> : std::type_identity<F> {};
-template <class P> using facade_of_t = typename facade_of_traits<P>::type;
 template <class O>
-using observer_upward_conversion_overload = proxy_view<
-    facade_of_t<typename overload_traits<O>::return_type>>() const noexcept;
+using observer_upward_conversion_overload = proxy_view<typename proxy_traits<
+    typename overload_traits<O>::return_type>::facade_type>() const noexcept;
 
 template <class O, class I>
 struct observer_upward_conversion_conv_reduction : std::type_identity<O> {};
@@ -2289,6 +2298,7 @@ struct formatter<pro::proxy_indirect_accessor<F>, CharT> {
 }  // namespace std
 #endif  // __STDC_HOSTED__
 
+#undef ___PRO_UNREACHABLE
 #undef ___PRO_THROW
 #undef ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE
 
