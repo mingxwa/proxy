@@ -9,7 +9,9 @@ namespace {
 
 void BM_SmallObjectInvocationViaProxy(benchmark::State& state) {
   auto data = GenerateSmallObjectInvocationProxyTestData();
-  std::vector<pro::proxy_view<InvocationTestFacade>> views{data.begin(), data.end()};
+  std::vector<pro::proxy_view<InvocationTestFacade>> views;
+  views.reserve(data.size());
+  for (auto& p : data) { views.emplace_back(p); }
   for (auto _ : state) {
     for (auto& p : views) {
       int result = p->Fun();
@@ -50,7 +52,9 @@ void BM_LargeObjectInvocationViaProxy(benchmark::State& state) {
 
 void BM_LargeObjectInvocationViaProxyView(benchmark::State& state) {
   auto data = GenerateLargeObjectInvocationProxyTestData();
-  std::vector<pro::proxy_view<InvocationTestFacade>> views{data.begin(), data.end()};
+  std::vector<pro::proxy_view<InvocationTestFacade>> views;
+  views.reserve(data.size());
+  for (auto& p : data) { views.emplace_back(p); }
   for (auto _ : state) {
     for (auto& p : views) {
       int result = p->Fun();

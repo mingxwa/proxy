@@ -276,7 +276,24 @@ struct overload_traits_impl : applicable_traits {
   template <bool IsDirect, class D>
   struct meta_provider {
     template <class P>
-    static constexpr auto get()
+    static consteval bool is_applicable() {
+      if constexpr (IsDirect) {
+        if constexpr (invocable_dispatch_ptr_direct<D, P, Q, NE, R, Args...>) {
+          return true;
+        } else {
+          return invocable_dispatch<D, NE, R, std::nullptr_t, Args...>;
+        }
+      } else {
+        if constexpr (
+            invocable_dispatch_ptr_indirect<D, P, Q, NE, R, Args...>) {
+          return true;
+        } else {
+          return invocable_dispatch<D, NE, R, std::nullptr_t, Args...>;
+        }
+      }
+    }
+    template <class P>
+    static consteval auto get()
         -> func_ptr_t<NE, R, add_qualifier_t<std::byte, Q>, Args...> {
       if constexpr (!IsDirect &&
           invocable_dispatch_ptr_indirect<D, P, Q, NE, R, Args...>) {
@@ -284,11 +301,8 @@ struct overload_traits_impl : applicable_traits {
       } else if constexpr (IsDirect &&
           invocable_dispatch_ptr_direct<D, P, Q, NE, R, Args...>) {
         return &direct_conv_dispatcher<D, P, Q, R, Args...>;
-      } else if constexpr (invocable_dispatch<
-          D, NE, R, std::nullptr_t, Args...>) {
-        return &default_conv_dispatcher<D, Q, R, Args...>;
       } else {
-        return nullptr;
+        return &default_conv_dispatcher<D, Q, R, Args...>;
       }
     }
   };
@@ -297,7 +311,7 @@ struct overload_traits_impl : applicable_traits {
 
   template <bool IsDirect, class D, class P>
   static constexpr bool applicable_ptr =
-      meta_provider<IsDirect, D>::template get<P>() != nullptr;
+      meta_provider<IsDirect, D>::template is_applicable<P>();
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -481,7 +495,7 @@ struct refl_traits<R> : applicable_traits {
 template <bool NE>
 struct copyability_meta_provider {
   template <class P>
-  static constexpr func_ptr_t<NE, void, std::byte&, const std::byte&> get() {
+  static consteval func_ptr_t<NE, void, std::byte&, const std::byte&> get() {
     if constexpr (has_copyability<P>(constraint_level::trivial)) {
       return &copying_default_dispatcher<sizeof(P), alignof(P)>;
     } else {
@@ -492,7 +506,7 @@ struct copyability_meta_provider {
 template <bool NE>
 struct relocatability_meta_provider {
   template <class P>
-  static constexpr func_ptr_t<NE, void, std::byte&, const std::byte&> get() {
+  static consteval func_ptr_t<NE, void, std::byte&, const std::byte&> get() {
     if constexpr (has_relocatability<P>(constraint_level::trivial)) {
       return &copying_default_dispatcher<sizeof(P), alignof(P)>;
     } else {
@@ -503,7 +517,7 @@ struct relocatability_meta_provider {
 template <bool NE>
 struct destructibility_meta_provider {
   template <class P>
-  static constexpr func_ptr_t<NE, void, std::byte&> get() {
+  static consteval func_ptr_t<NE, void, std::byte&> get() {
     if constexpr (has_destructibility<P>(constraint_level::trivial)) {
       return &destruction_default_dispatcher;
     } else {
