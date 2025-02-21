@@ -310,8 +310,23 @@ struct overload_traits_impl : applicable_traits {
   using view_type = R(Args...) const noexcept(NE);
 
   template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr =
-      meta_provider<IsDirect, D>::template is_applicable<P>();
+  static consteval bool is_applicable_ptr() {
+    if constexpr (IsDirect) {
+      if constexpr (invocable_dispatch_ptr_direct<D, P, Q, NE, R, Args...>) {
+        return true;
+      } else {
+        return invocable_dispatch<D, NE, R, std::nullptr_t, Args...>;
+      }
+    } else {
+      if constexpr (
+          invocable_dispatch_ptr_indirect<D, P, Q, NE, R, Args...>) {
+        return true;
+      } else {
+        return invocable_dispatch<D, NE, R, std::nullptr_t, Args...>;
+      }
+    }
+  }
+
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -363,7 +378,7 @@ using substituted_overload_t =
 template <class P, class F, bool IsDirect, class D, class O>
 consteval void diagnose_proxiable_required_convention_not_implemented() {
   static_assert(overload_traits<substituted_overload_t<O, F>>
-      ::template applicable_ptr<IsDirect, D, P>,
+      ::template is_applicable_ptr<IsDirect, D, P>(),
       "not proxiable due to a required convention not implemented");
 }
 
@@ -418,15 +433,15 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
           C::is_direct, typename C::dispatch_type>>...>;
 
   template <class P>
-  static constexpr bool applicable_ptr =
-      (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
-          C::is_direct, typename C::dispatch_type, P> && ...);
-
-  template <class P>
   static consteval void diagnose_proxiable() {
     (diagnose_proxiable_required_convention_not_implemented<
         P, F, C::is_direct, typename C::dispatch_type, Os>(), ...);
   }
+
+  template <class P>
+  static constexpr bool applicable_ptr = (overload_traits<
+      substituted_overload_t<Os, F>>::template is_applicable_ptr<
+      C::is_direct, typename C::dispatch_type, P>() && ...);
 };
 template <class C, class F> struct conv_traits : inapplicable_traits {};
 template <class C, class F>
@@ -481,15 +496,15 @@ template <class R>
 struct refl_traits<R> : applicable_traits {
   using meta = refl_meta<R::is_direct, typename R::reflector_type>;
 
-  template <class P>
-  static constexpr bool applicable_ptr =
-      is_reflector_well_formed<P, R::is_direct, typename R::reflector_type>();
-
   template <class P, class F>
   static consteval void diagnose_proxiable() {
     diagnose_proxiable_required_reflection_not_implemented<
         P, F, R::is_direct, typename R::reflector_type>();
   }
+
+  template <class P>
+  static constexpr bool applicable_ptr =
+      is_reflector_well_formed<P, R::is_direct, typename R::reflector_type>();
 };
 
 template <bool NE>
@@ -641,16 +656,16 @@ struct facade_conv_traits_impl<F, Cs...> : applicable_traits {
   using conv_direct_accessor = composite_accessor<true, F, Cs...>;
 
   template <class P>
+  static consteval void diagnose_proxiable_conv()
+      { (conv_traits<Cs, F>::template diagnose_proxiable<P>(), ...); }
+
+  template <class P>
   static constexpr bool conv_applicable_ptr =
       (conv_traits<Cs, F>::template applicable_ptr<P> && ...);
   template <bool IsDirect, class D, class O>
   static constexpr bool is_invocable = std::is_base_of_v<dispatcher_meta<
       typename overload_traits<O>::template meta_provider<IsDirect, D>>,
       conv_meta>;
-
-  template <class P>
-  static consteval void diagnose_proxiable_conv()
-      { (conv_traits<Cs, F>::template diagnose_proxiable<P>(), ...); }
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl : inapplicable_traits {};
@@ -661,12 +676,12 @@ struct facade_refl_traits_impl<F, Rs...> : applicable_traits {
   using refl_direct_accessor = composite_accessor<true, F, Rs...>;
 
   template <class P>
-  static constexpr bool refl_applicable_ptr =
-      (refl_traits<Rs>::template applicable_ptr<P> && ...);
-
-  template <class P>
   static consteval void diagnose_proxiable_refl()
       { (refl_traits<Rs>::template diagnose_proxiable<P, F>(), ...); }
+
+  template <class P>
+  static constexpr bool refl_applicable_ptr =
+      (refl_traits<Rs>::template applicable_ptr<P> && ...);
 };
 template <class F> struct facade_traits : inapplicable_traits {};
 template <class F>
@@ -704,15 +719,6 @@ struct facade_traits<F>
       typename facade_traits::refl_direct_accessor>;
 
   template <class P>
-  static constexpr bool applicable_ptr = sizeof(P) <= F::constraints.max_size &&
-      alignof(P) <= F::constraints.max_align &&
-      has_copyability<P>(F::constraints.copyability) &&
-      has_relocatability<P>(F::constraints.relocatability) &&
-      has_destructibility<P>(F::constraints.destructibility) &&
-      facade_traits::template conv_applicable_ptr<P> &&
-      facade_traits::template refl_applicable_ptr<P>;
-
-  template <class P>
   static consteval void diagnose_proxiable() {
     diagnose_proxiable_size_too_large<
         P, F, sizeof(P), F::constraints.max_size>();
@@ -727,6 +733,15 @@ struct facade_traits<F>
     facade_traits::template diagnose_proxiable_conv<P>();
     facade_traits::template diagnose_proxiable_refl<P>();
   }
+
+  template <class P>
+  static constexpr bool applicable_ptr = sizeof(P) <= F::constraints.max_size &&
+      alignof(P) <= F::constraints.max_align &&
+      has_copyability<P>(F::constraints.copyability) &&
+      has_relocatability<P>(F::constraints.relocatability) &&
+      has_destructibility<P>(F::constraints.destructibility) &&
+      facade_traits::template conv_applicable_ptr<P> &&
+      facade_traits::template refl_applicable_ptr<P>;
 };
 
 using ptr_prototype = void*[2];
