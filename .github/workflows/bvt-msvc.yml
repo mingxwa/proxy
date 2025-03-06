@@ -13,12 +13,15 @@ jobs:
       with:
         ref: ${{ inputs.branch }}
 
+    - name: add cl.exe to PATH
+      uses: ilammy/msvc-dev-cmd@v1
+
     - name: build and run test with MSVC
       run: |
-        .\tools\dump_build_env_msvc.ps1 -OutputPath build\env.json
         cmake -B build -DCMAKE_CXX_STANDARD=23
         cmake --build build --config Release -j
         ctest --test-dir build -j
+        .\tools\dump_build_env_msvc.ps1 -OutputPath build\env.json
 
     - name: run benchmarks
       run: |

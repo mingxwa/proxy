@@ -5,7 +5,7 @@ if [ $# -ne 2 ]; then
   exit 1
 fi
 
-COMPILER_INFO="$("$1" --version 2>/dev/null | head -n 1)"
+COMPILER_INFO="$("$1" --version 2>/dev/null | awk 'NF {print; exit}')"
 if [ -z "$COMPILER_INFO" ]; then
   echo "Unable to retrieve compiler info for '$1'."
   exit 1
@@ -22,7 +22,7 @@ fi
 
 cat <<EOF > $2
 {
-  "OSName": "$OS_NAME",
+  "OS": "$OS_NAME",
   "KernelVersion": "$(uname -r)",
   "Architecture": "$(uname -m)",
   "Compiler": "$COMPILER_INFO"

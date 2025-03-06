@@ -20,11 +20,11 @@ jobs:
 
     - name: build and run test with AppleClang
       run: |
-        chmod +x tools/dump_build_env.sh
-        ./tools/dump_build_env.sh clang++ build/env.json
         cmake -B build -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release
         cmake --build build -j
         ctest --test-dir build -j
+        chmod +x tools/dump_build_env.sh
+        ./tools/dump_build_env.sh clang++ build/env.json
 
     - name: run benchmarks
       run: |
