@@ -21,7 +21,7 @@ jobs:
         cmake -B build -DCMAKE_CXX_STANDARD=23
         cmake --build build --config Release -j
         ctest --test-dir build -j
-        mkdir build\artifacts
+        mkdir build\artifacts > $null
         .\tools\dump_build_env_msvc.ps1 -OutputPath build\artifacts\env.json
 
     - name: run benchmarks
