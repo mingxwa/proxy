@@ -23,6 +23,8 @@ jobs:
 
     - name: build and run test with clang 19
       run: |
+        chmod +x tools/dump_build_env.sh
+        ./tools/dump_build_env.sh clang-19 build/env.json
         cmake -B build -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release
         cmake --build build -j
         ctest --test-dir build -j
@@ -36,4 +38,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-clang
-        path: build/benchmarks/benchmarking-results.json
+        path: |
+          build/benchmarks/benchmarking-results.json
+          build/env.json

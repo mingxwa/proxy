@@ -15,6 +15,7 @@ jobs:
 
     - name: build and run test with MSVC
       run: |
+        .\tools\dump_build_env_msvc.ps1 -OutputPath build\env.json
         cmake -B build -DCMAKE_CXX_STANDARD=23
         cmake --build build --config Release -j
         ctest --test-dir build -j
@@ -28,4 +29,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-msvc
-        path: build/benchmarks/benchmarking-results.json
+        path: |
+          build/benchmarks/benchmarking-results.json
+          build/env.json

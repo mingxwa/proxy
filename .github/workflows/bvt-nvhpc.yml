@@ -23,6 +23,8 @@ jobs:
     - name: build and run test with NVHPC 24.9
       run: |
         PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/24.9/compilers/bin:$PATH; export PATH
+        chmod +x tools/dump_build_env.sh
+        ./tools/dump_build_env.sh nvc++ build/env.json
         cmake -B build -DCMAKE_C_COMPILER=nvc -DCMAKE_CXX_COMPILER=nvc++ -DCMAKE_BUILD_TYPE=Release
         cmake --build build -j
         ctest --test-dir build -j
@@ -36,4 +38,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-nvhpc
-        path: build/benchmarks/benchmarking-results.json
+        path: |
+          build/benchmarks/benchmarking-results.json
+          build/env.json

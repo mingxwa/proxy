@@ -23,6 +23,8 @@ jobs:
 
     - name: build and run test with gcc 14
       run: |
+        chmod +x tools/dump_build_env.sh
+        ./tools/dump_build_env.sh g++-14 build/env.json
         cmake -B build -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release
         cmake --build build -j
         ctest --test-dir build -j
@@ -36,4 +38,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-gcc
-        path: build/benchmarks/benchmarking-results.json
+        path: |
+          build/benchmarks/benchmarking-results.json
+          build/env.json
