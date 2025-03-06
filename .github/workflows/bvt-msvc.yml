@@ -21,17 +21,16 @@ jobs:
         cmake -B build -DCMAKE_CXX_STANDARD=23
         cmake --build build --config Release -j
         ctest --test-dir build -j
-        .\tools\dump_build_env_msvc.ps1 -OutputPath build\env.json
+        mkdir build\artifacts
+        .\tools\dump_build_env_msvc.ps1 -OutputPath build\artifacts\env.json
 
     - name: run benchmarks
       run: |
         cd build\benchmarks
-        .\Release\msft_proxy_benchmarks.exe --benchmark_min_warmup_time=0.1 --benchmark_min_time=0.1s --benchmark_repetitions=30 --benchmark_enable_random_interleaving=true --benchmark_report_aggregates_only=true --benchmark_format=json > benchmarking-results.json
+        .\Release\msft_proxy_benchmarks.exe --benchmark_min_warmup_time=0.1 --benchmark_min_time=0.1s --benchmark_repetitions=30 --benchmark_enable_random_interleaving=true --benchmark_report_aggregates_only=true --benchmark_format=json > ..\artifacts\benchmarking-results.json
 
     - name: archive benchmarking results
       uses: actions/upload-artifact@v4
       with:
         name: benchmarking-results-msvc
-        path: |
-          build/benchmarks/benchmarking-results.json
-          build/env.json
+        path: build/artifacts/
