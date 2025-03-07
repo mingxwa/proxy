@@ -18,6 +18,9 @@ jobs:
       with:
         path: artifacts
 
+    - name: Display structure of downloaded files
+      run: ls -R artifacts
+
     - name: build report generator
       run: |
         cd tools/report_generator
