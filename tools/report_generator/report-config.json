@@ -5,27 +5,27 @@
   "Environments": [
     {
       "Description": "MSVC on Windows Server",
-      "EnvironmentInfoPath": "artifacts/drop-msvc/env-info.json",
+      "InfoPath": "artifacts/drop-msvc/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-msvc/benchmarking-results.json"
     },
     {
       "Description": "GCC on Ubuntu",
-      "EnvironmentInfoPath": "artifacts/drop-gcc/env-info.json",
+      "InfoPath": "artifacts/drop-gcc/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-gcc/benchmarking-results.json"
     },
     {
       "Description": "Clang on Ubuntu",
-      "EnvironmentInfoPath": "artifacts/drop-clang/env-info.json",
+      "InfoPath": "artifacts/drop-clang/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-clang/benchmarking-results.json"
     },
     {
       "Description": "Apple Clang on macOS",
-      "EnvironmentInfoPath": "artifacts/drop-appleclang/env-info.json",
+      "InfoPath": "artifacts/drop-appleclang/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-appleclang/benchmarking-results.json"
     },
     {
       "Description": "NVIDIA HPC on Ubuntu",
-      "EnvironmentInfoPath": "artifacts/drop-nvhpc/env-info.json",
+      "InfoPath": "artifacts/drop-nvhpc/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-nvhpc/benchmarking-results.json"
     }
   ],
