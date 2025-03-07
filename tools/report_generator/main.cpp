@@ -190,7 +190,7 @@ void GenerateReport(const std::filesystem::path& config_path) {
     }
     out << "\n";
   }
-  "\n## Environment\n\n";
+  out << "\n## Environment\n\n";
   out << "| | Operating System | Kernel Version | Architecture | Compiler |\n";
   out << "| - | - | - | - | - |\n";
   for (auto& environment : config.Environments) {
