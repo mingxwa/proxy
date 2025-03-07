@@ -28,7 +28,7 @@ jobs:
         ctest --test-dir build -j
         mkdir build/drop
         chmod +x tools/dump_build_env.sh
-        ./tools/dump_build_env.sh g++-14 build/drop/env.json
+        ./tools/dump_build_env.sh g++-14 build/drop/env-info.json
 
     - name: run benchmarks
       run: |
