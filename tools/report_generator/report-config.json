@@ -5,23 +5,23 @@
   "Environments": [
     {
       "Description": "MSVC on Windows Server 2022 (x64)",
-      "Path": "artifacts/benchmarking-results-msvc/benchmarking-results.json"
+      "Path": "artifacts/drop-msvc/benchmarking-results.json"
     },
     {
       "Description": "GCC on Ubuntu 24.04 (x64)",
-      "Path": "artifacts/benchmarking-results-gcc/benchmarking-results.json"
+      "Path": "artifacts/drop-gcc/benchmarking-results.json"
     },
     {
       "Description": "Clang on Ubuntu 24.04 (x64)",
-      "Path": "artifacts/benchmarking-results-clang/benchmarking-results.json"
+      "Path": "artifacts/drop-clang/benchmarking-results.json"
     },
     {
       "Description": "Apple Clang on macOS 15 (ARM64)",
-      "Path": "artifacts/benchmarking-results-appleclang/benchmarking-results.json"
+      "Path": "artifacts/drop-appleclang/benchmarking-results.json"
     },
     {
       "Description": "NVIDIA HPC on Ubuntu 24.04 (x64)",
-      "Path": "artifacts/benchmarking-results-nvhpc/benchmarking-results.json"
+      "Path": "artifacts/drop-nvhpc/benchmarking-results.json"
     }
   ],
   "Metrics": [
