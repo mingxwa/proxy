@@ -16,6 +16,13 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # For Windows: Prevent overri
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE) # Disable GMock
 FetchContent_MakeAvailable(googletest)
 
+FetchContent_Declare(
+  fmt
+  URL https://github.com/fmtlib/fmt/archive/refs/tags/11.1.4.tar.gz
+  URL_HASH SHA256=ac366b7b4c2e9f0dde63a59b3feb5ee59b67974b14ee5dc9ea8ad78aa2c1ee1e
+)
+FetchContent_MakeAvailable(fmt)
+
 add_executable(msft_proxy_tests
   proxy_creation_tests.cpp
   proxy_dispatch_tests.cpp
@@ -30,8 +37,7 @@ add_executable(msft_proxy_tests
   proxy_view_tests.cpp
 )
 target_include_directories(msft_proxy_tests PRIVATE .)
-target_link_libraries(msft_proxy_tests PRIVATE msft_proxy)
-target_link_libraries(msft_proxy_tests PRIVATE gtest_main)
+target_link_libraries(msft_proxy_tests PRIVATE msft_proxy gtest_main)
 
 if(MSVC)
   target_compile_options(msft_proxy_tests PRIVATE /W4 /WX)
@@ -46,8 +52,6 @@ gtest_discover_tests(msft_proxy_tests)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_executable(msft_proxy_freestanding_tests freestanding/proxy_freestanding_tests.cpp)
-  target_include_directories(msft_proxy_freestanding_tests PRIVATE .)
-  target_compile_features(msft_proxy_freestanding_tests PRIVATE cxx_std_20)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(msft_proxy_freestanding_tests PRIVATE -ffreestanding -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic -Wno-c++2b-extensions -Werror)
   else()
@@ -57,3 +61,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
   target_link_libraries(msft_proxy_freestanding_tests PRIVATE msft_proxy)
   add_test(NAME ProxyFreestandingTests COMMAND msft_proxy_freestanding_tests)
 endif()
+
+add_executable(msft_proxy_fmtlib_tests fmtlib/proxy_fmtlib_tests.cpp)
+target_link_libraries(msft_proxy_fmtlib_tests PRIVATE msft_proxy gtest_main fmt)
+target_compile_definitions(msft_proxy_fmtlib_tests PRIVATE PROXY_FORMAT_USE_FMTLIB)
+if (MSVC)
+  target_compile_options(msft_proxy_fmtlib_tests PRIVATE /W4)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(msft_proxy_fmtlib_tests PRIVATE -Wall -Wextra -Wpedantic -Wno-c++2b-extensions)
+else()
+  target_compile_options(msft_proxy_fmtlib_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+gtest_discover_tests(msft_proxy_fmtlib_tests)

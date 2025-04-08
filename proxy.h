@@ -19,7 +19,19 @@
 
 #if __STDC_HOSTED__
 #include <atomic>
+#include <string_view>
+
+#if PROXY_FORMAT_USE_FMTLIB
+#if FMT_VERSION >= 60100
+#define ___PRO_FORMAT_NS fmt
+#else
+#error When PROXY_FORMAT_USE_FMTLIB is defined, Proxy requires that the {fmt} \
+library (version 6.1.0 or later) be included before proxy.h
+#endif  // FMT_VERSION >= 61000
+#else
 #include <format>
+#define ___PRO_FORMAT_NS std
+#endif  // PROXY_FORMAT_USE_FMTLIB
 #endif  // __STDC_HOSTED__
 
 #if __cpp_rtti >= 199711L
@@ -32,7 +44,7 @@
 #elif __has_cpp_attribute(no_unique_address)
 #define ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE no_unique_address
 #else
-#error "Proxy requires C++20 attribute no_unique_address"
+#error Proxy requires C++20 attribute no_unique_address
 #endif
 
 #if __cpp_exceptions >= 199711L
@@ -1973,39 +1985,33 @@ auto weak_lock_impl(const P& self) noexcept
 PRO_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
 #if __STDC_HOSTED__
-template <class CharT> struct format_overload_traits;
+template <class CharT> struct format_traits;
 template <>
-struct format_overload_traits<char>
-    : std::type_identity<std::format_context::iterator(
-          std::string_view spec, std::format_context& fc) const> {};
+struct format_traits<char> {
+  using overload_type = ___PRO_FORMAT_NS::format_context::iterator(
+      std::string_view spec, ___PRO_FORMAT_NS::format_context& fc) const;
+  using context_type = ___PRO_FORMAT_NS::format_context;
+};
 template <>
-struct format_overload_traits<wchar_t>
-    : std::type_identity<std::wformat_context::iterator(
-          std::wstring_view spec, std::wformat_context& fc) const> {};
+struct format_traits<wchar_t> {
+  using overload_type = ___PRO_FORMAT_NS::wformat_context::iterator(
+      std::wstring_view spec, ___PRO_FORMAT_NS::wformat_context& fc) const;
+  using context_type = ___PRO_FORMAT_NS::wformat_context;
+};
 template <class CharT>
-using format_overload_t = typename format_overload_traits<CharT>::type;
+using format_overload_t = typename format_traits<CharT>::overload_type;
+template <class CharT>
+using format_context_t = typename format_traits<CharT>::context_type;
 
 struct format_dispatch {
-  // Note: This function requires std::formatter<T, CharT> to be well-formed.
-  // However, the standard did not provide such facility before C++23. In the
-  // "required" clause of this function, std::formattable (C++23) is preferred
-  // when available. Otherwise, when building with C++20, we simply check
-  // whether std::formatter<T, CharT> is a disabled specialization of
-  // std::formatter by std::is_default_constructible_v as per
-  // [format.formatter.spec].
-  template <class T, class CharT, class OutIt>
-  ___PRO_STATIC_CALL(OutIt, const T& self, std::basic_string_view<CharT> spec,
-      std::basic_format_context<OutIt, CharT>& fc)
-      requires(
-#if __cpp_lib_format_ranges >= 202207L
-          std::formattable<T, CharT>
-#else
-          std::is_default_constructible_v<std::formatter<T, CharT>>
-#endif  // __cpp_lib_format_ranges >= 202207L
-      ) {
-    std::formatter<T, CharT> impl;
+  template <class T, class CharT>
+  auto operator()(const T& self, std::basic_string_view<CharT> spec,
+      format_context_t<CharT>& fc) const
+      requires(std::is_default_constructible_v<
+          ___PRO_FORMAT_NS::formatter<T, CharT>>) {
+    ___PRO_FORMAT_NS::formatter<T, CharT> impl;
     {
-      std::basic_format_parse_context<CharT> pc{spec};
+      ___PRO_FORMAT_NS::basic_format_parse_context<CharT> pc{spec};
       impl.parse(pc);
     }
     return impl.format(self, fc);
@@ -2467,7 +2473,7 @@ struct weak_dispatch : D {
 }  // namespace pro
 
 #if __STDC_HOSTED__
-namespace std {
+namespace ___PRO_FORMAT_NS {
 
 template <pro::facade F, class CharT>
     requires(pro::details::facade_traits<F>::template is_invocable<false,
@@ -2476,27 +2482,28 @@ struct formatter<pro::proxy_indirect_accessor<F>, CharT> {
   constexpr auto parse(basic_format_parse_context<CharT>& pc) {
     for (auto it = pc.begin(); it != pc.end(); ++it) {
       if (*it == '}') {
-        spec_ = basic_string_view<CharT>{pc.begin(), it + 1};
+        spec_ = std::basic_string_view<CharT>{pc.begin(), it + 1};
         return it;
       }
     }
     return pc.end();
   }
 
-  template <class OutIt>
-  OutIt format(const pro::proxy_indirect_accessor<F>& ia,
-      basic_format_context<OutIt, CharT>& fc) const {
+  auto format(const pro::proxy_indirect_accessor<F>& ia,
+      pro::details::format_context_t<CharT>& fc) const {
     auto& p = pro::access_proxy<F>(ia);
-    if (!p.has_value()) { ___PRO_THROW(format_error{"null proxy"}); }
+    if (!p.has_value()) { throw format_error{"null proxy"}; }
     return pro::proxy_invoke<false, pro::details::format_dispatch,
         pro::details::format_overload_t<CharT>>(p, spec_, fc);
   }
 
  private:
-  basic_string_view<CharT> spec_;
+  std::basic_string_view<CharT> spec_;
 };
 
-}  // namespace std
+}  // namespace ___PRO_FORMAT_NS
+
+#undef ___PRO_FORMAT_NS
 #endif  // __STDC_HOSTED__
 
 #undef ___PRO_THROW
