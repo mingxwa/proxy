@@ -2492,7 +2492,7 @@ struct formatter<pro::proxy_indirect_accessor<F>, CharT> {
   auto format(const pro::proxy_indirect_accessor<F>& ia,
       pro::details::format_context_t<CharT>& fc) const {
     auto& p = pro::access_proxy<F>(ia);
-    if (!p.has_value()) { throw format_error{"null proxy"}; }
+    if (!p.has_value()) { ___PRO_THROW(format_error{"null proxy"}); }
     return pro::proxy_invoke<false, pro::details::format_dispatch,
         pro::details::format_overload_t<CharT>>(p, spec_, fc);
   }
