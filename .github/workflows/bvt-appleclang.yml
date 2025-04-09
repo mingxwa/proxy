@@ -21,7 +21,7 @@ jobs:
     - name: build and run test with AppleClang
       run: |
         cmake -B build -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release
-        cmake --build build -j
+        cmake --build build
         ctest --test-dir build -j
         mkdir build/drop
         chmod +x tools/dump_build_env.sh
