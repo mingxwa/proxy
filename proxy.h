@@ -23,10 +23,14 @@
 
 #if PROXY_FORMAT_USE_FMTLIB
 #if FMT_VERSION >= 60100
+static_assert(fmt::is_char<wchar_t>::value,
+    "The {fmt} library must have wchar_t support enabled. "
+    "Include <fmt/xchar.h> before including proxy.h to enable this feature.");
 #define ___PRO_FORMAT_NS fmt
 #else
-#error When PROXY_FORMAT_USE_FMTLIB is defined, Proxy requires that the {fmt} \
-library (version 6.1.0 or later) be included before proxy.h
+#error When PROXY_FORMAT_USE_FMTLIB is defined, Proxy requires the {fmt} \
+library (version 6.1.0 or later). Please ensure that the appropriate {fmt} \
+headers are included before proxy.h.
 #endif  // FMT_VERSION >= 61000
 #else
 #include <format>
@@ -44,7 +48,7 @@ library (version 6.1.0 or later) be included before proxy.h
 #elif __has_cpp_attribute(no_unique_address)
 #define ___PRO_NO_UNIQUE_ADDRESS_ATTRIBUTE no_unique_address
 #else
-#error Proxy requires C++20 attribute no_unique_address
+#error Proxy requires C++20 attribute no_unique_address.
 #endif
 
 #if __cpp_exceptions >= 199711L
