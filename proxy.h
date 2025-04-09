@@ -2489,8 +2489,9 @@ struct formatter<pro::proxy_indirect_accessor<F>, CharT> {
     return pc.end();
   }
 
-  auto format(const pro::proxy_indirect_accessor<F>& ia,
-      pro::details::format_context_t<CharT>& fc) const {
+  template <class OutIt>
+  OutIt format(const pro::proxy_indirect_accessor<F>& ia,
+      basic_format_context<OutIt, CharT>& fc) const {
     auto& p = pro::access_proxy<F>(ia);
     if (!p.has_value()) { ___PRO_THROW(format_error{"null proxy"}); }
     return pro::proxy_invoke<false, pro::details::format_dispatch,
