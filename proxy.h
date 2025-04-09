@@ -2000,7 +2000,7 @@ template <class CharT>
 using format_overload_t = typename format_overload_traits<CharT>::type;
 
 struct format_dispatch {
-  template <class T, class FormatContext>
+  template <class T, class CharT, class FormatContext>
   auto operator()(const T& self, std::basic_string_view<CharT> spec,
       FormatContext& fc) const
       requires(std::is_default_constructible_v<
