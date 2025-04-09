@@ -1985,28 +1985,24 @@ auto weak_lock_impl(const P& self) noexcept
 PRO_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
 #if __STDC_HOSTED__
-template <class CharT> struct format_traits;
+template <class CharT> struct format_overload_traits;
 template <>
-struct format_traits<char> {
-  using overload_type = ___PRO_FORMAT_NS::format_context::iterator(
-      std::string_view spec, ___PRO_FORMAT_NS::format_context& fc) const;
-  using context_type = ___PRO_FORMAT_NS::format_context;
-};
+struct format_overload_traits<char>
+    : std::type_identity<___PRO_FORMAT_NS::format_context::iterator(
+          std::string_view spec, ___PRO_FORMAT_NS::format_context& fc) const>
+    {};
 template <>
-struct format_traits<wchar_t> {
-  using overload_type = ___PRO_FORMAT_NS::wformat_context::iterator(
-      std::wstring_view spec, ___PRO_FORMAT_NS::wformat_context& fc) const;
-  using context_type = ___PRO_FORMAT_NS::wformat_context;
-};
+struct format_overload_traits<wchar_t>
+    : std::type_identity<___PRO_FORMAT_NS::wformat_context::iterator(
+          std::wstring_view spec, ___PRO_FORMAT_NS::wformat_context& fc) const>
+    {};
 template <class CharT>
-using format_overload_t = typename format_traits<CharT>::overload_type;
-template <class CharT>
-using format_context_t = typename format_traits<CharT>::context_type;
+using format_overload_t = typename format_overload_traits<CharT>::type;
 
 struct format_dispatch {
-  template <class T, class CharT>
+  template <class T, class FormatContext>
   auto operator()(const T& self, std::basic_string_view<CharT> spec,
-      format_context_t<CharT>& fc) const
+      FormatContext& fc) const
       requires(std::is_default_constructible_v<
           ___PRO_FORMAT_NS::formatter<T, CharT>>) {
     ___PRO_FORMAT_NS::formatter<T, CharT> impl;
@@ -2489,8 +2485,9 @@ struct formatter<pro::proxy_indirect_accessor<F>, CharT> {
     return pc.end();
   }
 
-  auto format(const pro::proxy_indirect_accessor<F>& ia,
-      pro::details::format_context_t<CharT>& fc) const {
+  template <class FormatContext>
+  auto format(const pro::proxy_indirect_accessor<F>& ia, FormatContext& fc)
+      const -> typename FormatContext::iterator {
     auto& p = pro::access_proxy<F>(ia);
     if (!p.has_value()) { ___PRO_THROW(format_error{"null proxy"}); }
     return pro::proxy_invoke<false, pro::details::format_dispatch,
