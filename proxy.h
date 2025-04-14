@@ -556,7 +556,8 @@ struct accessor_traits_impl<T> : std::type_identity<T> {};
 template <class T, class F>
 struct accessor_traits : std::type_identity<void> {};
 template <class T, class F>
-    requires(requires { typename T::template accessor<F>; })
+    requires(
+        requires { typename std::void_t<typename T::template accessor<F>>; })
 struct accessor_traits<T, F>
     : accessor_traits_impl<typename T::template accessor<F>> {};
 
@@ -1743,8 +1744,8 @@ consteval std::size_t max_align_of(std::size_t value) {
 template <class T, class F, bool IsDirect, class... Args>
 struct accessor_instantiation_traits : std::type_identity<void> {};
 template <class T, class F, bool IsDirect, class... Args>
-    requires(
-        requires { typename T::template accessor<F, IsDirect, T, Args...>; })
+    requires(requires { typename std::void_t<
+        typename T::template accessor<F, IsDirect, T, Args...>>; })
 struct accessor_instantiation_traits<T, F, IsDirect, Args...>
     : std::type_identity<typename T::template accessor<
           F, IsDirect, T, Args...>> {};
