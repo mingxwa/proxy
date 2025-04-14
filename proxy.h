@@ -553,23 +553,22 @@ template <class T>
     requires(std::is_nothrow_default_constructible_v<T> &&
         std::is_trivially_copyable_v<T> && !std::is_final_v<T>)
 struct accessor_traits_impl<T> : std::type_identity<T> {};
-template <class T, class F>
+template <class SFINAE, class T, class F>
 struct accessor_traits : std::type_identity<void> {};
 template <class T, class F>
-    requires(
-        requires { typename std::void_t<typename T::template accessor<F>>; })
-struct accessor_traits<T, F>
+struct accessor_traits<std::void_t<typename T::template accessor<F>>, T, F>
     : accessor_traits_impl<typename T::template accessor<F>> {};
+template <class T, class F>
+using accessor_t = typename accessor_traits<void, T, F>::type;
 
 template <class NTIsDirect, class F, class O, class I>
 struct composite_accessor_reduction : std::type_identity<O> {};
 template <class NTIsDirect, class F, class... As, class I>
     requires(std::is_same_v<NTIsDirect, nontype_t<I::is_direct>> &&
-        !std::is_void_v<traits_t<accessor_traits, I, F>>)
+        !std::is_void_v<accessor_t<I, F>>)
 struct composite_accessor_reduction<
     NTIsDirect, F, composite_accessor_impl<As...>, I>
-    : std::type_identity<
-          composite_accessor_impl<As..., traits_t<accessor_traits, I, F>>> {};
+    : std::type_identity<composite_accessor_impl<As..., accessor_t<I, F>>> {};
 template <bool IsDirect, class F, class... Ts>
 using composite_accessor = recursive_reduction_t<reduction_traits<
     composite_accessor_reduction, nontype_t<IsDirect>, F>::template type,
@@ -1741,17 +1740,16 @@ consteval std::size_t max_align_of(std::size_t value) {
   return value < alignof(std::max_align_t) ? value : alignof(std::max_align_t);
 }
 
-template <class T, class F, bool IsDirect, class... Args>
+template <class SFINAE, class T, class F, bool IsDirect, class... Args>
 struct accessor_instantiation_traits : std::type_identity<void> {};
 template <class T, class F, bool IsDirect, class... Args>
-    requires(requires { typename std::void_t<
-        typename T::template accessor<F, IsDirect, T, Args...>>; })
-struct accessor_instantiation_traits<T, F, IsDirect, Args...>
+struct accessor_instantiation_traits<std::void_t<typename T::template accessor<
+    F, IsDirect, T, Args...>>, T, F, IsDirect, Args...>
     : std::type_identity<typename T::template accessor<
           F, IsDirect, T, Args...>> {};
 template <class T, class F, bool IsDirect, class... Args>
 using instantiated_accessor_t =
-    typename accessor_instantiation_traits<T, F, IsDirect, Args...>::type;
+    typename accessor_instantiation_traits<void, T, F, IsDirect, Args...>::type;
 
 template <bool IsDirect, class D, class... Os>
 struct conv_impl {
