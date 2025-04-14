@@ -77,11 +77,12 @@ struct recursive_reduction<R, O, I, Is...>
 template <template <class, class> class R, class O, class... Is>
 using recursive_reduction_t = typename recursive_reduction<R, O, Is...>::type;
 
-template <template <class...> class T, class... Args>
-struct traits_selector {
-  template <class... Ctx>
-  using type = typename T<Args..., Ctx...>::type;
+template <template <class...> class R, class... Args>
+struct reduction_traits {
+  template <class O, class I>
+  using type = typename R<Args..., O, I>::type;
 };
+
 template <template <class...> class T, class... Args>
 using traits_t = typename T<Args...>::type;
 
@@ -402,7 +403,7 @@ template <class... Ms1, class... Ms2>
 struct meta_reduction<composite_meta_impl<Ms1...>, composite_meta_impl<Ms2...>>
     : std::type_identity<composite_meta_impl<Ms1..., Ms2...>> {};
 template <class... Ms>
-using composite_meta = recursive_reduction_t<traits_selector<
+using composite_meta = recursive_reduction_t<reduction_traits<
     meta_reduction>::template type, composite_meta_impl<>, Ms...>;
 
 template <class T>
@@ -569,7 +570,7 @@ struct composite_accessor_reduction<
     : std::type_identity<
           composite_accessor_impl<As..., traits_t<accessor_traits, I, F>>> {};
 template <bool IsDirect, class F, class... Ts>
-using composite_accessor = recursive_reduction_t<traits_selector<
+using composite_accessor = recursive_reduction_t<reduction_traits<
     composite_accessor_reduction, nontype_t<IsDirect>, F>::template type,
     composite_accessor_impl<>, Ts...>;
 
@@ -1857,7 +1858,7 @@ struct observer_upward_conversion_conv_reduction<
           observer_upward_conversion_overload<O>>> {};
 template <class... Os>
 using observer_upward_conversion_conv = recursive_reduction_t<
-    traits_selector<observer_upward_conversion_conv_reduction>::template type,
+    reduction_traits<observer_upward_conversion_conv_reduction>::template type,
     conv_impl<true, upward_conversion_dispatch>, Os...>;
 
 template <class D, class F, class... Os>
@@ -1888,7 +1889,7 @@ struct observer_conv_reduction<F, std::tuple<Cs...>, I>
 template <class F, class... Cs>
 struct observer_facade_conv_impl {
   using convention_types = recursive_reduction_t<
-      traits_selector<observer_conv_reduction, F>::template type,
+      reduction_traits<observer_conv_reduction, F>::template type,
       std::tuple<>, Cs...>;
 };
 
@@ -1900,7 +1901,7 @@ struct observer_refl_reduction<std::tuple<Rs...>, R>
 template <class... Rs>
 struct observer_facade_refl_impl {
   using reflection_types = recursive_reduction_t<
-      traits_selector<observer_refl_reduction>::template type,
+      reduction_traits<observer_refl_reduction>::template type,
       std::tuple<>, Rs...>;
 };
 
@@ -1955,7 +1956,7 @@ struct weak_conv_reduction<std::tuple<Cs...>, I>
 template <class F, class... Cs>
 struct weak_facade_impl {
   using convention_types = recursive_reduction_t<
-      traits_selector<weak_conv_reduction>::template type,
+      reduction_traits<weak_conv_reduction>::template type,
       std::tuple<conv_impl<true, weak_mem_lock, proxy<F>() const noexcept>>,
       Cs...>;
   using reflection_types = std::tuple<>;
