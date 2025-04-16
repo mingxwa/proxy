@@ -25,6 +25,4 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/proxyConfigVersion.cmake
 include(CTest)
 if (BUILD_TESTING)
   add_subdirectory(tests)
-  add_subdirectory(benchmarks)
-  add_subdirectory(samples)
 endif()
