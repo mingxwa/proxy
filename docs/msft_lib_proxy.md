@@ -1,5 +1,7 @@
 # Feature test macro `__msft_lib_proxy`
 
+> Header: `proxy.h`
+
 ```cpp
 #define __msft_lib_proxy /* see below */
 ```
@@ -8,6 +10,7 @@ Similar to the standard [feature test macros](https://en.cppreference.com/w/cpp/
 
 | Version | Value of `__msft_lib_proxy` |
 | ------- | --------------------------- |
+| 4.0.0   | `202504L`                   |
 | 3.3.0   | `202503L`                   |
 | 3.2.1   | `202502L`                   |
 | 3.2.0   | `202501L`                   |

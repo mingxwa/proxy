@@ -1,5 +1,8 @@
 # Concept `facade`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <class F>
 concept facade = /* see-below */;

@@ -1,5 +1,8 @@
 # Function template `proxy_invoke`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <bool IsDirect, class D, class O, facade F, class... Args>
 /* see below */ proxy_invoke(proxy<F>& p, Args&&... args);

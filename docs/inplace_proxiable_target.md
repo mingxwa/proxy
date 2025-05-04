@@ -1,5 +1,8 @@
 # Concept `inplace_proxiable_target`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <class T, class F>
 concept inplace_proxiable_target = proxiable<inplace-ptr<T>, F>;

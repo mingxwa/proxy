@@ -1,8 +1,12 @@
 # Class template `weak_dispatch`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.2.0
+
 ```cpp
 template <class D>
-struct weak_dispatch : D;  // since 3.2.0
+struct weak_dispatch : D;
 ```
 
 Class template `weak_dispatch<D>` extends an existing [dispatch](ProDispatch.md) type `D` and offers a default implementation of `operator()` that throws [`not_implemented`](not_implemented.md) when a convention is not implemented in `D`.

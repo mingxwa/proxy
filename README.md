@@ -20,7 +20,7 @@ If so, this library is for you.
 - **Non-intrusive**: An implementation type is no longer required to inherit from an abstract binding.
 - **Well-managed**: "Proxy" provides a GC-like capability that manages the lifetimes of different objects efficiently without the need for an actual garbage collector.
 - **Fast**: With typical compiler optimizations, "Proxy" produces high-quality code that is as good as or better than hand-written code. In many cases, "Proxy" performs better than traditional inheritance-based approaches, especially in managing the lifetimes of objects.
-- **Accessible**: Learned from user feedback, accessibility has been significantly improved in "Proxy 3" with intuitive syntax, good IDE compatibility, and accurate diagnostics.
+- **Accessible**: Learned from user feedback, accessibility has been significantly improved with intuitive syntax, good IDE compatibility, and accurate diagnostics.
 - **Flexible**: Not only member functions, the "abstraction" of "Proxy" allows *any* expression to be polymorphic, including free functions, operators, conversions, etc. Different abstractions can be freely composed on demand. Performance tuning is supported for experts to balance between extensibility and performance.
 
 Please refer to the [Proxy's Frequently Asked Questions](https://microsoft.github.io/proxy/docs/faq.html) for more background, and refer to the [specifications](https://microsoft.github.io/proxy/docs/specifications.html) for more technical details.

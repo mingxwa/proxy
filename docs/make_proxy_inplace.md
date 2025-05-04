@@ -1,5 +1,8 @@
 # Function template `make_proxy_inplace`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 The definition of `make_proxy_inplace` makes use of an exposition-only class template *inplace-ptr*. Similar to [`std::optional`](https://en.cppreference.com/w/cpp/utility/optional), `inplace-ptr<T>` contains the storage for an object of type `T`, manages its lifetime, and provides `operator*` for access with the same qualifiers. However, it does not necessarily support the state where the contained object is absent. `inplace-ptr<T>` has the same size and alignment as `T`.
 
 ```cpp

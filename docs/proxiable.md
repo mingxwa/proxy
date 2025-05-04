@@ -1,5 +1,8 @@
 # Concept `proxiable`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <class P, class F>
 concept proxiable = /* see-below */;

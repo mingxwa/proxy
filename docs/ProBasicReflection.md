@@ -1,5 +1,7 @@
 # Named requirements: *ProBasicReflection*
 
+> Since: 3.1.0
+
 A type `R` meets the *ProBasicReflection* requirements if the following expressions are well-formed and have the specified semantics.
 
 | Expressions                  | Semantics                                                    |

@@ -1,5 +1,9 @@
 # Concept `proxiable_target`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.3.0
+
 ```cpp
 template <class T, class F>
 concept proxiable_target = proxiable<observer-ptr<T>, F>;

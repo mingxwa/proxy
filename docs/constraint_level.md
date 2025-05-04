@@ -1,5 +1,8 @@
 # Enum class `constraint_level`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 enum class constraint_level : /* unspecified */ {
   none, nontrivial, nothrow, trivial

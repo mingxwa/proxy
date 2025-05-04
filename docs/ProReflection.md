@@ -1,5 +1,7 @@
 # Named requirements: *ProReflection*
 
+> Since: 3.1.0
+
 A type `R` meets the *ProReflection* requirements of a type `P` if `R` meets the [*ProBasicReflection* requirements](ProBasicReflection.md), and the following expressions are well-formed and have the specified semantics (let `T` be `P` when `R::is_direct` is `true`, or otherwise `typename std::pointer_traits<P>::element_type`).
 
 | Expressions                                         | Semantics                                                    |

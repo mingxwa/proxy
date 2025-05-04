@@ -1,5 +1,8 @@
 # Class `proxiable_ptr_constraints`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 struct proxiable_ptr_constraints;
 ```

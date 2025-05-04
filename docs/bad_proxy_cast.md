@@ -1,7 +1,11 @@
 # Class `bad_proxy_cast`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.2.0
+
 ```cpp
-class bad_proxy_cast : public std::bad_cast;  // since 3.2.0
+class bad_proxy_cast : public std::bad_cast;
 ```
 
 A type of object to be thrown by the value-returning forms of [`proxy_cast`](basic_facade_builder/support_rtti.md) on failure.

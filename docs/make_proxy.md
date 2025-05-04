@@ -1,5 +1,8 @@
 # Function template `make_proxy`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 The definitions of `make_proxy` make use of the following exposition-only function:
 
 ```cpp

@@ -1,5 +1,8 @@
 # Function template `proxy_reflect`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <bool IsDirect, class R, facade F>
 const R& proxy_reflect(const proxy<F>& p) noexcept;

@@ -1,5 +1,8 @@
 # Class template `proxy`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <facade F>
 class proxy;

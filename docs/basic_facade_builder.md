@@ -1,5 +1,8 @@
 # Class template `basic_facade_builder`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 The definitions of `basic_facade_builder` and `facade_builder` make use of the following exposition-only constants:
 
 ```cpp
@@ -27,13 +30,9 @@ using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
 
 ## Member Types
 
-| Name                                                         | Description                                                  |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [`build`](basic_facade_builder/build.md)                     | Specifies a [`facade`](facade.md) type deduced from the template parameters of the `basic_facade_builder` |
-| [`support_format`<br />`support_wformat`](basic_facade_builder/support_format.md)<br />*(since 3.2.0)* | Specifies the capability of formatting (via [formatting functions](https://en.cppreference.com/w/cpp/utility/format)) to the template parameters |
-| [`support_rtti`<br />`support_indirect_rtti`<br />`support_direct_rtti`](basic_facade_builder/support_rtti.md)<br />*(since 3.2.0)* | Specifies the capability of RTTI (via `proxy_cast` and `proxy_typeid`) to the template parameters |
-| [`support_view` ](basic_facade_builder/support_view.md)<br />*(since 3.2.1)* | Specifies the capability of implicit conversion to `proxy_view` to the template parameters |
-| [`support_weak`](basic_facade_builder/support_weak.md)<br />*(since 3.3.0)* | Specifies the capability of implicit conversion to `weak_proxy` to the template parameters |
+| Name                                     | Description                                                  |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| [`build`](basic_facade_builder/build.md) | Specifies a [`facade`](facade.md) type deduced from the template parameters of the `basic_facade_builder` |
 
 ## Member Alias Templates
 
@@ -46,6 +45,7 @@ using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
 | [`support_copy`](basic_facade_builder/support_copy.md)       | Specifies minimum `copyability` of `C` in the template parameters |
 | [`support_destruction`](basic_facade_builder/support_destruction.md) | Specifies minimum `destructibility` of `C` in the template parameters |
 | [`support_relocation`](basic_facade_builder/support_relocation.md) | Specifies minimum `relocatability` of `C` in the template parameters |
+| [`support`](basic_facade_builder/support.md)                 | // TODO                                                      |
 
 ## Member Functions
 

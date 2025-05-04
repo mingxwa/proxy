@@ -1,5 +1,8 @@
 # Function template `access_proxy`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 ```cpp
 template <facade F, class A>
 proxy<F>& access_proxy(A& a) noexcept;

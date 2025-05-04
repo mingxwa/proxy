@@ -1,5 +1,9 @@
 # Class template `facade_aware_overload_t`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.2.1
+
 ```cpp
 template <template <class> class O>
 struct facade_aware_overload_t { facade_aware_overload_t() = delete; };

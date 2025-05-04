@@ -1,11 +1,15 @@
 # Alias template `weak_proxy`<br />Class template `weak_facade`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.3.0
+
 ```cpp
 template <facade F>
-struct weak_facade;  // since 3.3.0
+struct weak_facade;
 
 template <facade F>
-using weak_proxy = proxy<weak_facade<F>>;  // since 3.3.0
+using weak_proxy = proxy<weak_facade<F>>;
 ```
 
 Class template `weak_facade` is a [facade](facade.md) type for weak pointers (e.g., [`std::weak_ptr`](https://en.cppreference.com/w/cpp/memory/weak_ptr)) potentially converted from a `proxy` object.

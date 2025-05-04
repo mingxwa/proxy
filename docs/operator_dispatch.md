@@ -1,5 +1,8 @@
 # Class template `operator_dispatch`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+
 The definition of `operator_dispatch` makes use of an exposition-only type *string-literal*, which is constructible from a `char` array at compile-time and can be used as a non-type template argument.
 
 ```cpp

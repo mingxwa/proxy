@@ -1,5 +1,9 @@
 # Function template `make_proxy_shared`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.3.0
+
 ```cpp
 // (1)
 template <facade F, class T, class... Args>

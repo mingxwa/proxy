@@ -1,7 +1,11 @@
 # Class `implicit_conversion_dispatch`
 
+> Header: `proxy.h`
+> Namespace: `pro`
+> Since: 3.2.0
+
 ```cpp
-class implicit_conversion_dispatch;  // since 3.2.0
+class implicit_conversion_dispatch;
 ```
 
 Class `implicit_conversion_dispatch` models a [dispatch](ProDispatch.md) type for implicit type conversion expressions. It meets the [*ProAccessible* requirements](ProAccessible.md) of applicable types.
