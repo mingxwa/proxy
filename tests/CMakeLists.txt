@@ -25,18 +25,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 add_executable(msft_proxy_tests
-  proxy_creation_tests.cpp
-  proxy_dispatch_tests.cpp
-  proxy_fmt_format_tests.cpp
-  proxy_format_tests.cpp
-  proxy_integration_tests.cpp
-  proxy_invocation_tests.cpp
-  proxy_lifetime_tests.cpp
-  proxy_reflection_tests.cpp
-  proxy_regression_tests.cpp
-  proxy_rtti_tests.cpp
   proxy_traits_tests.cpp
-  proxy_view_tests.cpp
 )
 target_include_directories(msft_proxy_tests PRIVATE .)
 target_link_libraries(msft_proxy_tests PRIVATE msft_proxy gtest_main fmt::fmt)

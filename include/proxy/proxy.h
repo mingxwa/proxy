@@ -50,6 +50,7 @@
 #define ___PRO_EXPORT export
 #else
 #define ___PRO_EXPORT
+#endif  // PROXY_BUILD_MODULES
 
 namespace pro {
 

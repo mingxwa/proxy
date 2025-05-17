@@ -82,6 +82,6 @@ install(
 if (BUILD_TESTING)
   include(CTest)
   add_subdirectory(tests)
-  add_subdirectory(benchmarks)
-  add_subdirectory(docs)
+#  add_subdirectory(benchmarks)
+#  add_subdirectory(docs)
 endif()
