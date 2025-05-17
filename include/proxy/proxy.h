@@ -46,6 +46,11 @@
 #define ___PRO_THROW(...) std::abort()
 #endif  // __cpp_exceptions >= 199711L
 
+#if PROXY_BUILD_MODULES
+#define ___PRO_EXPORT export
+#else
+#define ___PRO_EXPORT
+
 namespace pro {
 
 namespace details {
@@ -100,9 +105,9 @@ template <class F> struct basic_facade_traits;
 
 }  // namespace details
 
-enum class constraint_level { none, nontrivial, nothrow, trivial };
+___PRO_EXPORT enum class constraint_level { none, nontrivial, nothrow, trivial };
 
-struct proxiable_ptr_constraints {
+___PRO_EXPORT struct proxiable_ptr_constraints {
   std::size_t max_size;
   std::size_t max_align;
   constraint_level copyability;
@@ -110,14 +115,14 @@ struct proxiable_ptr_constraints {
   constraint_level destructibility;
 };
 
-template <template <class> class O>
+___PRO_EXPORT template <template <class> class O>
 struct facade_aware_overload_t { facade_aware_overload_t() = delete; };
 
-template <class F>
+___PRO_EXPORT template <class F>
 concept facade = details::basic_facade_traits<F>::applicable;
 
-template <facade F> struct proxy_indirect_accessor;
-template <facade F> class ___PRO_ENFORCE_EBO proxy;
+___PRO_EXPORT template <facade F> struct proxy_indirect_accessor;
+___PRO_EXPORT template <facade F> class ___PRO_ENFORCE_EBO proxy;
 
 namespace details {
 
@@ -807,7 +812,7 @@ add_qualifier_t<proxy<F>, Q> access_impl(add_qualifier_t<A, Q> a) {
 
 }  // namespace details
 
-template <class P, class F>
+___PRO_EXPORT template <class P, class F>
 concept proxiable = facade<F> && details::facade_traits<F>::applicable &&
     details::facade_traits<F>::template applicable_ptr<P>;
 
@@ -815,48 +820,48 @@ template <facade F>
 struct proxy_indirect_accessor : details::facade_traits<F>::indirect_accessor
     { friend class details::inplace_ptr<proxy_indirect_accessor>; };
 
-template <bool IsDirect, class D, class O, facade F, class... Args>
+___PRO_EXPORT template <bool IsDirect, class D, class O, facade F, class... Args>
 auto proxy_invoke(proxy<F>& p, Args&&... args)
     -> typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, IsDirect, D, O>(
       p, std::forward<Args>(args)...);
 }
-template <bool IsDirect, class D, class O, facade F, class... Args>
+___PRO_EXPORT template <bool IsDirect, class D, class O, facade F, class... Args>
 auto proxy_invoke(const proxy<F>& p, Args&&... args)
     -> typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, IsDirect, D, O>(
       p, std::forward<Args>(args)...);
 }
-template <bool IsDirect, class D, class O, facade F, class... Args>
+___PRO_EXPORT template <bool IsDirect, class D, class O, facade F, class... Args>
 auto proxy_invoke(proxy<F>&& p, Args&&... args)
     -> typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, IsDirect, D, O>(
       std::move(p), std::forward<Args>(args)...);
 }
-template <bool IsDirect, class D, class O, facade F, class... Args>
+___PRO_EXPORT template <bool IsDirect, class D, class O, facade F, class... Args>
 auto proxy_invoke(const proxy<F>&& p, Args&&... args)
     -> typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, IsDirect, D, O>(
       std::move(p), std::forward<Args>(args)...);
 }
 
-template <bool IsDirect, class R, facade F>
+___PRO_EXPORT template <bool IsDirect, class R, facade F>
 const R& proxy_reflect(const proxy<F>& p) noexcept {
   return static_cast<const details::refl_meta<IsDirect, R>&>(
       details::proxy_helper<F>::get_meta(p)).reflector;
 }
 
-template <facade F, class A>
+___PRO_EXPORT template <facade F, class A>
 proxy<F>& access_proxy(A& a) noexcept
     { return details::access_impl<F, A, details::qualifier_type::lv>(a); }
-template <facade F, class A>
+___PRO_EXPORT template <facade F, class A>
 const proxy<F>& access_proxy(const A& a) noexcept
     { return details::access_impl<F, A, details::qualifier_type::const_lv>(a); }
-template <facade F, class A>
+___PRO_EXPORT template <facade F, class A>
 proxy<F>&& access_proxy(A&& a) noexcept {
   return details::access_impl<F, A, details::qualifier_type::rv>(std::move(a));
 }
-template <facade F, class A>
+___PRO_EXPORT template <facade F, class A>
 const proxy<F>&& access_proxy(const A&& a) noexcept {
   return details::access_impl<F, A, details::qualifier_type::const_rv>(
       std::move(a));
@@ -1348,27 +1353,27 @@ constexpr proxy<F> make_proxy_shared_impl(Args&&... args) {
 
 }  // namespace details
 
-template <facade F> struct observer_facade;
-template <facade F> using proxy_view = proxy<observer_facade<F>>;
+___PRO_EXPORT template <facade F> struct observer_facade;
+___PRO_EXPORT template <facade F> using proxy_view = proxy<observer_facade<F>>;
 
-template <facade F> struct weak_facade;
-template <facade F> using weak_proxy = proxy<weak_facade<F>>;
+___PRO_EXPORT template <facade F> struct weak_facade;
+___PRO_EXPORT template <facade F> using weak_proxy = proxy<weak_facade<F>>;
 
-template <class T, class F>
+___PRO_EXPORT template <class T, class F>
 concept inplace_proxiable_target = proxiable<details::inplace_ptr<T>, F>;
 
-template <class T, class F>
+___PRO_EXPORT template <class T, class F>
 concept proxiable_target = proxiable<
     details::observer_ptr<T&, const T&, T&&, const T&&>, observer_facade<F>>;
 
-template <facade F, class T, class... Args>
+___PRO_EXPORT template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_inplace(Args&&... args)
     noexcept(std::is_nothrow_constructible_v<T, Args...>)
     requires(std::is_constructible_v<T, Args...>) {
   return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
       std::forward<Args>(args)...};
 }
-template <facade F, class T, class U, class... Args>
+___PRO_EXPORT template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy_inplace(
     std::initializer_list<U> il, Args&&... args)
     noexcept(std::is_nothrow_constructible_v<
@@ -1377,7 +1382,7 @@ constexpr proxy<F> make_proxy_inplace(
   return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
       il, std::forward<Args>(args)...};
 }
-template <facade F, class T>
+___PRO_EXPORT template <facade F, class T>
 constexpr proxy<F> make_proxy_inplace(T&& value)
     noexcept(std::is_nothrow_constructible_v<std::decay_t<T>, T>)
     requires(std::is_constructible_v<std::decay_t<T>, T>) {
@@ -1385,76 +1390,76 @@ constexpr proxy<F> make_proxy_inplace(T&& value)
       std::in_place, std::forward<T>(value)};
 }
 
-template <facade F, class T>
+___PRO_EXPORT template <facade F, class T>
 constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
   return proxy_view<F>{
       details::observer_ptr<T&, const T&, T&&, const T&&>{value}};
 }
 
 #if __STDC_HOSTED__
-template <facade F, class T, class Alloc, class... Args>
+___PRO_EXPORT template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
     requires(std::is_constructible_v<T, Args...>) {
   return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
 }
-template <facade F, class T, class Alloc, class U, class... Args>
+___PRO_EXPORT template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy(
     const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
     requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::allocate_proxy_impl<F, T>(
       alloc, il, std::forward<Args>(args)...);
 }
-template <facade F, class Alloc, class T>
+___PRO_EXPORT template <facade F, class Alloc, class T>
 constexpr proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
     requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
-template <facade F, class T, class... Args>
+___PRO_EXPORT template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy(Args&&... args)
     requires(std::is_constructible_v<T, Args...>)
     { return details::make_proxy_impl<F, T>(std::forward<Args>(args)...); }
-template <facade F, class T, class U, class... Args>
+___PRO_EXPORT template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
     requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
     { return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...); }
-template <facade F, class T>
+___PRO_EXPORT template <facade F, class T>
 constexpr proxy<F> make_proxy(T&& value)
     requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
 }
 
-template <facade F, class T, class Alloc, class... Args>
+___PRO_EXPORT template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
     requires(std::is_constructible_v<T, Args...>) {
   return details::allocate_proxy_shared_impl<F, T>(
       alloc, std::forward<Args>(args)...);
 }
-template <facade F, class T, class Alloc, class U, class... Args>
+___PRO_EXPORT template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy_shared(
     const Alloc& alloc, std::initializer_list<U> il, Args&&... args)
     requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::allocate_proxy_shared_impl<F, T>(
       alloc, il, std::forward<Args>(args)...);
 }
-template <facade F, class Alloc, class T>
+___PRO_EXPORT template <facade F, class Alloc, class T>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
     requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::allocate_proxy_shared_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
-template <facade F, class T, class... Args>
+___PRO_EXPORT template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_shared(Args&&... args)
     requires(std::is_constructible_v<T, Args...>) {
   return details::make_proxy_shared_impl<F, T>(std::forward<Args>(args)...);
 }
-template <facade F, class T, class U, class... Args>
+___PRO_EXPORT template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy_shared(
     std::initializer_list<U> il, Args&&... args)
     requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>) {
   return details::make_proxy_shared_impl<F, T>(il, std::forward<Args>(args)...);
 }
-template <facade F, class T>
+___PRO_EXPORT template <facade F, class T>
 constexpr proxy<F> make_proxy_shared(T&& value)
     requires(std::is_constructible_v<std::decay_t<T>, T>) {
   return details::make_proxy_shared_impl<F, std::decay_t<T>>(
@@ -1463,7 +1468,7 @@ constexpr proxy<F> make_proxy_shared(T&& value)
 #endif  // __STDC_HOSTED__
 
 #if __cpp_rtti >= 199711L
-class bad_proxy_cast : public std::bad_cast {
+___PRO_EXPORT class bad_proxy_cast : public std::bad_cast {
  public:
   char const* what() const noexcept override { return "pro::bad_proxy_cast"; }
 };
@@ -1471,7 +1476,7 @@ class bad_proxy_cast : public std::bad_cast {
 
 namespace details {
 
-template <class F, bool IsDirect>
+___PRO_EXPORT template <class F, bool IsDirect>
 using adl_accessor_arg_t =
     std::conditional_t<IsDirect, proxy<F>, proxy_indirect_accessor<F>>;
 
@@ -1480,7 +1485,7 @@ template <class F>
 struct proxy_arg_traits<proxy<F>> : applicable_traits {};
 template <class F>
 struct proxy_arg_traits<proxy_indirect_accessor<F>> : applicable_traits {};
-template <class T>
+___PRO_EXPORT template <class T>
 concept non_proxy_arg = !proxy_arg_traits<std::decay_t<T>>::applicable;
 
 #define ___PRO_DEF_CAST_ACCESSOR(Q, SELF, ...) \
@@ -1521,8 +1526,8 @@ struct explicit_conversion_adapter {
   T&& value_;
 };
 
-constexpr std::size_t invalid_size = std::numeric_limits<std::size_t>::max();
-constexpr constraint_level invalid_cl = static_cast<constraint_level>(
+inline constexpr std::size_t invalid_size = std::numeric_limits<std::size_t>::max();
+inline constexpr constraint_level invalid_cl = static_cast<constraint_level>(
     std::numeric_limits<std::underlying_type_t<constraint_level>>::min());
 consteval auto normalize(proxiable_ptr_constraints value) {
   if (value.max_size == invalid_size)
@@ -1812,7 +1817,7 @@ template <facade F>
 struct weak_facade : details::instantiated_t<
     details::weak_facade_impl, typename F::convention_types, F> {};
 
-template <class Cs, class Rs, proxiable_ptr_constraints C>
+___PRO_EXPORT template <class Cs, class Rs, proxiable_ptr_constraints C>
 struct basic_facade_builder {
   template <class D, details::extended_overload... Os>
       requires(sizeof...(Os) > 0u)
@@ -1857,7 +1862,7 @@ struct basic_facade_builder {
   using build = details::facade_impl<Cs, Rs, details::normalize(C)>;
   basic_facade_builder() = delete;
 };
-using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
+___PRO_EXPORT using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
     proxiable_ptr_constraints{
         .max_size = details::invalid_size,
         .max_align = details::invalid_size,
@@ -2075,7 +2080,7 @@ using wformat = typename FB::template add_convention<
 #endif  // __STDC_HOSTED__ && __has_include(<format>)
 
 #if __cpp_rtti >= 199711L
-template <class FB>
+___PRO_EXPORT template <class FB>
 using indirect_rtti = typename FB
     ::template add_indirect_convention<details::proxy_cast_dispatch,
         void(details::proxy_cast_context) &,
@@ -2083,7 +2088,7 @@ using indirect_rtti = typename FB
         void(details::proxy_cast_context) &&>
     ::template add_indirect_reflection<details::proxy_typeid_reflector>;
 
-template <class FB>
+___PRO_EXPORT template <class FB>
 using direct_rtti = typename FB
     ::template add_direct_convention<details::proxy_cast_dispatch,
         void(details::proxy_cast_context) &,
@@ -2091,23 +2096,23 @@ using direct_rtti = typename FB
         void(details::proxy_cast_context) &&>
     ::template add_direct_reflection<details::proxy_typeid_reflector>;
 
-template <class FB>
+___PRO_EXPORT template <class FB>
 using rtti = indirect_rtti<FB>;
 #endif  // __cpp_rtti >= 199711L
 
-template <class FB>
+___PRO_EXPORT template <class FB>
 using as_view = typename FB
     ::template add_direct_convention<details::view_conversion_dispatch,
         facade_aware_overload_t<details::view_conversion_overload>>;
 
-template <class FB>
+___PRO_EXPORT template <class FB>
 using as_weak = typename FB
     ::template add_direct_convention<details::weak_conversion_dispatch,
         facade_aware_overload_t<details::weak_conversion_overload>>;
 
 }  // namespace skills
 
-template <details::sign Sign, bool Rhs = false>
+___PRO_EXPORT template <details::sign Sign, bool Rhs = false>
 struct operator_dispatch;
 
 #define ___PRO_DEF_LHS_LEFT_OP_ACCESSOR(Q, SELF, ...) \
@@ -2315,24 +2320,24 @@ struct operator_dispatch<"[]", false> {
 #undef ___PRO_DEF_LHS_ANY_OP_ACCESSOR
 #undef ___PRO_DEF_LHS_LEFT_OP_ACCESSOR
 
-struct implicit_conversion_dispatch
+___PRO_EXPORT struct implicit_conversion_dispatch
     : details::cast_dispatch_base<false, false> {
   template <details::non_proxy_arg T>
   ___PRO_STATIC_CALL(T&&, T&& self) noexcept { return std::forward<T>(self); }
 };
-struct explicit_conversion_dispatch : details::cast_dispatch_base<true, false> {
+___PRO_EXPORT struct explicit_conversion_dispatch : details::cast_dispatch_base<true, false> {
   template <details::non_proxy_arg T>
   ___PRO_STATIC_CALL(auto, T&& self) noexcept
       { return details::explicit_conversion_adapter<T>{std::forward<T>(self)}; }
 };
-using conversion_dispatch = explicit_conversion_dispatch;
+___PRO_EXPORT using conversion_dispatch = explicit_conversion_dispatch;
 
-class not_implemented : public std::exception {
+___PRO_EXPORT class not_implemented : public std::exception {
  public:
   char const* what() const noexcept override { return "pro::not_implemented"; }
 };
 
-template <class D>
+___PRO_EXPORT template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
