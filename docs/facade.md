@@ -1,6 +1,7 @@
 # Concept `facade`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 ```cpp

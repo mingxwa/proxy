@@ -1,6 +1,7 @@
 # Concept `proxiable`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 ```cpp
