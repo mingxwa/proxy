@@ -48,7 +48,7 @@ It is generally not recommended to call `proxy_invoke` directly. Using an [`acce
 #include <iostream>
 #include <string>
 
-#include "proxy.h"
+#include <proxy/proxy.h>
 
 PRO_DEF_FREE_DISPATCH(FreeToString, std::to_string, ToString);
 

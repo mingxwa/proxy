@@ -23,7 +23,7 @@ This function is useful when only metadata deduced from a type is needed. While 
 #include <memory>
 #include <type_traits>
 
-#include "proxy.h"
+#include <proxy/proxy.h>
 
 class CopyabilityReflector {
  public:
