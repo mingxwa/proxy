@@ -1,6 +1,6 @@
 # Feature test macro `__msft_lib_proxy`
 
-> Header: `proxy.h`
+> Header: `proxy_macros.h` and `proxy.h`
 
 ```cpp
 #define __msft_lib_proxy /* see below */

@@ -55,6 +55,10 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`proxy_invoke`](proxy_invoke.md)                   | Invokes a `proxy` with a specified convention                |
 | [`proxy_reflect`](proxy_reflect.md)                 | Acquires reflection information of the underlying pointer type |
 
+## Header `<proxy_macros.h>`
+
+Also included in `proxy.h`.
+
 ### Macros
 
 | Name                                                         | Description                                                  |
