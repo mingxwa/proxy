@@ -3,7 +3,7 @@ name: Build and deploy mkdocs to https://mingxwa.github.io/proxy
 on:
   push:
     branches:
-      - doc
+      - user/mingxwa/doc
 
 jobs:
   deploy:
@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch }}
+          ref: user/mingxwa/doc
           submodules: "recursive"
           fetch-depth: 0 # Fetch all history for .GitInfo and .Lastmod
       - name: Setup Python
