@@ -23,3 +23,7 @@ export struct Bar
 
 export struct Baz
     : pro::facade_builder::add_convention<FreeGetBaz, int() const>::build {};
+
+export struct Formattable : pro::facade_builder
+    ::support<pro::skills::format>
+    ::build {};

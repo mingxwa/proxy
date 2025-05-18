@@ -13,3 +13,8 @@ TEST(ProxyModuleSupportTests, TestBasic) {
   MyFoo foo;
   ASSERT_EQ(user(&foo), 42);
 }
+
+TEST(ProxyModuleSupportTests, TestFormattable) {
+  auto p = pro::make_proxy<Formattable>(123);
+  ASSERT_EQ(std::format("{}", *p), "123");
+}
