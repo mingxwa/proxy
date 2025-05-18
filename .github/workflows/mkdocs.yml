@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - user/mingxwa/doc
+  workflow_dispatch:
 
 jobs:
   deploy:
