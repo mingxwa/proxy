@@ -1,6 +1,7 @@
 # Class template `proxy`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 ```cpp

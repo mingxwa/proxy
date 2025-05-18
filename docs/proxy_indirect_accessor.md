@@ -1,6 +1,7 @@
 # Class template `proxy_indirect_accessor`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 > Since: 3.2.0
 

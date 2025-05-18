@@ -1,6 +1,7 @@
 # Function template `proxy_invoke`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 ```cpp

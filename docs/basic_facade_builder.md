@@ -1,6 +1,7 @@
 # Class template `basic_facade_builder`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 The definitions of `basic_facade_builder` and `facade_builder` make use of the following exposition-only constants:

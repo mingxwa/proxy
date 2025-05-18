@@ -1,6 +1,7 @@
 # Class `explicit_conversion_dispatch`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 > Since: 3.2.0
 

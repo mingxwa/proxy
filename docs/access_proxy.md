@@ -1,6 +1,7 @@
 # Function template `access_proxy`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 
 ```cpp

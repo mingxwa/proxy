@@ -1,6 +1,6 @@
 # Macro `PRO_DEF_FREE_DISPATCH`
 
-> Header: `proxy.h`
+> Header: `proxy_macros.h` and `proxy.h`
 
 ```cpp
 #define PRO_DEF_FREE_DISPATCH // see below

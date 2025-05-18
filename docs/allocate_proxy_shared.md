@@ -1,6 +1,7 @@
 # Function template `allocate_proxy_shared`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 > Since: 3.3.0
 

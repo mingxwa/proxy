@@ -1,6 +1,7 @@
 # Class `not_implemented`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Since: 3.2.0
 
 ```cpp

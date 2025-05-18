@@ -1,6 +1,7 @@
 # Class `bad_proxy_cast`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro`
 > Since: 3.2.0
 

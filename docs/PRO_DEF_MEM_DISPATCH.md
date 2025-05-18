@@ -1,6 +1,6 @@
 # Macro `PRO_DEF_MEM_DISPATCH`
 
-> Header: `proxy.h`
+> Header: `proxy_macros.h` and `proxy.h`
 
 ```cpp
 #define PRO_DEF_MEM_DISPATCH // see below

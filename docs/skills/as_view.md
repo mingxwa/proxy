@@ -1,6 +1,7 @@
 # Alias template `as_view`
 
 > Header: `proxy.h`
+> Module: `proxy`
 > Namespace: `pro::skills`
 > Since: 4.0.0
 
