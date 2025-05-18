@@ -1,16 +1,2 @@
-title: Proxy
-description: Next Generation Polymorphism in C++
-
-baseurl: /proxy
-url: https://mingxwa.github.io
-
-markdown: kramdown
-highlighter: rouge
-
-plugins:
-  - github-pages
-  - jemoji
-  - jekyll-redirect-from
-
-exclude:
-  - .github/
+---
+theme: jekyll-theme-slate
