@@ -4,20 +4,20 @@ A type `O` meets the *ProOverload* requirements if `substituted-overload<O, F>` 
 
 The exposition-only type `substituted-overload<O, F>` is `OT<F>` if `O` is a specialization of [`facade_aware_overload_t<OT>`](facade_aware_overload_t.md), or `O` otherwise.
 
-| Definitions of `O`            |
-| ----------------------------- |
-| `R(Args...)`                  |
-| `R(Args...) noexcept`         |
-| `R(Args...) &`                |
-| `R(Args...) & noexcept`       |
-| `R(Args...) &&`               |
-| `R(Args...) && noexcept`      |
-| `R(Args...) const`            |
-| `R(Args...) const noexcept`   |
-| `R(Args...) const&`           |
-| `R(Args...) const& noexcept`  |
-| `R(Args...) const&&`          |
-| `R(Args...) const&& noexcept` |
+| Definitions of `substituted-overload<O, F>` |
+| ------------------------------------------- |
+| `R(Args...)`                                |
+| `R(Args...) noexcept`                       |
+| `R(Args...) &`                              |
+| `R(Args...) & noexcept`                     |
+| `R(Args...) &&`                             |
+| `R(Args...) && noexcept`                    |
+| `R(Args...) const`                          |
+| `R(Args...) const noexcept`                 |
+| `R(Args...) const&`                         |
+| `R(Args...) const& noexcept`                |
+| `R(Args...) const&&`                        |
+| `R(Args...) const&& noexcept`               |
 
 ## See Also
 
