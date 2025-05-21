@@ -1,0 +1,36 @@
+---
+site_name: Proxy 4
+site_url: https://mingxwa.github.io/proxy
+site_description: Proxy 4: Next Generation Polymorphism in C++
+site_author: Microsoft Windows Team
+
+repo_url: https://github.com/microsoft/proxy/
+edit_uri: ""
+
+theme:
+  name: material
+  custom_dir: mkdocs-overrides
+  font:
+    text: Roboto
+  palette:
+    primary: black
+  logo: resources/ms_icon.png
+  favicon: resources/ms_icon.png
+  features:
+    - navigation.instant
+    - navigation.indexes
+
+plugins:
+  - search
+  - git-revision-date-localized
+  - awesome-pages
+
+markdown_extensions:
+  - meta
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.pathconverter
+  - pymdownx.tabbed
+  - mdx_truly_sane_lists
+  - pymdownx.tasklist
