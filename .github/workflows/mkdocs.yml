@@ -3,7 +3,8 @@ name: Build and deploy mkdocs to https://microsoft.github.io/proxy
 on:
   push:
     branches:
-      - main
+      - lkg
+      - user/mingxwa/doc
 jobs:
   deploy:
     runs-on: ubuntu-latest
