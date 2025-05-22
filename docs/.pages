@@ -1,5 +1,5 @@
 nav:
   - Welcome: README.md
-  - Specifications: spec
+  - spec
   - C++20 Modules Support: cpp20_modules_support.md
   - FAQ: faq.md
