@@ -6,112 +6,7 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/PRO_DEF_FREE_AS_MEM_DISPATCH/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/PRO_DEF_FREE_DISPATCH/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/PRO_DEF_MEM_DISPATCH/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProAccessible/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProBasicConvention/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProBasicFacade/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProBasicReflection/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProConvention/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProDispatch/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProFacade/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProOverload/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/ProReflection/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/access_proxy/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/allocate_proxy/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/allocate_proxy_shared/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/bad_proxy_cast/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/constraint_level/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://mingxwa.github.io/proxy/cpp20_modules_support/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/explicit_conversion_dispatch/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/facade/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/facade_aware_overload_t/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
@@ -121,287 +16,392 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/implicit_conversion_dispatch/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/inplace_proxiable_target/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/PRO_DEF_FREE_AS_MEM_DISPATCH/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/make_proxy/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/PRO_DEF_FREE_DISPATCH/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/make_proxy_inplace/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/make_proxy_shared/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProAccessible/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/make_proxy_view/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProBasicConvention/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/msft_lib_proxy/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProBasicFacade/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/not_implemented/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProBasicReflection/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/operator_dispatch/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProConvention/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxiable/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProDispatch/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxiable_ptr_constraints/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProFacade/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxiable_target/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProOverload/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/ProReflection/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy_indirect_accessor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/access_proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy_invoke/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/allocate_proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy_reflect/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/allocate_proxy_shared/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy_view/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/bad_proxy_cast/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/specifications/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/weak_dispatch/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/constraint_level/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/weak_proxy/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/explicit_conversion_dispatch/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/add_convention/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/facade/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/add_facade/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/facade_aware_overload_t/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/add_reflection/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/implicit_conversion_dispatch/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/build/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/inplace_proxiable_target/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/restrict_layout/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/make_proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/make_proxy_inplace/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_copy/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/make_proxy_shared/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_destruction/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/make_proxy_view/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_format/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/msft_lib_proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_relocation/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/not_implemented/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_rtti/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/operator_dispatch/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_view/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxiable/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_weak/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxiable_ptr_constraints/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_rtti/proxy_cast/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxiable_target/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/basic_facade_builder/support_rtti/proxy_typeid/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/explicit_conversion_dispatch/accessor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy_indirect_accessor/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/explicit_conversion_dispatch/operator_call/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy_invoke/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/implicit_conversion_dispatch/accessor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy_reflect/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/implicit_conversion_dispatch/operator_call/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy_view/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/operator_dispatch/accessor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/weak_dispatch/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/operator_dispatch/operator_call/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/weak_proxy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/assignment/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/add_convention/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/constructor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/add_facade/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/destructor/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/add_reflection/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/emplace/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/build/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/friend_operator_equality/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/restrict_layout/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/friend_swap/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/indirection/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_copy/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/operator_bool/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_destruction/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/reset/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_format/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/proxy/swap/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_relocation/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/skills/as_view/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/skills/as_weak/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_view/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/skills/fmt_format/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_weak/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/skills/format/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/proxy_cast/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/skills/riit/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/proxy_typeid/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/weak_dispatch/operator_call/</loc>
+         <loc>https://mingxwa.github.io/proxy/spec/explicit_conversion_dispatch/accessor/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/explicit_conversion_dispatch/operator_call/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/implicit_conversion_dispatch/accessor/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/implicit_conversion_dispatch/operator_call/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/operator_dispatch/accessor/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/operator_dispatch/operator_call/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/assignment/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/constructor/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/destructor/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/emplace/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/friend_operator_equality/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/friend_swap/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/indirection/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/operator_bool/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/reset/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/proxy/swap/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills/as_view/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills/as_weak/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills/fmt_format/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills/format/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills/riit/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/weak_dispatch/operator_call/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
