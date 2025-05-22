@@ -1,4 +1,5 @@
 nav:
+  - Specifications: README.md
   - Concepts:
     - facade: facade.md
     - inplace_proxiable_target: inplace_proxiable_target.md
