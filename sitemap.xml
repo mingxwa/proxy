@@ -101,11 +101,6 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/</loc>
-         <lastmod>2025-05-22</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://mingxwa.github.io/proxy/spec/constraint_level/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
@@ -217,6 +212,11 @@
     </url>
     <url>
          <loc>https://mingxwa.github.io/proxy/spec/weak_proxy/</loc>
+         <lastmod>2025-05-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/</loc>
          <lastmod>2025-05-22</lastmod>
          <changefreq>daily</changefreq>
     </url>
