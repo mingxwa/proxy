@@ -1,4 +1,4 @@
-# C++20 Modules support
+# C++20 Modules Support
 
 The "Proxy" library ships with `.ixx` files starting with version **4.0.0**. Compared to traditional headers, modules offer faster compilation speed and isolation against preprocessor macro definitions.
 
