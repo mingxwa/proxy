@@ -1,4 +1,18 @@
 nav:
+  - Welcome: README.md
   - Specifications: specifications.md
+      - Concepts:
+        - facade: facade.md
+        - inplace_proxiable_target: inplace_proxiable_target.md
+      - Classes:
+        - bad_proxy_cast: bad_proxy_cast.md
+      - Alias Templates:
+        - skills::as_view: skills/as_view.md
+      - Functions:
+        - access_proxy: access_proxy.md
+      - Macros:
+        - PRO_DEF_MEM_DISPATCH: PRO_DEF_MEM_DISPATCH.md
+      - Named Requirements:
+        - ProAccessible: ProAccessible.md
   - C++20 Modules Support: cpp20_modules_support.md
-  - FAQ: the-first-week-of-an-ise-project.md
+  - FAQ: faq.md
