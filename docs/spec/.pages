@@ -5,6 +5,7 @@ nav:
     - inplace_proxiable_target: inplace_proxiable_target.md
   - Classes:
     - bad_proxy_cast: bad_proxy_cast.md
+    - basic_facade_builder\nfacade_builder: basic_facade_builder
   - Alias Templates:
     - skills::as_view: skills/as_view.md
   - Functions:
