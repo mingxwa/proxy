@@ -487,16 +487,6 @@
         
           
         
-          
-        
-          
-        
-          
-        
-          
-        
-          
-        
       
       
         
@@ -709,132 +699,9 @@ facade_builder
   
   
     <li class="md-nav__item">
-      <a href="../support_format/" class="md-nav__link">
-        `basic_facade_builder::support_format`<br />`basic_facade_builder::support_wformat`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../support_relocation/" class="md-nav__link">
         `basic_facade_builder::support_relocation`
       </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../support_rtti/" class="md-nav__link">
-        `basic_facade_builder::support_rtti`<br />`basic_facade_builder::support_indirect_rtti`<br />`basic_facade_builder::support_direct_rtti`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../support_view/" class="md-nav__link">
-        `basic_facade_builder::support_view`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../support_weak/" class="md-nav__link">
-        `basic_facade_builder::support_weak`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-      
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_3_2_15" type="checkbox" id="__nav_2_3_2_15" >
-      
-      
-      
-        
-          
-        
-          
-        
-      
-      
-        <label class="md-nav__link" for="__nav_2_3_2_15">
-          Support rtti
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <nav class="md-nav" aria-label="Support rtti" data-md-level="4">
-        <label class="md-nav__title" for="__nav_2_3_2_15">
-          <span class="md-nav__icon md-icon"></span>
-          Support rtti
-        </label>
-        <ul class="md-nav__list" data-md-scrollfix>
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../support_rtti/proxy_cast/" class="md-nav__link">
-        Function template `proxy_cast`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../support_rtti/proxy_typeid/" class="md-nav__link">
-        Function `proxy_typeid`
-      </a>
-    </li>
-  
-
-            
-          
-        </ul>
-      </nav>
     </li>
   
 
@@ -2215,8 +2082,8 @@ skills::direct_rtti`
 </tbody>
 </table>
 <h2 id="notes">Notes</h2>
-<p>It is encouraged to inherit <code>build</code> with an empty <code>struct</code> before specifying a <a href="../proxy.md"><code>proxy</code></a>, rather than <code>using</code> or <code>typedef</code> the <code>build</code> type into an alias, to improve compilation performance.</p>
-<p>The default values of the fields of <a href="../../proxiable_ptr_constraints/"><code>proxiable_ptr_constraints</code></a> are based on our engineering practices. The default values of <code>max_size</code> and <code>max_alignment</code> are usually sufficient for many implementations of <a href="https://en.cppreference.com/w/cpp/named_req/Allocator#Fancy_pointers">fancy pointers</a>, such as <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a>, <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr"><code>std::shared_ptr</code></a>, and <a href="https://www.boost.org/doc/libs/1_85_0/doc/html/interprocess/offset_ptr.html"><code>boost::interprocess::offset_ptr</code></a>. A larger combination of size and alignment ensures better compatibility with the implementation of the underlying pointers and reduces heap allocation when the element type fits in the buffer (see <a href="../../make_proxy/">function template <code>make_proxy</code></a>), at the cost of making the corresponding <a href="../proxy.md"><code>proxy</code></a> objects larger.</p>
+<p>It is encouraged to inherit <code>build</code> with an empty <code>struct</code> before specifying a <a href="../../proxy/"><code>proxy</code></a>, rather than <code>using</code> or <code>typedef</code> the <code>build</code> type into an alias, to improve compilation performance.</p>
+<p>The default values of the fields of <a href="../../proxiable_ptr_constraints/"><code>proxiable_ptr_constraints</code></a> are based on our engineering practices. The default values of <code>max_size</code> and <code>max_alignment</code> are usually sufficient for many implementations of <a href="https://en.cppreference.com/w/cpp/named_req/Allocator#Fancy_pointers">fancy pointers</a>, such as <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a>, <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr"><code>std::shared_ptr</code></a>, and <a href="https://www.boost.org/doc/libs/1_85_0/doc/html/interprocess/offset_ptr.html"><code>boost::interprocess::offset_ptr</code></a>. A larger combination of size and alignment ensures better compatibility with the implementation of the underlying pointers and reduces heap allocation when the element type fits in the buffer (see <a href="../../make_proxy/">function template <code>make_proxy</code></a>), at the cost of making the corresponding <a href="../../proxy/"><code>proxy</code></a> objects larger.</p>
 <h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;type_traits&gt;</span>
 
@@ -2252,7 +2119,7 @@ skills::direct_rtti`
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../proxy.md">class template <code>proxy</code></a></li>
+<li><a href="../README/proxy.md">class template <code>proxy</code></a></li>
 </ul>
 
   <hr>
@@ -2260,7 +2127,7 @@ skills::direct_rtti`
   <small>
     
       Last update:
-      <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 22, 2025</span>
+      <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 23, 2025</span>
       
     
   </small>

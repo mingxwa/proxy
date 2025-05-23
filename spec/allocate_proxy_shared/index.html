@@ -483,16 +483,6 @@
         
           
         
-          
-        
-          
-        
-          
-        
-          
-        
-          
-        
       
       
         
@@ -636,132 +626,9 @@ facade_builder
   
   
     <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_format/" class="md-nav__link">
-        `basic_facade_builder::support_format`<br />`basic_facade_builder::support_wformat`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../basic_facade_builder/support_relocation/" class="md-nav__link">
         `basic_facade_builder::support_relocation`
       </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_rtti/" class="md-nav__link">
-        `basic_facade_builder::support_rtti`<br />`basic_facade_builder::support_indirect_rtti`<br />`basic_facade_builder::support_direct_rtti`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_view/" class="md-nav__link">
-        `basic_facade_builder::support_view`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_weak/" class="md-nav__link">
-        `basic_facade_builder::support_weak`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-      
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_3_2_15" type="checkbox" id="__nav_2_3_2_15" >
-      
-      
-      
-        
-          
-        
-          
-        
-      
-      
-        <label class="md-nav__link" for="__nav_2_3_2_15">
-          Support rtti
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <nav class="md-nav" aria-label="Support rtti" data-md-level="4">
-        <label class="md-nav__title" for="__nav_2_3_2_15">
-          <span class="md-nav__icon md-icon"></span>
-          Support rtti
-        </label>
-        <ul class="md-nav__list" data-md-scrollfix>
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_rtti/proxy_cast/" class="md-nav__link">
-        Function template `proxy_cast`
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../basic_facade_builder/support_rtti/proxy_typeid/" class="md-nav__link">
-        Function `proxy_typeid`
-      </a>
-    </li>
-  
-
-            
-          
-        </ul>
-      </nav>
     </li>
   
 
@@ -2178,7 +2045,7 @@ Since: 3.3.0</p>
 <h2 id="exceptions">Exceptions</h2>
 <p>Throws any exception thrown by allocation or the constructor of <code>T</code>.</p>
 <h2 id="notes">Notes</h2>
-<p>The implementation of <code>strong-compact-ptr</code> may vary depending on the definition of <code>F</code>. Specifically, when <code>F</code> does not support weak ownership via <a href="../basic_facade_builder/support_weak/"><code>basic_facade_builder::support_weak</code></a>, <code>strong-compact-ptr&lt;T, Alloc&gt;</code> is not convertible to <code>weak-compact-ptr&lt;T, Alloc&gt;</code>, which leaves more room for optimization.</p>
+<p>The implementation of <code>strong-compact-ptr</code> may vary depending on the definition of <code>F</code>. Specifically, when <code>F</code> does not support weak ownership via <a href="basic_facade_builder/support_weak.md"><code>basic_facade_builder::support_weak</code></a>, <code>strong-compact-ptr&lt;T, Alloc&gt;</code> is not convertible to <code>weak-compact-ptr&lt;T, Alloc&gt;</code>, which leaves more room for optimization.</p>
 <h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;memory_resource&gt;</span>

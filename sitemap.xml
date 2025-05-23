@@ -261,37 +261,7 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_format/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_relocation/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_view/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_weak/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/proxy_cast/</loc>
-         <lastmod>2025-05-23</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://mingxwa.github.io/proxy/spec/basic_facade_builder/support_rtti/proxy_typeid/</loc>
          <lastmod>2025-05-23</lastmod>
          <changefreq>daily</changefreq>
     </url>
