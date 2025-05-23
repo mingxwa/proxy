@@ -1,8 +1,8 @@
 # Function template `make_proxy_view`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.3.0
 
 The definition of `make_proxy_view` makes use of an exposition-only class template *observer-ptr*. `observer-ptr<T>` contains a raw pointer to an object of type `T`, and provides `operator*` for access with the same qualifiers.

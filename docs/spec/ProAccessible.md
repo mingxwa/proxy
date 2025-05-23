@@ -8,4 +8,4 @@ Given that `F` is a type meeting the [*ProBasicFacade* requirements](ProBasicFac
 
 ## See Also
 
-- [class template `proxy`](proxy.md)
+- [class template `proxy`](proxy/README.md)

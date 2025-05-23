@@ -1,6 +1,6 @@
 # Macro `PRO_DEF_FREE_AS_MEM_DISPATCH`
 
-> Header: `proxy_macros.h` and `proxy.h`
+> Header: `proxy_macros.h` and `proxy.h`  
 > Since: 3.1.0
 
 ```cpp

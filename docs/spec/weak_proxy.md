@@ -1,8 +1,8 @@
 # Alias template `weak_proxy`<br />Class template `weak_facade`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.3.0
 
 ```cpp

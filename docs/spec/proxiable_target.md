@@ -1,8 +1,8 @@
 # Concept `proxiable_target`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.3.0
 
 ```cpp

@@ -1,7 +1,7 @@
 # Function template `proxy_reflect`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 ```cpp

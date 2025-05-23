@@ -1,8 +1,8 @@
 # Class `implicit_conversion_dispatch`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.2.0
 
 ```cpp
@@ -57,5 +57,5 @@ int main() {
 
 ## See Also
 
-- [class `explicit_conversion_dispatch`](explicit_conversion_dispatch.md)
-- [class template `operator_dispatch`](operator_dispatch.md)
+- [class `explicit_conversion_dispatch`](explicit_conversion_dispatch/README.md)
+- [class template `operator_dispatch`](operator_dispatch/README.md)

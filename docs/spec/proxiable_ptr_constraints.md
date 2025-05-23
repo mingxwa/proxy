@@ -1,7 +1,7 @@
 # Class `proxiable_ptr_constraints`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 ```cpp

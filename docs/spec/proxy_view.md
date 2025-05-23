@@ -1,8 +1,8 @@
 # Alias template `proxy_view`<br />Class template `observer_facade`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.2.0
 
 ```cpp

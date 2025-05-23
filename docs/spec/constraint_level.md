@@ -1,7 +1,7 @@
 # Enum class `constraint_level`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 ```cpp

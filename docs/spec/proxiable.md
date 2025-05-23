@@ -1,7 +1,7 @@
 # Concept `proxiable`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 ```cpp
@@ -9,7 +9,7 @@ template <class P, class F>
 concept proxiable = /* see-below */;
 ```
 
-The concept `proxiable<P, F>` specifies that [`proxy<F>`](proxy.md) can potentially contain a value of type `P`. If `P` is an incomplete type, the behavior of evaluating `proxiable<P, F>` is undefined. `proxiable<P, F>` is `true` when `F` meets the [*ProFacade* requirements](ProFacade.md) of `P`; otherwise, it is `false`.
+The concept `proxiable<P, F>` specifies that [`proxy<F>`](proxy/README.md) can potentially contain a value of type `P`. If `P` is an incomplete type, the behavior of evaluating `proxiable<P, F>` is undefined. `proxiable<P, F>` is `true` when `F` meets the [*ProFacade* requirements](ProFacade.md) of `P`; otherwise, it is `false`.
 
 ## Example
 
@@ -34,6 +34,6 @@ int main() {
 
 ## See Also
 
-- [class template `proxy`](proxy.md)
+- [class template `proxy`](proxy/README.md)
 - [function template `make_proxy`](make_proxy.md)
 - [concept `inplace_proxiable_target`](inplace_proxiable_target.md)

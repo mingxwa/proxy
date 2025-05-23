@@ -1,7 +1,7 @@
 # Concept `inplace_proxiable_target`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 ```cpp

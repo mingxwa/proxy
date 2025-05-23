@@ -1,7 +1,7 @@
 # Class template `basic_facade_builder`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 The definitions of `basic_facade_builder` and `facade_builder` make use of the following exposition-only constants:
@@ -12,7 +12,7 @@ constexpr constraint_level default-cl = static_cast<constraint_level>(
     std::numeric_limits<std::underlying_type_t<constraint_level>>::min()); // exposition only
 ```
 
-*default-size* and *default-cl* denote that a field in [`proxiable_ptr_constraints`](proxiable_ptr_constraints.md) is not specified in the template parameters of a `basic_facade_builder` specialization. In an instantiation of `proxiable_ptr_constraints`, any meaningful value of `max_size` and `max_align` is less than *default-size*; any meaningful value of `copyability`, `relocatability`, and `destructibility` is greater than *default-cl*.
+*default-size* and *default-cl* denote that a field in [`proxiable_ptr_constraints`](../proxiable_ptr_constraints.md) is not specified in the template parameters of a `basic_facade_builder` specialization. In an instantiation of `proxiable_ptr_constraints`, any meaningful value of `max_size` and `max_align` is less than *default-size*; any meaningful value of `copyability`, `relocatability`, and `destructibility` is greater than *default-cl*.
 
 ```cpp
 template <class Cs, class Rs, proxiable_ptr_constraints C>
@@ -27,26 +27,26 @@ using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
         .destructibility = default-cl}>;
 ```
 
-`class Cs`, `class Rs`, and `proxiable_ptr_constraints C` are the template parameters of `basic_facade_builder`. `basic_facade_builder` provides a member type `build` that compiles the template parameters into a [`facade`](facade.md) type. The template parameters can be modified via various member alias templates that specify `basic_facade_builder` with the modified template parameters.
+`class Cs`, `class Rs`, and `proxiable_ptr_constraints C` are the template parameters of `basic_facade_builder`. `basic_facade_builder` provides a member type `build` that compiles the template parameters into a [`facade`](../facade.md) type. The template parameters can be modified via various member alias templates that specify `basic_facade_builder` with the modified template parameters.
 
 ## Member Types
 
-| Name                                     | Description                                                  |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| [`build`](basic_facade_builder/build.md) | Specifies a [`facade`](facade.md) type deduced from the template parameters of the `basic_facade_builder` |
+| Name                | Description                                                  |
+| ------------------- | ------------------------------------------------------------ |
+| [`build`](build.md) | Specifies a [`facade`](../facade.md) type deduced from the template parameters of the `basic_facade_builder` |
 
 ## Member Alias Templates
 
 | Name                                                         | Description                                                  |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [`add_convention`<br />`add_indirect_convention`<br />`add_direct_convention`](basic_facade_builder/add_convention.md) | Adds a convention to the template parameters                 |
-| [`add_facade`](basic_facade_builder/add_facade.md)           | Adds a facade to the template parameters                     |
-| [`add_reflection`<br />`add_indirect_reflection`<br />`add_direct_reflection`](basic_facade_builder/add_reflection.md) | Adds a reflection to the template parameters                 |
-| [`restrict_layout`](basic_facade_builder/restrict_layout.md) | Specifies maximum `max_size` and `max_align` of `C` in the template parameters |
-| [`support_copy`](basic_facade_builder/support_copy.md)       | Specifies minimum `copyability` of `C` in the template parameters |
-| [`support_destruction`](basic_facade_builder/support_destruction.md) | Specifies minimum `destructibility` of `C` in the template parameters |
-| [`support_relocation`](basic_facade_builder/support_relocation.md) | Specifies minimum `relocatability` of `C` in the template parameters |
-| [`support`](basic_facade_builder/support.md)                 | // TODO                                                      |
+| [`add_convention`<br />`add_indirect_convention`<br />`add_direct_convention`](add_convention.md) | Adds a convention to the template parameters                 |
+| [`add_facade`](add_facade.md)                                | Adds a facade to the template parameters                     |
+| [`add_reflection`<br />`add_indirect_reflection`<br />`add_direct_reflection`](add_reflection.md) | Adds a reflection to the template parameters                 |
+| [`restrict_layout`](restrict_layout.md)                      | Specifies maximum `max_size` and `max_align` of `C` in the template parameters |
+| [`support_copy`](support_copy.md)                            | Specifies minimum `copyability` of `C` in the template parameters |
+| [`support_destruction`](support_destruction.md)              | Specifies minimum `destructibility` of `C` in the template parameters |
+| [`support_relocation`](support_relocation.md)                | Specifies minimum `relocatability` of `C` in the template parameters |
+| [`support`](support.md)                                      | // TODO                                                      |
 
 ## Member Functions
 
@@ -93,7 +93,7 @@ struct CopyableCallable : pro::facade_builder
     ::build {};
 ```
 
-Although GCC can usually compile the code above, it does not adhere to the C++ standard syntax, and as a result, it won't compile with Clang or MSVC ([live demo](https://godbolt.org/z/Gen74qY9r)). This is because type `add_facade<MovableCallable<Os...>>` depends on the template parameters, and an explicit `template` is required when specifying its member alias template `support_copy`. To fix the code, we could either add the keyword `template` before `support_copy`, or simply swap `add_facade` and `support_copy`. For instance:
+Although GCC can usually compile the code above, it does not adhere to the C++ standard syntax, and as a result, it won't compile with Clang or MSVC ([live demo](https://godbolt.org/z/38ce4jb8a)). This is because type `add_facade<MovableCallable<Os...>>` depends on the template parameters, and an explicit `template` is required when specifying its member alias template `support_copy`. To fix the code, we could either add the keyword `template` before `support_copy`, or simply swap `add_facade` and `support_copy`. For instance:
 
 ```cpp
 template <class... Os>
@@ -153,5 +153,5 @@ int main() {
 
 ## See Also
 
-- [concept `facade`](facade.md)
-- [macro `PRO_DEF_MEM_DISPATCH`](PRO_DEF_MEM_DISPATCH.md)
+- [concept `facade`](../facade.md)
+- [macro `PRO_DEF_MEM_DISPATCH`](../PRO_DEF_MEM_DISPATCH.md)

@@ -1,8 +1,8 @@
 # Class template `facade_aware_overload_t`
 
-> Header: `proxy.h`
-> Module: `proxy`
-> Namespace: `pro`
+> Header: `proxy.h`  
+> Module: `proxy`  
+> Namespace: `pro`  
 > Since: 3.2.1
 
 ```cpp

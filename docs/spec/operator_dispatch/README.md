@@ -1,7 +1,7 @@
 # Class template `operator_dispatch`
 
-> Header: `proxy.h`
-> Module: `proxy`
+> Header: `proxy.h`  
+> Module: `proxy`  
 > Namespace: `pro`
 
 The definition of `operator_dispatch` makes use of an exposition-only type *string-literal*, which is constructible from a `char` array at compile-time and can be used as a non-type template argument.
@@ -11,7 +11,7 @@ template <string-literal Sign, bool Rhs = false>
 class operator_dispatch;
 ```
 
-Class template `operator_dispatch` is a [dispatch](ProDispatch.md) type for operator expressions. `Sign` represents the sign of operator (SOP) as a string literal (e.g., `"+"` for operator `+`). `Rhs` specifies whether the [`proxy`](proxy.md) operand is on the right-hand side of a binary operator.
+Class template `operator_dispatch` is a [dispatch](ProDispatch.md) type for operator expressions. `Sign` represents the sign of operator (SOP) as a string literal (e.g., `"+"` for operator `+`). `Rhs` specifies whether the [`proxy`](proxy/README.md) operand is on the right-hand side of a binary operator.
 
 ## Supported SOPs
 
@@ -29,11 +29,11 @@ The following 8 SOPs are not supported:
 
 ## Type Conversion
 
-Type conversion expressions, although using `operator` syntax, do not have a specific sign and are not within the scope of `operator_dispatch`. They are supported by [class `explicit_conversion_dispatch` (aka. `conversion_dispatch`)](explicit_conversion_dispatch.md) and [class `implicit_conversion_dispatch`](implicit_conversion_dispatch.md).
+Type conversion expressions, although using `operator` syntax, do not have a specific sign and are not within the scope of `operator_dispatch`. They are supported by [class `explicit_conversion_dispatch` (aka. `conversion_dispatch`)](explicit_conversion_dispatch/README.md) and [class `implicit_conversion_dispatch`](implicit_conversion_dispatch/README.md).
 
 ## Specializations
 
-Let `self` be the operand of [`proxy`](proxy.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions:
+Let `self` be the operand of [`proxy`](proxy/README.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions:
 
 | Specializations                   | Expressions             |
 | --------------------------------- | ----------------------- |
@@ -144,4 +144,4 @@ int main() {
 
 ## See Also
 
-- [class `conversion_dispatch`](explicit_conversion_dispatch.md)
+- [class `conversion_dispatch`](explicit_conversion_dispatch/README.md)
