@@ -10,7 +10,7 @@ template <class FB>
 using as_view = /* see below */;
 ```
 
-The alias template `as_view` modifies a specialization of [`basic_facade_builder`](../basic_facade_builder/README.md) to allow implicit conversion from [`proxy`](../proxy.md)`<F>` to [`proxy_view`](../proxy_view.md)`<F>`, where `F` is a built [facade](../facade.md) type.
+The alias template `as_view` modifies a specialization of [`basic_facade_builder`](basic_facade_builder/README.md) to allow implicit conversion from [`proxy`](proxy/README.md)`<F>` to [`proxy_view`](proxy_view.md)`<F>`, where `F` is a built [facade](facade.md) type.
 
 Let `p` be a value of type `proxy<F>`, `ptr` be the contained value of `p` (if any), the conversion from type `proxy<F>&` to type `proxy_view<F>` is equivalent to `return raw-ptr{std::addressof(*ptr)}` if `p` contains a value, or otherwise equivalent to `return nullptr`. `observer-ptr` is an exposition-only type that `*observer-ptr`, `*std::as_const(observer-ptr)`, `*std::move(observer-ptr)` and `*std::move(std::as_const(observer-ptr))` are equivalent to `*ptr`, `*std::as_const(ptr)`, `*std::move(ptr)` and `*std::move(std::as_const(ptr))`, respectively.
 
@@ -41,4 +41,4 @@ int main() {
 
 ## See Also
 
-- [`add_convention`](../basic_facade_builder/add_convention.md)
+- [`add_convention`](basic_facade_builder/add_convention.md)
