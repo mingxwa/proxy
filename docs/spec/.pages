@@ -23,7 +23,7 @@ nav:
   - Alias Templates:
     - skills::as_view: skills_as_view.md
     - skills::as_weak: skills_as_weak.md
-    - "skills::fmt_format\mskills::fmt_wformat": skills_fmt_format.md
+    - "skills::fmt_format\nskills::fmt_wformat": skills_fmt_format.md
     - "skills::format\mskills::wformat": skills_format.md
     - "skills::rtti\nskills::indirect_rtti\nskills::direct_rtti`": skills_riit.md
   - Functions:
