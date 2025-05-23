@@ -1,8 +1,8 @@
 nav:
   - basic_facade_builder: README.md
-  - add_convention / add_indirect_convention / add_direct_convention: add_convention.md
+  - add_convention<br />add_indirect_convention<br />add_direct_convention: add_convention.md
   - add_facade: add_facade.md
-  - add_reflection / add_indirect_reflection / add_direct_reflection: add_reflection.md
+  - add_reflection<br />add_indirect_reflection<br />add_direct_reflection: add_reflection.md
   - build: build.md
   - restrict_layout: restrict_layout.md
   - support: support.md
