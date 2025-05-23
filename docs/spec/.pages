@@ -37,7 +37,7 @@ nav:
     - proxy_invoke: proxy_invoke.md
     - proxy_reflect: proxy_reflect.md
   - Macros:
-    - __msft_lib_proxy: __msft_lib_proxy.md
+    - __msft_lib_proxy: msft_lib_proxy.md
     - PRO_DEF_FREE_AS_MEM_DISPATCH: PRO_DEF_FREE_AS_MEM_DISPATCH.md
     - PRO_DEF_FREE_DISPATCH: PRO_DEF_FREE_DISPATCH.md
     - PRO_DEF_MEM_DISPATCH: PRO_DEF_MEM_DISPATCH.md
