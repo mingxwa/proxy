@@ -50,5 +50,5 @@ int main() {
 
 ## See Also
 
-- [`basic_facade_builder::support_view`](basic_facade_builder/support_view.md)
+- [alias template `skills::as_view`](skills_as_view.md)
 - [function template `make_proxy_view`](make_proxy_view.md)

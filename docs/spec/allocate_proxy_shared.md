@@ -39,7 +39,7 @@ Throws any exception thrown by allocation or the constructor of `T`.
 
 ## Notes
 
-The implementation of `strong-compact-ptr` may vary depending on the definition of `F`. Specifically, when `F` does not support weak ownership via [`basic_facade_builder::support_weak`](basic_facade_builder/support_weak.md), `strong-compact-ptr<T, Alloc>` is not convertible to `weak-compact-ptr<T, Alloc>`, which leaves more room for optimization.
+The implementation of `strong-compact-ptr` may vary depending on the definition of `F`. Specifically, when `F` does not support weak ownership via [`skills::as_weak`](skills_as_weak.md), `strong-compact-ptr<T, Alloc>` is not convertible to `weak-compact-ptr<T, Alloc>`, which leaves more room for optimization.
 
 ## Example
 

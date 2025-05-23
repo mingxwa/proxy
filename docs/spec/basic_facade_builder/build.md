@@ -90,4 +90,4 @@ int main() {
 
 ## See Also
 
-- [class template `proxy`](../README/proxy.md)
+- [class template `proxy`](../proxy/README.md)

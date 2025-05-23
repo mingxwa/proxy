@@ -9,20 +9,20 @@
 class implicit_conversion_dispatch;
 ```
 
-Class `implicit_conversion_dispatch` models a [dispatch](ProDispatch.md) type for implicit type conversion expressions. It meets the [*ProAccessible* requirements](ProAccessible.md) of applicable types.
+Class `implicit_conversion_dispatch` models a [dispatch](../ProDispatch.md) type for implicit type conversion expressions. It meets the [*ProAccessible* requirements](../ProAccessible.md) of applicable types.
 
 ## Member Functions
 
-| Name                                                         | Description                                         |
-| ------------------------------------------------------------ | --------------------------------------------------- |
-| (constructor) [nothrow]                                      | constructs an `implicit_conversion_dispatch` object |
-| [`operator()`](implicit_conversion_dispatch/operator_call.md) | invokes the dispatch                                |
+| Name                             | Description                                         |
+| -------------------------------- | --------------------------------------------------- |
+| (constructor) [nothrow]          | constructs an `implicit_conversion_dispatch` object |
+| [`operator()`](operator_call.md) | invokes the dispatch                                |
 
 ## Member Types
 
-| Name                                                   | Description                       |
-| ------------------------------------------------------ | --------------------------------- |
-| [`accessor`](implicit_conversion_dispatch/accessor.md) | provides accessibility to `proxy` |
+| Name                      | Description                       |
+| ------------------------- | --------------------------------- |
+| [`accessor`](accessor.md) | provides accessibility to `proxy` |
 
 ## Example
 
@@ -57,5 +57,5 @@ int main() {
 
 ## See Also
 
-- [class `explicit_conversion_dispatch`](explicit_conversion_dispatch/README.md)
-- [class template `operator_dispatch`](operator_dispatch/README.md)
+- [class `explicit_conversion_dispatch`](../explicit_conversion_dispatch/README.md)
+- [class template `operator_dispatch`](../operator_dispatch/README.md)

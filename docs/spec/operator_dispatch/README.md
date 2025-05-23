@@ -11,7 +11,7 @@ template <string-literal Sign, bool Rhs = false>
 class operator_dispatch;
 ```
 
-Class template `operator_dispatch` is a [dispatch](ProDispatch.md) type for operator expressions. `Sign` represents the sign of operator (SOP) as a string literal (e.g., `"+"` for operator `+`). `Rhs` specifies whether the [`proxy`](proxy/README.md) operand is on the right-hand side of a binary operator.
+Class template `operator_dispatch` is a [dispatch](../ProDispatch.md) type for operator expressions. `Sign` represents the sign of operator (SOP) as a string literal (e.g., `"+"` for operator `+`). `Rhs` specifies whether the [`proxy`](../proxy/README.md) operand is on the right-hand side of a binary operator.
 
 ## Supported SOPs
 
@@ -29,11 +29,11 @@ The following 8 SOPs are not supported:
 
 ## Type Conversion
 
-Type conversion expressions, although using `operator` syntax, do not have a specific sign and are not within the scope of `operator_dispatch`. They are supported by [class `explicit_conversion_dispatch` (aka. `conversion_dispatch`)](explicit_conversion_dispatch/README.md) and [class `implicit_conversion_dispatch`](implicit_conversion_dispatch/README.md).
+Type conversion expressions, although using `operator` syntax, do not have a specific sign and are not within the scope of `operator_dispatch`. They are supported by [class `explicit_conversion_dispatch` (aka. `conversion_dispatch`)](../explicit_conversion_dispatch/README.md) and [class `implicit_conversion_dispatch`](../implicit_conversion_dispatch/README.md).
 
 ## Specializations
 
-Let `self` be the operand of [`proxy`](proxy/README.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions:
+Let `self` be the operand of [`proxy`](../proxy/README.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions:
 
 | Specializations                   | Expressions             |
 | --------------------------------- | ----------------------- |
@@ -106,16 +106,16 @@ Let `self` be the operand of [`proxy`](proxy/README.md), and `other` and `others
 
 ## Member Functions
 
-| Name                                               | Description                              |
-| -------------------------------------------------- | ---------------------------------------- |
-| (constructor) [nothrow]                            | constructs an `operator_dispatch` object |
-| [`operator()`](operator_dispatch/operator_call.md) | invokes the dispatch                     |
+| Name                             | Description                              |
+| -------------------------------- | ---------------------------------------- |
+| (constructor) [nothrow]          | constructs an `operator_dispatch` object |
+| [`operator()`](operator_call.md) | invokes the dispatch                     |
 
 ## Member Types
 
-| Name                                        | Description                       |
-| ------------------------------------------- | --------------------------------- |
-| [`accessor`](operator_dispatch/accessor.md) | provides accessibility to `proxy` |
+| Name                      | Description                       |
+| ------------------------- | --------------------------------- |
+| [`accessor`](accessor.md) | provides accessibility to `proxy` |
 
 ## Example
 
@@ -144,4 +144,4 @@ int main() {
 
 ## See Also
 
-- [class `conversion_dispatch`](explicit_conversion_dispatch/README.md)
+- [class `conversion_dispatch`](../explicit_conversion_dispatch/README.md)
