@@ -55,5 +55,5 @@ int main() {
 
 ## See Also
 
-- [`basic_facade_builder::support_weak`](basic_facade_builder/support_weak.md)
+- [alias template `skills::as_weak`](skills_as_weak.md)
 - [function template `make_proxy_shared`](make_proxy_shared.md)
