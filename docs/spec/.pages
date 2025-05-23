@@ -7,25 +7,25 @@ nav:
     - proxiable: proxiable.md
   - Classes:
     - bad_proxy_cast: bad_proxy_cast.md
-    - "basic_facade_builder\nfacade_builder": basic_facade_builder
+    - basic_facade_builder / facade_builder: basic_facade_builder
     - constraint_level: constraint_level.md
-    - "explicit_conversion_dispatch\nconversion_dispatch": explicit_conversion_dispatch
+    - explicit_conversion_dispatch / conversion_dispatch: explicit_conversion_dispatch
     - facade_aware_overload_t: facade_aware_overload_t.md
     - implicit_conversion_dispatch: implicit_conversion_dispatch
     - not_implemented: not_implemented.md
     - operator_dispatch: operator_dispatch
     - proxiable_ptr_constraints: proxiable_ptr_constraints.md
     - proxy_indirect_accessor: proxy_indirect_accessor.md
-    - "proxy_view\nobserver_facade": proxy_view.md
+    - proxy_view / observer_facade: proxy_view.md
     - proxy: proxy
     - weak_dispatch: weak_dispatch
-    - "weak_proxy\nweak_facade": weak_proxy.md
+    - weak_proxy / weak_facade: weak_proxy.md
   - Alias Templates:
     - skills::as_view: skills_as_view.md
     - skills::as_weak: skills_as_weak.md
-    - "skills::fmt_format\nskills::fmt_wformat": skills_fmt_format.md
-    - "skills::format\nskills::wformat": skills_format.md
-    - "skills::rtti\nskills::indirect_rtti\nskills::direct_rtti": skills_riit.md
+    - skills::fmt_format / skills::fmt_wformat: skills_fmt_format.md
+    - skills::format / skills::wformat: skills_format.md
+    - skills::rtti / skills::indirect_rtti / skills::direct_rtti: skills_riit.md
   - Functions:
     - access_proxy: access_proxy.md
     - allocate_proxy_shared: allocate_proxy_shared.md
