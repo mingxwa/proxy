@@ -1973,7 +1973,7 @@ Namespace: <code>pro</code></p>
 <div class="highlight"><pre><span></span><code><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="n">string</span><span class="o">-</span><span class="n">literal</span><span class="w"> </span><span class="n">Sign</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">Rhs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="o">&gt;</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">operator_dispatch</span><span class="p">;</span>
 </code></pre></div>
-<p>Class template <code>operator_dispatch</code> is a <a href="ProDispatch.md">dispatch</a> type for operator expressions. <code>Sign</code> represents the sign of operator (SOP) as a string literal (e.g., <code>"+"</code> for operator <code>+</code>). <code>Rhs</code> specifies whether the <a href="proxy/README.md"><code>proxy</code></a> operand is on the right-hand side of a binary operator.</p>
+<p>Class template <code>operator_dispatch</code> is a <a href="../ProDispatch/">dispatch</a> type for operator expressions. <code>Sign</code> represents the sign of operator (SOP) as a string literal (e.g., <code>"+"</code> for operator <code>+</code>). <code>Rhs</code> specifies whether the <a href="../proxy/"><code>proxy</code></a> operand is on the right-hand side of a binary operator.</p>
 <h2 id="supported-sops">Supported SOPs</h2>
 <p>As per C++20 specifications, there are 44 different SOPs. <code>operator_dispatch</code> supports the following 36 SOPs:</p>
 <div class="highlight"><pre><span></span><code>&quot;+&quot;, &quot;-&quot;, &quot;*&quot;, &quot;/&quot;, &quot;%&quot;, &quot;++&quot;, &quot;--&quot;, &quot;==&quot;, &quot;!=&quot;, &quot;&gt;&quot;, &quot;&lt;&quot;, &quot;&gt;=&quot;, &quot;&lt;=&quot;, &quot;&lt;=&gt;&quot;, &quot;!&quot;, &quot;&amp;&amp;&quot;, &quot;||&quot;, &quot;~&quot;, &quot;&amp;&quot;, &quot;|&quot;, &quot;^&quot;, &quot;&lt;&lt;&quot;, &quot;&gt;&gt;&quot;, &quot;+=&quot;, &quot;-=&quot;, &quot;*=&quot;, &quot;/=&quot;, &quot;&amp;=&quot;, &quot;|=&quot;, &quot;^=&quot;, &quot;&lt;&lt;=&quot;, &quot;&gt;&gt;=&quot;, &quot;,&quot;, &quot;-&gt;*&quot;, &quot;()&quot;, &quot;[]&quot;
@@ -1985,9 +1985,9 @@ Namespace: <code>pro</code></p>
 <li>Literals (<code>""</code>) apply only to a limited number of primitive types and are not applicable for <code>proxy</code>.</li>
 </ul>
 <h2 id="type-conversion">Type Conversion</h2>
-<p>Type conversion expressions, although using <code>operator</code> syntax, do not have a specific sign and are not within the scope of <code>operator_dispatch</code>. They are supported by <a href="explicit_conversion_dispatch/README.md">class <code>explicit_conversion_dispatch</code> (aka. <code>conversion_dispatch</code>)</a> and <a href="implicit_conversion_dispatch/README.md">class <code>implicit_conversion_dispatch</code></a>.</p>
+<p>Type conversion expressions, although using <code>operator</code> syntax, do not have a specific sign and are not within the scope of <code>operator_dispatch</code>. They are supported by <a href="../explicit_conversion_dispatch/">class <code>explicit_conversion_dispatch</code> (aka. <code>conversion_dispatch</code>)</a> and <a href="../implicit_conversion_dispatch/">class <code>implicit_conversion_dispatch</code></a>.</p>
 <h2 id="specializations">Specializations</h2>
-<p>Let <code>self</code> be the operand of <a href="proxy/README.md"><code>proxy</code></a>, and <code>other</code> and <code>others...</code> be the other operand(s) in the expression of an operator. <code>operator_dispatch</code> has the following specializations for various expressions:</p>
+<p>Let <code>self</code> be the operand of <a href="../proxy/"><code>proxy</code></a>, and <code>other</code> and <code>others...</code> be the other operand(s) in the expression of an operator. <code>operator_dispatch</code> has the following specializations for various expressions:</p>
 <table>
 <thead>
 <tr>
@@ -2276,7 +2276,7 @@ Namespace: <code>pro</code></p>
 <td>constructs an <code>operator_dispatch</code> object</td>
 </tr>
 <tr>
-<td><a href="operator_dispatch/operator_call.md"><code>operator()</code></a></td>
+<td><a href="operator_call/"><code>operator()</code></a></td>
 <td>invokes the dispatch</td>
 </tr>
 </tbody>
@@ -2291,7 +2291,7 @@ Namespace: <code>pro</code></p>
 </thead>
 <tbody>
 <tr>
-<td><a href="operator_dispatch/accessor.md"><code>accessor</code></a></td>
+<td><a href="accessor/"><code>accessor</code></a></td>
 <td>provides accessibility to <code>proxy</code></td>
 </tr>
 </tbody>
@@ -2320,7 +2320,7 @@ Namespace: <code>pro</code></p>
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="explicit_conversion_dispatch/README.md">class <code>conversion_dispatch</code></a></li>
+<li><a href="../explicit_conversion_dispatch/">class <code>conversion_dispatch</code></a></li>
 </ul>
 
   <hr>

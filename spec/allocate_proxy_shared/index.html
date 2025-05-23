@@ -2045,7 +2045,7 @@ Since: 3.3.0</p>
 <h2 id="exceptions">Exceptions</h2>
 <p>Throws any exception thrown by allocation or the constructor of <code>T</code>.</p>
 <h2 id="notes">Notes</h2>
-<p>The implementation of <code>strong-compact-ptr</code> may vary depending on the definition of <code>F</code>. Specifically, when <code>F</code> does not support weak ownership via <a href="basic_facade_builder/support_weak.md"><code>basic_facade_builder::support_weak</code></a>, <code>strong-compact-ptr&lt;T, Alloc&gt;</code> is not convertible to <code>weak-compact-ptr&lt;T, Alloc&gt;</code>, which leaves more room for optimization.</p>
+<p>The implementation of <code>strong-compact-ptr</code> may vary depending on the definition of <code>F</code>. Specifically, when <code>F</code> does not support weak ownership via <a href="../skills_as_weak/"><code>skills::as_weak</code></a>, <code>strong-compact-ptr&lt;T, Alloc&gt;</code> is not convertible to <code>weak-compact-ptr&lt;T, Alloc&gt;</code>, which leaves more room for optimization.</p>
 <h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;memory_resource&gt;</span>
