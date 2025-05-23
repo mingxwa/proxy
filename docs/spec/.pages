@@ -25,7 +25,7 @@ nav:
     - skills::as_weak: skills_as_weak.md
     - "skills::fmt_format\nskills::fmt_wformat": skills_fmt_format.md
     - "skills::format\nskills::wformat": skills_format.md
-    - "skills::rtti\nskills::indirect_rtti\nskills::direct_rtti`": skills_riit.md
+    - "skills::rtti\nskills::indirect_rtti\nskills::direct_rtti": skills_riit.md
   - Functions:
     - access_proxy: access_proxy.md
     - allocate_proxy_shared: allocate_proxy_shared.md
