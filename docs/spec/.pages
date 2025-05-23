@@ -2,7 +2,7 @@ nav:
   - Specifications: README.md
   - Concepts:
     - <code>facade</code>: facade.md
-    - inplace_proxiable_target: inplace_proxiable_target.md
+    - "`inplace_proxiable_target`": inplace_proxiable_target.md
     - proxiable_target: proxiable_target.md
     - proxiable: proxiable.md
   - Classes:
