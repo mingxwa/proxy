@@ -6,3 +6,6 @@ nav:
   - build: build.md
   - restrict_layout: restrict_layout.md
   - support: support.md
+  - support_copy: support_copy.md
+  - support_destruction: support_destruction.md
+  - support_relocation: support_relocation.md
