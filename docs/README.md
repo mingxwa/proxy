@@ -1,6 +1,6 @@
 # Proxy - Next Generation Polymorphism in C++
 
-[![Intro](https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg)](https://www.youtube.com/watch?v=b_VNOq-lI4A)
+[![Pure Virtual C++ 2025 - Proxy - YouTube](https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg)](https://www.youtube.com/watch?v=b_VNOq-lI4A){:target="_blank"}
 
 "Proxy" is a modern C++ library that helps you use polymorphism (a way to use different types of objects interchangeably) without needing inheritance.
 

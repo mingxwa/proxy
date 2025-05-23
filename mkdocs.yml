@@ -21,16 +21,17 @@ theme:
     - navigation.indexes
 
 plugins:
-  - search
-  - git-revision-date-localized
   - awesome-pages
+  - git-revision-date-localized
+  - search
 
 markdown_extensions:
-  - meta
   - admonition
-  - pymdownx.highlight
-  - pymdownx.superfences
-  - pymdownx.pathconverter
-  - pymdownx.tabbed
+  - attr_list
   - mdx_truly_sane_lists
+  - meta
+  - pymdownx.highlight
+  - pymdownx.pathconverter
+  - pymdownx.superfences
+  - pymdownx.tabbed
   - pymdownx.tasklist
