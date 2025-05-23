@@ -12,6 +12,7 @@ theme:
   custom_dir: mkdocs-overrides
   font: false
   palette:
+    - primary: black
     - scheme: default
       toggle:
         icon: material/brightness-7 
