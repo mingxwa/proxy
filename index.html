@@ -16,7 +16,7 @@
       
       
       
-        <link rel="next" href="faq/">
+        <link rel="next" href="spec/">
       
       
       <link rel="icon" href="resources/ms_icon.png">
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Proxy: Next Generation Polymorphism in C++
+              Home
             
           </span>
         </div>
@@ -238,10 +238,32 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../README.md" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
         
   
   
@@ -252,6 +274,131 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#our-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Our Mission
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Start
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hello-world" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello World
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hello-world-stream-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello World (Stream Version)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#more-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      More Expressions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-useful-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Useful Features
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimum-requirements-for-compilers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimum Requirements for Compilers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-run-tests-with-cmake" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build and Run Tests with CMake
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Resources
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trademarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trademarks
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2904,7 +3051,7 @@
 <p>Do you want to write polymorphic code in C++ as easily as in <a href="https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)">GC languages</a> like Java or C#, without sacrificing performance?</p>
 <p>Have you tried other polymorphic programming libraries in C++ but found them deficient?</p>
 <p>If so, this library is for you.</p>
-<p><a href="https://www.youtube.com/watch?v=b_VNOq-lI4A" target="_blank"><img alt="Pure Virtual C++ 2025 - Proxy - YouTube" src="https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg" /></a></p>
+<p><a href="https://www.youtube.com/watch?v=b_VNOq-lI4A"><img alt="Pure Virtual C++ 2025 - Proxy - YouTube" src="https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg" /></a>{:target="_blank"}</p>
 <h2 id="our-mission">Our Mission</h2>
 <p>"Proxy" is a modern C++ library that helps you use polymorphism (a way to use different types of objects interchangeably) without needing inheritance.</p>
 <p>"Proxy" was created by Microsoft engineers and has been used in the Windows operating system since 2022. For many years, using inheritance was the main way to achieve polymorphism in C++. However, new programming languages like <a href="https://doc.rust-lang.org/book/ch10-02-traits.html">Rust</a> offer better ways to do this. We have improved our understanding of object-oriented programming and decided to use <em>pointers</em> in C++ as the foundation for "Proxy". Specifically, the "Proxy" library is designed to be:</p>
