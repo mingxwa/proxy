@@ -31,17 +31,17 @@ While virtual functions have served well for decades, "Proxy" offers modern solu
 
 ### <a name="how-learn">How to learn "Proxy" effectively?</a>
 
-The fundamental abstraction of "Proxy" is called "facade". It is recommended for beginners to start with the examples in the [README](https://github.com/microsoft/proxy/blob/lkg/README.md), try to understand the pattern of defining a [`facade`](spec/facade.md) type, using a facade type to specify a [`proxy`](spec/proxy/README.md) type, and creating and using a proxy object at runtime. Don't hesitate to consult the [specifications](spec/README.md) for more details about any facility in the library.
+The fundamental abstraction of "Proxy" is called "facade". It is recommended for beginners to start with the examples in the [home page](README.md#quick-start), try to understand the pattern of defining a [`facade`](spec/facade.md) type, using a facade type to specify a [`proxy`](spec/proxy/README.md) type, and creating and using a proxy object at runtime. Don't hesitate to consult the [specifications](spec/README.md) for more details about any facility in the library.
 
 ### <a name="how-integrate">How to integrate "Proxy" into my project?</a>
 
-Since "Proxy" is a header-only library, you can simply navigate to the [latest release](https://github.com/microsoft/proxy/releases), download the source code, and include "proxy.h" in your project. Make sure your compiler version meets the [minimum requirements for compilers](https://github.com/microsoft/proxy/blob/lkg/README.md#minimum-requirements-for-compilers). If your project has already integrated with [vcpkg](https://vcpkg.io/) or [conan](https://conan.io/), just search for the keyword "proxy" and install it. Thanks to the community that helped port "Proxy" to these platforms!
+Since "Proxy" is a header-only library, you can simply navigate to the [latest release](https://github.com/microsoft/proxy/releases), download the source code, and include "proxy.h" in your project. Make sure your compiler version meets the [minimum requirements for compilers](README.md#minimum-requirements-for-compilers). If your project has already integrated with [vcpkg](https://vcpkg.io/) or [conan](https://conan.io/), just search for the keyword "proxy" and install it. Thanks to the community that helped port "Proxy" to these platforms!
 
 ### <a name="how-migrate">My existing project uses virtual functions. How should I migrate to "Proxy"?</a>
 
 Follow the 4 steps below to upgrade an existing project from using virtual functions to "Proxy":
 
-1. Update the compiler version to meet our [minimum requirements for compilers](https://github.com/microsoft/proxy/blob/lkg/README.md#minimum-requirements-for-compilers).
+1. Update the compiler version to meet our [minimum requirements for compilers](README.md#minimum-requirements-for-compilers).
 2. Define [`facade`](spec/facade.md) types that match the "base classes with virtual functions" (virtual base classes).
 3. Replace all the usage of virtual base classes with [`proxy`](spec/proxy/README.md) from the API boundary.
 4. Remove all the definitions and inheritance of virtual base classes.
