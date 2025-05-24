@@ -22,7 +22,9 @@ theme:
 plugins:
   - awesome-pages
   - git-revision-date-localized
-  - privacy
+  - privacy:
+    links_attr_map:
+      target: _blank
   - search
 
 markdown_extensions:
