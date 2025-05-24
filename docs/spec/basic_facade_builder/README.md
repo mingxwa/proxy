@@ -43,10 +43,10 @@ using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>,
 | [`add_facade`](add_facade.md)                                | Adds a facade to the template parameters                     |
 | [`add_reflection`<br />`add_indirect_reflection`<br />`add_direct_reflection`](add_reflection.md) | Adds a reflection to the template parameters                 |
 | [`restrict_layout`](restrict_layout.md)                      | Specifies maximum `max_size` and `max_align` of `C` in the template parameters |
+| [`support`](support.md)                                      | // TODO                                                      |
 | [`support_copy`](support_copy.md)                            | Specifies minimum `copyability` of `C` in the template parameters |
 | [`support_destruction`](support_destruction.md)              | Specifies minimum `destructibility` of `C` in the template parameters |
 | [`support_relocation`](support_relocation.md)                | Specifies minimum `relocatability` of `C` in the template parameters |
-| [`support`](support.md)                                      | // TODO                                                      |
 
 ## Member Functions
 

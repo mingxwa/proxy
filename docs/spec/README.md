@@ -39,7 +39,7 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`skills::as_view`](skills_as_view.md)                       | `facade` skill set: implicit conversion to `proxy_view`      |
 | [`skills::as_weak`](skills_as_weak.md)                       | `facade` skill set: implicit conversion to `weak_proxy`      |
 | [`skills::format`<br />`skills::wformat`](skills_format.md)  | `facade` skill set: formatting via the [standard formatting functions](https://en.cppreference.com/w/cpp/utility/format) |
-| [`skills::rtti`<br />`skills::indirect_rtti`<br />`skills::direct_rtti` ](skills_riit.md) | `facade` skill set: RTTI via `proxy_cast` and `proxy_typeid` |
+| [`skills::rtti`<br />`skills::indirect_rtti`<br />`skills::direct_rtti` ](skills_rtti.md) | `facade` skill set: RTTI via `proxy_cast` and `proxy_typeid` |
 
 ### Functions
 
