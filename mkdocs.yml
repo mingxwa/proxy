@@ -9,12 +9,14 @@ edit_uri: ""
 
 theme:
   name: material
-  custom_dir: mkdocs-overrides
+  custom_dir: docs/config/mkdocs-overrides
+  extra_css:
+    - config/extra.css
   font: false
   palette:
     - primary: black
-  logo: resources/ms_icon.png
-  favicon: resources/ms_icon.png
+  logo: config/icon.png
+  favicon: config/icon.png
   features:
     - navigation.instant
     - navigation.indexes

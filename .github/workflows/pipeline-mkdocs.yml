@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r docs/requirements.txt
+          python3 -m pip install -r docs/config/requirements.txt
 
       - name: Build site
         run: mkdocs build --strict
