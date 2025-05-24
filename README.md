@@ -80,7 +80,7 @@ Here is a step-by-step explanation:
 - `#include <string>`: For [`std::string`](https://en.cppreference.com/w/cpp/string/basic_string).
 - `#include <proxy/proxy.h>`: For the "Proxy" library. Most of the facilities of the library are defined in namespace `pro`.
 - `struct Formattable : pro::facade_builder ... ::build {}`: Defines a facade type `Formattable`. The term "facade", formally defined as the [*ProFacade* requirements](https://microsoft.github.io/proxy/spec/ProFacade), is how the "Proxy" library models runtime abstraction. Specifically,
-  - [`pro::facade_builder`](https://microsoft.github.io/proxy/spec/basic_facade_builder): Provides capability to build a facade type at compile-time.
+  - [`pro::facade_builder`](https://mingxwa.github.io/proxy/spec/basic_facade_builder) (TODO: TEST): Provides capability to build a facade type at compile-time.
   - [`support`](https://microsoft.github.io/proxy/spec/basic_facade_builder/support)`<`[`pro::skills::format`](https://microsoft.github.io/proxy/spec/skills_format)`>`: Specifies the capability of formatting (via [standard formatting functions](https://en.cppreference.com/w/cpp/utility/format)).
   - [`build`](https://microsoft.github.io/proxy/docs/basic_facade_builder/build.html): Builds the context into a facade type.
 - [`pro::proxy`](https://microsoft.github.io/proxy/spec/proxy)`<Formattable> p1 = &str`: Creates a `proxy` object from a raw pointer of `std::string`. `p1` behaves like a raw pointer, and does not have ownership of the underlying `std::string`. If the lifetime of `str` ends before `p1`, `p1` becomes dangling.
@@ -253,7 +253,7 @@ ctest --test-dir build -j
 
 ## Related Resources
 
-- January, 2025: [Published ISO C++ proposal P3086R3: Proxy: A Pointer-Semantics-Based Polymorphism Library](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3086r3.pdf)
+- May, 2025: [Published ISO C++ proposal P3086R34 Proxy: A Pointer-Semantics-Based Polymorphism Library](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3086r4.pdf)
 - January, 2025: [Published ISO C++ proposal P3584R0: Enrich Facade Creation Facilities for the Pointer-Semantics-Based Polymorphism Library - Proxy](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3584r0.pdf)
 - November, 2024: [Analyzing the Performance of the “Proxy” Library](https://devblogs.microsoft.com/cppblog/analyzing-the-performance-of-the-proxy-library/)
 - September, 2024: [Published ISO C++ proposal P3401R0: Enrich Creation Functions for the Pointer-Semantics-Based Polymorphism Library - Proxy](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3401r0.pdf)
