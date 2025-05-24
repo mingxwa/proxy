@@ -1,3 +1,7 @@
 :root{
   --md-typeset-table-font-size: 2rem;
 }
+
+.md-typeset table:not(.highlight) {
+  font-size: 2rem !important;
+}
