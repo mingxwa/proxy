@@ -1,5 +1,5 @@
 ---
-name: Build and deploy mkdocs
+name: Build mkdocs
 on:
   push:
     branches:
@@ -41,7 +41,7 @@ jobs:
         run: mkdocs build
 
       - name: Deploy
-        if: ${{ !inputs.branch }}
+        if: ${{ inputs.branch == null }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
