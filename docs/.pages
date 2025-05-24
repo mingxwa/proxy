@@ -1,5 +1,5 @@
 nav:
-  - Welcome: README.md
+  - Welcome: ../README.md
   - Specifications: spec
   - Modules Support: modules_support.md
   - FAQ: faq.md
