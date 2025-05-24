@@ -165,10 +165,6 @@
          <lastmod>2025-05-24</lastmod>
     </url>
     <url>
-         <loc>https://mingxwa.github.io/proxy/spec/skills_rtti/</loc>
-         <lastmod>2025-05-24</lastmod>
-    </url>
-    <url>
          <loc>https://mingxwa.github.io/proxy/spec/weak_proxy/</loc>
          <lastmod>2025-05-24</lastmod>
     </url>
@@ -290,6 +286,18 @@
     </url>
     <url>
          <loc>https://mingxwa.github.io/proxy/spec/proxy/swap/</loc>
+         <lastmod>2025-05-24</lastmod>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills_rtti/</loc>
+         <lastmod>2025-05-24</lastmod>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills_rtti/proxy_cast/</loc>
+         <lastmod>2025-05-24</lastmod>
+    </url>
+    <url>
+         <loc>https://mingxwa.github.io/proxy/spec/skills_rtti/proxy_typeid/</loc>
          <lastmod>2025-05-24</lastmod>
     </url>
     <url>
