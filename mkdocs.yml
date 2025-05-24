@@ -27,6 +27,7 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
   - mdx_truly_sane_lists
   - meta
   - pymdownx.highlight
