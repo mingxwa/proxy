@@ -38,5 +38,5 @@ jobs:
     needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc]
 
   mkdocs:
-    uses: ./.github/workflows/mkdocs.yml
+    uses: ./.github/workflows/pipeline-mkdocs.yml
     name: Build mkdocs

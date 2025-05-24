@@ -9,7 +9,7 @@
 class bad_proxy_cast : public std::bad_cast;
 ```
 
-A type of object to be thrown by the value-returning forms of [`proxy_cast`](basic_facade_builder/support_rtti.md) on failure.
+A type of object to be thrown by the value-returning forms of [`proxy_cast`](skills_rtti/proxy_cast.md) on failure.
 
 ## Member Functions
 
