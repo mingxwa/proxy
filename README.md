@@ -10,7 +10,7 @@ Have you tried other polymorphic programming libraries in C++ but found them def
 
 If so, this library is for you.
 
-[![Pure Virtual C++ 2025 - Proxy - YouTube](https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg)](https://www.youtube.com/watch?v=b_VNOq-lI4A){:target="_blank"}
+[![Pure Virtual C++ 2025 - Proxy - YouTube](https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg)](https://www.youtube.com/watch?v=b_VNOq-lI4A)
 
 ## Our Mission
 
