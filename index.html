@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Proxy - Next Generation Polymorphism in C++
+              Proxy: Next Generation Polymorphism in C++
             
           </span>
         </div>
@@ -246,7 +246,7 @@
   
   
   <span class="md-ellipsis">
-    Welcome
+    Home
     
   </span>
   
@@ -2771,6 +2771,119 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#our-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Our Mission
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Start
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hello-world" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello World
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hello-world-stream-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello World (Stream Version)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#more-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      More Expressions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-useful-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Useful Features
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimum-requirements-for-compilers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimum Requirements for Compilers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-run-tests-with-cmake" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build and Run Tests with CMake
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Resources
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trademarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trademarks
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2785,8 +2898,14 @@
 
 
 
-<h1 id="proxy-next-generation-polymorphism-in-c">Proxy - Next Generation Polymorphism in C++</h1>
+<h1 id="proxy-next-generation-polymorphism-in-c">Proxy: Next Generation Polymorphism in C++</h1>
+<p><a href="https://github.com/microsoft/proxy/actions/workflows/pipeline-ci.yml"><img alt="Proxy-CI" src="https://github.com/microsoft/proxy/actions/workflows/pipeline-ci.yml/badge.svg" /></a></p>
+<p>Are you looking to simplify the lifetime management and maintenance of polymorphic objects in C++?</p>
+<p>Do you want to write polymorphic code in C++ as easily as in <a href="https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)">GC languages</a> like Java or C#, without sacrificing performance?</p>
+<p>Have you tried other polymorphic programming libraries in C++ but found them deficient?</p>
+<p>If so, this library is for you.</p>
 <p><a href="https://www.youtube.com/watch?v=b_VNOq-lI4A" target="_blank"><img alt="Pure Virtual C++ 2025 - Proxy - YouTube" src="https://img.youtube.com/vi/b_VNOq-lI4A/0.jpg" /></a></p>
+<h2 id="our-mission">Our Mission</h2>
 <p>"Proxy" is a modern C++ library that helps you use polymorphism (a way to use different types of objects interchangeably) without needing inheritance.</p>
 <p>"Proxy" was created by Microsoft engineers and has been used in the Windows operating system since 2022. For many years, using inheritance was the main way to achieve polymorphism in C++. However, new programming languages like <a href="https://doc.rust-lang.org/book/ch10-02-traits.html">Rust</a> offer better ways to do this. We have improved our understanding of object-oriented programming and decided to use <em>pointers</em> in C++ as the foundation for "Proxy". Specifically, the "Proxy" library is designed to be:</p>
 <ul>
@@ -2797,7 +2916,268 @@
 <li><strong>Accessible</strong>: Learned from user feedback, accessibility has been significantly improved with intuitive syntax, good IDE compatibility, and accurate diagnostics.</li>
 <li><strong>Flexible</strong>: Not only member functions, the "abstraction" of "Proxy" allows <em>any</em> expression to be polymorphic, including free functions, operators, conversions, etc. Different abstractions can be freely composed on demand. Performance tuning is supported for experts to balance between extensibility and performance.</li>
 </ul>
-<p>Please find any useful resources from the left panel.</p>
+<p>Please refer to the <a href="https://microsoft.github.io/proxy/faq">Proxy's Frequently Asked Questions</a> for more background, and refer to the <a href="https://microsoft.github.io/proxy/spec">specifications</a> for more technical details.</p>
+<h2 id="quick-start">Quick Start</h2>
+<p>"Proxy" is a header-only C++20 library. To use the library, make sure your compiler meets the <a href="#compiler-req">minimum requirements</a> and just put the <a href="https://github.com/microsoft/proxy/tree/main/include/proxy">proxy</a> directory in your project's include directory. Alternatively, you can install the library via:</p>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/vcpkg/get_started/overview">vcpkg</a>: <a href="https://vcpkg.io/en/package/proxy">proxy port on vcpkg.io</a></li>
+<li><a href="https://conan.io/">conan</a>: <a href="https://conan.io/center/recipes/proxy">proxy recipe on conan.io</a></li>
+<li><a href="https://github.com/cpm-cmake/CPM.cmake">CPM</a> / CMake <a href="https://cmake.org/cmake/help/latest/module/FetchContent.html">FetchContent_Declare</a>:<div class="highlight"><pre><span></span><code><span class="nb">CPMAddPackage</span><span class="p">(</span>
+<span class="w">  </span><span class="s">NAME</span><span class="w"> </span><span class="s">proxy</span>
+<span class="w">  </span><span class="s">GIT_TAG</span><span class="w"> </span><span class="s">4.0.0</span><span class="w"> </span><span class="c"># or above</span>
+<span class="w">  </span><span class="s">GIT_REPOSITORY</span><span class="w"> </span><span class="s">https://github.com/microsoft/proxy.git</span>
+<span class="p">)</span>
+
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">main</span><span class="w"> </span><span class="s">PRIVATE</span><span class="w"> </span><span class="s">msft_proxy</span><span class="p">)</span>
+</code></pre></div>
+</li>
+</ul>
+<h3 id="hello-world">Hello World</h3>
+<p>Let's get started with the following "Hello World" example (<a href="https://godbolt.org/z/jr81Poz83">run</a>):</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;format&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string&gt;</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;proxy/proxy.h&gt;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Formattable</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">facade_builder</span>
+<span class="w">    </span><span class="o">::</span><span class="n">support</span><span class="o">&lt;</span><span class="n">pro</span><span class="o">::</span><span class="n">skills</span><span class="o">::</span><span class="n">format</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">build</span><span class="w"> </span><span class="p">{};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello World&quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">str</span><span class="p">;</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;p1 = {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p1</span><span class="p">);</span><span class="w">  </span><span class="c1">// Prints &quot;p1 = Hello World&quot;</span>
+
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">123</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;p2 = {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p2</span><span class="p">);</span><span class="w">  </span><span class="c1">// Prints &quot;p2 = 123&quot;</span>
+
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">make_proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">3.14159</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;p3 = {:.2f}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p3</span><span class="p">);</span><span class="w">  </span><span class="c1">// Prints &quot;p3 = 3.14&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Here is a step-by-step explanation:</p>
+<ul>
+<li><code>#include &lt;format&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/utility/format/format"><code>std::format</code></a>.</li>
+<li><code>#include &lt;iostream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/cout"><code>std::cout</code></a>.</li>
+<li><code>#include &lt;string&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/string/basic_string"><code>std::string</code></a>.</li>
+<li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library. Most of the facilities of the library are defined in namespace <code>pro</code>.</li>
+<li><code>struct Formattable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Formattable</code>. The term "facade", formally defined as the <a href="https://microsoft.github.io/proxy/spec/ProFacade"><em>ProFacade</em> requirements</a>, is how the "Proxy" library models runtime abstraction. Specifically,<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder"><code>pro::facade_builder</code></a>: Provides capability to build a facade type at compile-time.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support"><code>support</code></a><code>&lt;</code><a href="https://microsoft.github.io/proxy/spec/skills_format"><code>pro::skills::format</code></a><code>&gt;</code>: Specifies the capability of formatting (via <a href="https://en.cppreference.com/w/cpp/utility/format">standard formatting functions</a>).</li>
+<li><a href="https://microsoft.github.io/proxy/docs/basic_facade_builder/build.html"><code>build</code></a>: Builds the context into a facade type.</li>
+</ul>
+</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p1 = &amp;str</code>: Creates a <code>proxy</code> object from a raw pointer of <code>std::string</code>. <code>p1</code> behaves like a raw pointer, and does not have ownership of the underlying <code>std::string</code>. If the lifetime of <code>str</code> ends before <code>p1</code>, <code>p1</code> becomes dangling.</li>
+<li><code>std::format("p1 = {}\n", *p1)</code>: This is how it works. <code>*p1</code> is formatted as "Hello World" because the capability was defined in the facade <code>Formattable</code>, so it works as if by calling <code>std::format("p1 = {}\n", str)</code>.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p2 =</code><a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique"><code>std::make_unique</code></a><code>&lt;int&gt;(123)</code>: Creates a <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a><code>&lt;int&gt;</code> and converts to a <code>proxy</code>. Different from <code>p1</code>, <code>p2</code> has ownership of the underlying <code>int</code> because it is instantiated from a value of <code>std::unique_ptr</code>, and will call the destructor of <code>std::unique_ptr</code> when <code>p2</code> is destroyed, while <code>p1</code> does not have ownership of the underlying <code>int</code> because it is instantiated from a raw pointer. <code>p1</code> and <code>p2</code> are of the same type <code>pro::proxy&lt;Formattable&gt;</code>, which means you can have a function that returns <code>pro::proxy&lt;Formattable&gt;</code> without exposing any information about the implementation details to its caller.</li>
+<li><code>std::format("p2 = {}\n", *p2)</code>: Formats <code>*p2</code> as "123" with no surprises.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p3 =</code><a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a><code>&lt;Formattable&gt;(3.14159)</code>: Creates a <code>proxy</code> from a <code>double</code> without specifying the underlying pointer type. Specifically,<ul>
+<li>Similar with <code>p2</code>, <code>p3</code> also has ownership of the underlying <code>double</code> value, but can effectively avoid heap allocation.</li>
+<li>Since the size of the underlying type (<code>double</code>) is known to be small (on major 32- or 64-bit platforms), <a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a> realizes the fact at compile-time, and falls back to <a href="https://microsoft.github.io/proxy/spec/make_proxy_inplace"><code>pro::make_proxy_inplace</code></a>, which guarantees no heap allocation.</li>
+<li>The "Proxy" library explicitly defines when heap allocation occurs or not to avoid users falling into performance hell, which is different from <a href="https://en.cppreference.com/w/cpp/utility/functional/function"><code>std::function</code></a> and other existing polymorphic wrappers in the standard.</li>
+</ul>
+</li>
+<li><code>std::format("p3 = {:.2f}\n", *p3)</code>: Formats <code>*p3</code> as "3.14" as per the <a href="https://en.cppreference.com/w/cpp/utility/format/spec">standard format specification</a> with no surprises.</li>
+<li>When <code>main</code> returns, <code>p2</code> and <code>p3</code> will destroy the underlying objects, while <code>p1</code> does nothing because it holds a raw pointer that does not have ownership of the underlying <code>std::string</code>.</li>
+</ul>
+<p>Note: If you prefer the library to be consumed as a (C++20) module, refer to <a href="https://microsoft.github.io/proxy/modules_support">C++20 Modules support</a>.</p>
+<h3 id="hello-world-stream-version">Hello World (Stream Version)</h3>
+<p>In the previous "Hello Word" example, we demonstrated how <code>proxy</code> could manage different types of objects and be formatted with <code>std::format</code>. While <code>std::format</code> is not the only option to print objects in C++, can we simply make <code>proxy</code> work with <code>std::cout</code>? The answer is "yes". The previous example is equivalent to the following implementation (<a href="https://godbolt.org/z/q1b14WGff">run</a>):</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iomanip&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string&gt;</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;proxy/proxy.h&gt;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Streamable</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">facade_builder</span>
+<span class="w">    </span><span class="o">::</span><span class="n">add_convention</span><span class="o">&lt;</span><span class="n">pro</span><span class="o">::</span><span class="n">operator_dispatch</span><span class="o">&lt;</span><span class="s">&quot;&lt;&lt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span><span class="w"> </span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">build</span><span class="w"> </span><span class="p">{};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello World&quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Streamable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">str</span><span class="p">;</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;p1 = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="o">*</span><span class="n">p1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// Prints &quot;p1 = Hello World&quot;</span>
+
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Streamable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">123</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;p2 = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="o">*</span><span class="n">p2</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// Prints &quot;p2 = 123&quot;</span>
+
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Streamable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">make_proxy</span><span class="o">&lt;</span><span class="n">Streamable</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">3.14159</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;p3 = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">fixed</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="o">*</span><span class="n">p3</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// Prints &quot;p3 = 3.14&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Here is a step-by-step explanation:</p>
+<ul>
+<li><code>#include &lt;iomanip&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/manip/setprecision"><code>std::setprecision</code></a>.</li>
+<li><code>#include &lt;iostream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/cout"><code>std::cout</code></a>.</li>
+<li><code>#include &lt;string&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/string/basic_string"><code>std::string</code></a>.</li>
+<li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library.</li>
+<li><code>struct Streamable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Streamable</code>. Specifically,<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder"><code>pro::facade_builder</code></a>: Gets prepared to build another facade.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention"><code>add_convention</code></a>: Adds a generalized "calling convention", defined by a "dispatch" and several "overloads", to the build context.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/operator_dispatch"><code>pro::operator_dispatch</code></a><code>&lt;"&lt;&lt;", true&gt;</code>: Specifies a dispatch for operator <code>&lt;&lt;</code> expressions where the primary operand (<code>proxy</code>) is on the right-hand side (specified by the second template parameter <code>true</code>). Note that polymorphism in the "Proxy" library is defined by expressions rather than member functions, which is different from C++ virtual functions or other OOP languages.</li>
+<li><code>std::ostream&amp;(std::ostream&amp; out) const</code>: The signature of the calling convention, similar with <a href="https://en.cppreference.com/w/cpp/utility/functional/move_only_function"><code>std::move_only_function</code></a>. <code>const</code> specifies that the primary operand is <code>const</code>.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/build"><code>build</code></a>: Builds the context into a facade type.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p1 = &amp;str</code>: Creates a <code>proxy</code> object from a raw pointer of <code>std::string</code>.</li>
+<li><code>std::cout &lt;&lt; *p1</code>: It prints "Hello World" because the calling convention is defined in the facade <code>Streamable</code>, so it works as if by calling <code>std::cout &lt;&lt; str</code>.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p2 =</code><a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique"><code>std::make_unique</code></a><code>&lt;int&gt;(123)</code>: Creates a <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a><code>&lt;int&gt;</code> and converts to a <code>proxy</code>.</li>
+<li><code>std::cout &lt;&lt; *p2</code>: Prints "123" with no surprises.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p3 =</code><a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a><code>&lt;Streamable&gt;(3.14)</code>: Creates a <code>proxy</code> from a <code>double</code>.</li>
+<li><code>std::cout &lt;&lt; std::fixed &lt;&lt; std::setprecision(2) &lt;&lt; *p3;</code>: Prints "3.14" with no surprises.</li>
+</ul>
+<h3 id="more-expressions">More Expressions</h3>
+<p>In addition to the operator expressions demonstrated in the previous examples, the library supports almost all forms of expressions in C++ and can make them polymorphic. Specifically,</p>
+<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH">macro <code>PRO_DEF_MEM_DISPATCH</code></a>: Defines a dispatch type for member function call expressions, providing accessibility as member functions.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_FREE_DISPATCH">macro <code>PRO_DEF_FREE_DISPATCH</code></a>: Defines a dispatch type for free function call expressions, providing accessibility as free functions.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_FREE_AS_MEM_DISPATCH">macro <code>PRO_DEF_FREE_AS_MEM_DISPATCH</code></a>: Defines a dispatch type for free function call expressions, providing accessibility as member functions.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/operator_dispatch">class template <code>pro::operator_dispatch</code></a>: Dispatch type for operator expressions.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/explicit_conversion_dispatch">class <code>explicit_conversion_dispatch</code> (aka. <code>conversion_dispatch</code>)</a> and <a href="https://microsoft.github.io/proxy/spec/implicit_conversion_dispatch">class <code>implicit_conversion_dispatch</code></a>: Dispatch type for conversion expressions.</li>
+</ul>
+<p>Note that some facilities are provided as macro, because C++ templates today do not support generating a function with an arbitrary name. Here is another example that makes member function call expressions polymorphic (<a href="https://godbolt.org/z/xcEeYrjnY">run</a>):</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sstream&gt;</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;proxy/proxy.h&gt;</span>
+
+<span class="n">PRO_DEF_MEM_DISPATCH</span><span class="p">(</span><span class="n">MemDraw</span><span class="p">,</span><span class="w"> </span><span class="n">Draw</span><span class="p">);</span>
+<span class="n">PRO_DEF_MEM_DISPATCH</span><span class="p">(</span><span class="n">MemArea</span><span class="p">,</span><span class="w"> </span><span class="n">Area</span><span class="p">);</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Drawable</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">facade_builder</span>
+<span class="w">    </span><span class="o">::</span><span class="n">add_convention</span><span class="o">&lt;</span><span class="n">MemDraw</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span><span class="w"> </span><span class="n">output</span><span class="p">)</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">add_convention</span><span class="o">&lt;</span><span class="n">MemArea</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="p">()</span><span class="w"> </span><span class="k">noexcept</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">support_copy</span><span class="o">&lt;</span><span class="n">pro</span><span class="o">::</span><span class="n">constraint_level</span><span class="o">::</span><span class="n">nontrivial</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">build</span><span class="w"> </span><span class="p">{};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Rectangle</span><span class="w"> </span><span class="p">{</span>
+<span class="w"> </span><span class="k">public</span><span class="o">:</span>
+<span class="w">  </span><span class="n">Rectangle</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">width_</span><span class="p">(</span><span class="n">width</span><span class="p">),</span><span class="w"> </span><span class="n">height_</span><span class="p">(</span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">  </span><span class="n">Rectangle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Rectangle</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span>
+
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">Draw</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span><span class="w"> </span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">out</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;{Rectangle: width = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">width_</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;, height = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">height_</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;}&quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="kt">double</span><span class="w"> </span><span class="nf">Area</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">noexcept</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">width_</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">height_</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w"> </span><span class="k">private</span><span class="o">:</span>
+<span class="w">  </span><span class="kt">double</span><span class="w"> </span><span class="n">width_</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">double</span><span class="w"> </span><span class="n">height_</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="nf">PrintDrawableToString</span><span class="p">(</span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Drawable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">stringstream</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">  </span><span class="n">result</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;entity = &quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">Draw</span><span class="p">(</span><span class="n">result</span><span class="p">);</span>
+<span class="w">  </span><span class="n">result</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;, area = &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">Area</span><span class="p">();</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">result</span><span class="p">).</span><span class="n">str</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Drawable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">make_proxy</span><span class="o">&lt;</span><span class="n">Drawable</span><span class="p">,</span><span class="w"> </span><span class="n">Rectangle</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PrintDrawableToString</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// Prints &quot;entity = {Rectangle: width = 3, height = 5}, area = 15&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Here is a step-by-step explanation:</p>
+<ul>
+<li><code>#include &lt;iostream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/cout"><code>std::cout</code></a>.</li>
+<li><code>#include &lt;sstream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/basic_stringstream"><code>std::stringstream</code></a>.</li>
+<li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH"><code>PRO_DEF_MEM_DISPATCH</code></a><code>(MemDraw, Draw)</code>: Defines a dispatch type <code>MemDraw</code> for expressions of calling member function <code>Draw</code>.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH"><code>PRO_DEF_MEM_DISPATCH</code></a><code>(MemArea, Area)</code>: Defines a dispatch type <code>MemArea</code> for expressions of calling member function <code>Area</code>.</li>
+<li><code>struct Drawable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Drawable</code>. Specifically,<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention"><code>add_convention</code></a>: Adds calling conventions to the build context.</li>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support_copy"><code>support_copy</code></a><code>&lt;</code><a href="https://microsoft.github.io/proxy/spec/constraint_level"><code>pro::constraint_level</code></a><code>::nontrivial&gt;</code>: Specifies the underlying pointer type shall be copyable, which also makes the resulting <code>proxy</code> type copyable.</li>
+</ul>
+</li>
+<li><code>class Rectangle</code>: An implementation of <code>Drawable</code>.</li>
+<li>Function <code>PrintDrawableToString</code>: Converts a <code>Drawable</code> into a <code>std::string</code>. Note that this is a function rather than a function template, which means it can generate <a href="https://en.wikipedia.org/wiki/Application_binary_interface">ABI</a> in a larger build system.</li>
+<li><code>pro::proxy&lt;Drawable&gt; p = pro::make_proxy&lt;Drawable, Rectangle&gt;(3, 5)</code>: Creates a <code>proxy&lt;Drawable&gt;</code> object containing a <code>Rectangle</code>.</li>
+<li><code>std::string str = PrintDrawableToString(p)</code>: Converts <code>p</code> into a <code>std::string</code>, implicitly creates a copy of <code>p</code>.</li>
+<li><code>std::cout &lt;&lt; str</code>: Prints the string.</li>
+</ul>
+<h3 id="other-useful-features">Other Useful Features</h3>
+<p>The "Proxy" library is a self-contained solution for runtime polymorphism in C++. There are many other capabilities documented in the <a href="https://microsoft.github.io/proxy/spec">specifications</a>. In addition to the features mentioned above, here is a curated list of the most popular features based on user feedback:</p>
+<ul>
+<li><strong>Overloading</strong>: <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention"><code>facade_builder::add_convention</code></a> is more powerful than demonstrated above. It can take any number of overload types (formally, any type meeting the <a href="https://microsoft.github.io/proxy/spec/ProOverload"><em>ProOverload</em> requirements</a>) and perform standard overload resolution when invoking a <code>proxy</code>.</li>
+<li><strong>Facade composition</strong>: <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_facade"><code>facade_builder::add_facade</code></a> allows flexible composition of different abstractions.</li>
+<li><strong>Concepts</strong>: To facilitate template programming with "Proxy", 3 concepts are exported from a facade type. Namely, <a href="https://microsoft.github.io/proxy/spec/proxiable"><code>proxiable</code></a>, <a href="https://microsoft.github.io/proxy/spec/proxiable_target"><code>proxiable_target</code></a> and <a href="https://microsoft.github.io/proxy/spec/inplace_proxiable_target"><code>inplace_proxiable_target</code></a>.</li>
+<li><strong>Allocator awareness</strong>: <a href="https://microsoft.github.io/proxy/spec/allocate_proxy">function template <code>allocate_proxy</code></a> is able to create a <code>proxy</code> from a value with any custom allocator. In C++11, <a href="https://en.cppreference.com/w/cpp/utility/functional/function"><code>std::function</code></a> and <a href="https://en.cppreference.com/w/cpp/thread/packaged_task"><code>std::packaged_task</code></a> had constructors that accepted custom allocators for performance tuning, but these were <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0302r1.html">removed in C++17</a> because "the semantics are unclear, and there are technical issues with storing an allocator in a type-erased context and then recovering that allocator later for any allocations needed during copy assignment". These issues do not apply to <code>allocate_proxy</code>.</li>
+<li><strong>Configurable constraints</strong>: <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder"><code>facade_builder</code></a> provides full support for constraints configuration, including memory layout (by <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/restrict_layout"><code>restrict_layout</code></a>), copyability (by <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support_copy"><code>support_copy</code></a>), relocatability (by <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support_relocation"><code>support_relocation</code></a>), and destructibility (by <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support_destruction"><code>support_destruction</code></a>).</li>
+<li><strong>Reflection</strong>: <code>proxy</code> supports type-based compile-time reflection for runtime queries. Please refer to <a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_reflection"><code>facade_builder::add_reflection</code></a> and <a href="https://microsoft.github.io/proxy/spec/proxy_reflect">function template <code>proxy_reflect</code></a> for more details.</li>
+<li><strong>Non-owning proxy</strong>: Although <code>proxy</code> can manage the lifetime of an object effectively, similar to a smart pointer, we sometimes want to dereference it before passing to a non-owning context. This has been implemented as an extension since 3.2.0. Please refer to <a href="https://microsoft.github.io/proxy/spec/make_proxy_view">function template <code>make_proxy_view</code></a>, <a href="https://microsoft.github.io/proxy/spec/proxy_view">alias template <code>proxy_view</code>, class template <code>observer_facade</code></a> and <a href="https://microsoft.github.io/proxy/spec/skills_as_view"><code>skills::as_view</code></a> for more details.</li>
+<li><strong>RTTI</strong>: <a href="https://en.wikipedia.org/wiki/Run-time_type_information">RTTI (run-time type information)</a> provides "weak" reflection capability in C++ since the last century. Although it is not as powerful as reflection in some other languages (like <code>Object.GetType()</code> in C# or <code>Object.getClass()</code> in Java), it offers the basic infrastructure for type-safe casting at runtime. Since 4.0.0, "RTTI for <code>proxy</code>" has been implemented as an extension and allows users to opt-in for each facade definition. Please refer to <a href="https://microsoft.github.io/proxy/spec/skills_rtti"><code>skills::rtti</code></a> for more details.</li>
+<li><strong>Shared and weak ownership</strong>: Although <code>proxy</code> can be created from a <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr"><code>std::shared_ptr</code></a>, extensions are available to create <code>proxy</code> objects with shared and weak ownership in a more efficient way since 3.3.0. Please refer to <a href="https://microsoft.github.io/proxy/spec/make_proxy_shared">function template <code>make_proxy_shared</code></a>, <a href="https://microsoft.github.io/proxy/spec/allocate_proxy_shared"><code>allocate_proxy_shared</code></a>, <a href="https://microsoft.github.io/proxy/spec/weak_proxy">alias template <code>weak_proxy</code>, class template <code>weak_facade</code></a> and <a href="https://microsoft.github.io/proxy/spec/skills_as_weak"><code>skills::as_weak</code></a> for more details.</li>
+<li><strong>Weak dispatch</strong>: When an object does not implement a convention, and we do not want it to trigger a hard compile error, it is allowed to specify a <a href="https://microsoft.github.io/proxy/spec/weak_dispatch"><code>weak_dispatch</code></a> that throws when invoked.</li>
+</ul>
+<h2 id="minimum-requirements-for-compilers"><a name="compiler-req">Minimum Requirements for Compilers</a></h2>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Minimum version</th>
+<th>Required flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GCC</td>
+<td>13.1</td>
+<td>-std=c++20</td>
+</tr>
+<tr>
+<td>Clang</td>
+<td>16.0.0</td>
+<td>-std=c++20</td>
+</tr>
+<tr>
+<td>MSVC</td>
+<td>19.31</td>
+<td>/std:c++20</td>
+</tr>
+<tr>
+<td>NVIDIA HPC</td>
+<td>24.1</td>
+<td>-std=c++20</td>
+</tr>
+</tbody>
+</table>
+<h2 id="build-and-run-tests-with-cmake">Build and Run Tests with CMake</h2>
+<div class="highlight"><pre><span></span><code>git clone https://github.com/microsoft/proxy.git
+cd proxy
+cmake -B build
+cmake --build build -j
+ctest --test-dir build -j
+</code></pre></div>
+<h2 id="related-resources">Related Resources</h2>
+<ul>
+<li>January, 2025: <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3086r3.pdf">Published ISO C++ proposal P3086R3: Proxy: A Pointer-Semantics-Based Polymorphism Library</a></li>
+<li>January, 2025: <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p3584r0.pdf">Published ISO C++ proposal P3584R0: Enrich Facade Creation Facilities for the Pointer-Semantics-Based Polymorphism Library - Proxy</a></li>
+<li>November, 2024: <a href="https://devblogs.microsoft.com/cppblog/analyzing-the-performance-of-the-proxy-library/">Analyzing the Performance of the “Proxy” Library</a></li>
+<li>September, 2024: <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3401r0.pdf">Published ISO C++ proposal P3401R0: Enrich Creation Functions for the Pointer-Semantics-Based Polymorphism Library - Proxy</a></li>
+<li>September, 2024: <a href="https://devblogs.microsoft.com/cppblog/announcing-the-proxy-3-library-for-dynamic-polymorphism/">Announcing the Proxy 3 Library for Dynamic Polymorphism</a></li>
+<li>August, 2022: <a href="https://devblogs.microsoft.com/cppblog/proxy-runtime-polymorphism-made-easier-than-ever/">proxy: Runtime Polymorphism Made Easier Than Ever</a></li>
+</ul>
+<h2 id="contributing">Contributing</h2>
+<p>This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.</p>
+<p>When you submit a pull request, a CLA bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.</p>
+<p>This project has adopted the <a href="https://opensource.microsoft.com/codeofconduct/">Microsoft Open Source Code of Conduct</a>.
+For more information see the <a href="https://opensource.microsoft.com/codeofconduct/faq/">Code of Conduct FAQ</a> or
+contact <a href="mailto:opencode@microsoft.com">opencode@microsoft.com</a> with any additional questions or comments.</p>
+<h2 id="trademarks">Trademarks</h2>
+<p>This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
+trademarks or logos is subject to and must follow 
+<a href="https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general">Microsoft's Trademark &amp; Brand Guidelines</a>.
+Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
+Any use of third-party trademarks or logos are subject to those third-party's policies.</p>
 
 
 
@@ -2818,7 +3198,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 23, 2025 13:47:10">May 23, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 24, 2025 11:41:18">May 24, 2025</span>
   </span>
 
     
