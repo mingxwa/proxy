@@ -9,7 +9,7 @@ edit_uri: ""
 
 theme:
   name: material
-  custom_dir: docs/config/mkdocs-overrides
+  custom_dir: mkdocs-overrides
   extra_css:
     - config/extra.css
   font: false
