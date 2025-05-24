@@ -10,8 +10,6 @@ edit_uri: ""
 theme:
   name: material
   custom_dir: mkdocs-overrides
-  extra_css:
-    - config/extra.css
   font: false
   palette:
     - primary: black
@@ -20,6 +18,9 @@ theme:
   features:
     - navigation.instant
     - navigation.indexes
+
+extra_css:
+  - config/extra.css
 
 plugins:
   - awesome-pages
