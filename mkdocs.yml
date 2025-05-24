@@ -22,7 +22,7 @@ theme:
 plugins:
   - awesome-pages
   - git-revision-date-localized
-  - material/link-attributes:
+  - link-attributes:
       attrs:
         target: _blank
   - search
