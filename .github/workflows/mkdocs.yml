@@ -1,5 +1,5 @@
 ---
-name: Build and deploy mkdocs to https://microsoft.github.io/proxy
+name: Build and deploy mkdocs
 on:
   push:
     branches:
@@ -11,7 +11,7 @@ on:
         type: string
 
 jobs:
-  deploy:
+  build-mkdocs:
     runs-on: ubuntu-24.04
     permissions:
       actions: write
@@ -41,7 +41,7 @@ jobs:
         run: mkdocs build
 
       - name: Deploy
-        if: ${{ inputs.branch == null }}
+        if: ${{ inputs.branch == undefined }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
