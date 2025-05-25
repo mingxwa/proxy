@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://mingxwa.github.io/proxy/spec/basic_facade_builder/add_convention/">
+        <link rel="canonical" href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention/">
       
       
         <link rel="prev" href="../">
@@ -2910,20 +2910,16 @@
 <p>The alias templates <code>add_convention</code>, <code>add_indirect_convention</code>, and <code>add_direct_convention</code> of <code>basic_facade_builder&lt;Cs, Rs, C&gt;</code> add convention types to the template parameters. The expression inside <code>requires</code> is equivalent to <code>sizeof...(Os) &gt; 0u</code> and each type in <code>Os</code> meets the <a href="../../ProOverload/"><em>ProOverload</em> requirements</a>. Let <code>F</code> be a facade type,</p>
 <ul>
 <li><code>add_convention</code> is equivalent to <code>add_indirect_convention</code>.</li>
-<li><code>add_indirect_convention</code> merges an implementation-defined convention type <code>IC</code> into <code>Cs</code>, where:<ul>
+<li><code>add_indirect_convention</code> merges an implementation-defined convention type <code>IC</code> into <code>Cs</code>, where:</li>
 <li><code>IC::is_direct</code> is <code>false</code>.</li>
 <li><code>typename IC::dispatch_type</code> is <code>D</code>.</li>
 <li><code>typename IC::overload_types</code> is a <a href="https://en.cppreference.com/w/cpp/utility/tuple/tuple-like">tuple-like</a> type of distinct types in <code>Os</code>.</li>
 <li><code>typename IC::template accessor&lt;F&gt;</code> is <code>typename D::template accessor&lt;F, false, D,</code><a href="../../ProOverload/"><code>substituted-overload&lt;Os, F&gt;</code></a><code>...&gt;</code> if applicable.</li>
-</ul>
-</li>
-<li><code>add_direct_convention</code> merges an implementation-defined convention type <code>IC</code> into <code>Cs</code>, where:<ul>
+<li><code>add_direct_convention</code> merges an implementation-defined convention type <code>IC</code> into <code>Cs</code>, where:</li>
 <li><code>IC::is_direct</code> is <code>true</code>.</li>
 <li><code>typename IC::dispatch_type</code> is <code>D</code>.</li>
 <li><code>typename IC::overload_types</code> is a <a href="https://en.cppreference.com/w/cpp/utility/tuple/tuple-like">tuple-like</a> type of distinct types in <code>Os</code>.</li>
 <li><code>typename IC::template accessor&lt;F&gt;</code> is <code>typename D::template accessor&lt;F, true, D,</code><a href="../../ProOverload/"><code>substituted-overload&lt;Os, F&gt;</code></a><code>...&gt;</code> if applicable.</li>
-</ul>
-</li>
 </ul>
 <p>When <code>Cs</code> already contains a convention type <code>IC2</code> where <code>IC2::is_direct == IC::is_direct &amp;&amp; std::is_same_v&lt;typename IC2::dispatch_type, typename IC::dispatch_type&gt;</code> is <code>true</code>, <code>Os</code> merges with <code>typename IC2::overload_types</code> and removes duplicates, and <code>std::tuple_size_v&lt;Cs&gt;</code> shall not change.</p>
 <h2 id="notes">Notes</h2>
