@@ -2906,7 +2906,7 @@ Since: 4.0.0</p>
 <span class="k">using</span><span class="w"> </span><span class="n">as_view</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* see below */</span><span class="p">;</span>
 </code></pre></div>
 <p>The alias template <code>as_view</code> modifies a specialization of <a href="../basic_facade_builder/"><code>basic_facade_builder</code></a> to allow implicit conversion from <a href="../proxy/"><code>proxy</code></a><code>&lt;F&gt;</code> to <a href="../proxy_view/"><code>proxy_view</code></a><code>&lt;F&gt;</code>, where <code>F</code> is a built <a href="../facade/">facade</a> type.</p>
-<p>Let <code>p</code> be a value of type <code>proxy&lt;F&gt;</code>, <code>ptr</code> be the contained value of <code>p</code> (if any), the conversion from type <code>proxy&lt;F&gt;&amp;</code> to type <code>proxy_view&lt;F&gt;</code> is equivalent to <code>return raw-ptr{std::addressof(*ptr)}</code> if <code>p</code> contains a value, or otherwise equivalent to <code>return nullptr</code>. <code>observer-ptr</code> is an exposition-only type that <code>*observer-ptr</code>, <code>*std::as_const(observer-ptr)</code>, <code>*std::move(observer-ptr)</code> and <code>*std::move(std::as_const(observer-ptr))</code> are equivalent to <code>*ptr</code>, <code>*std::as_const(ptr)</code>, <code>*std::move(ptr)</code> and <code>*std::move(std::as_const(ptr))</code>, respectively.</p>
+<p>Let <code>p</code> be a value of type <code>proxy&lt;F&gt;</code>, <code>ptr</code> be the contained value of <code>p</code> (if any), the conversion from type <code>proxy&lt;F&gt;&amp;</code> to type <code>proxy_view&lt;F&gt;</code> is equivalent to <code>return observer-ptr{std::addressof(*ptr)}</code> if <code>p</code> contains a value, or otherwise equivalent to <code>return nullptr</code>. <code>observer-ptr</code> is an exposition-only type that <code>*observer-ptr</code>, <code>*std::as_const(observer-ptr)</code>, <code>*std::move(observer-ptr)</code> and <code>*std::move(std::as_const(observer-ptr))</code> are equivalent to <code>*ptr</code>, <code>*std::as_const(ptr)</code>, <code>*std::move(ptr)</code> and <code>*std::move(std::as_const(ptr))</code>, respectively.</p>
 <h2 id="notes">Notes</h2>
 <p><code>as_view</code> is useful when a certain context does not take ownership of a <code>proxy</code> object. Similar to <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/get"><code>std::unique_ptr::get</code></a>, <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr/get"><code>std::shared_ptr::get</code></a> and the <a href="https://doc.rust-lang.org/rust-by-example/scope/borrow.html">borrowing mechanism in Rust</a>.</p>
 <h2 id="example">Example</h2>
@@ -2929,7 +2929,8 @@ Since: 4.0.0</p>
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../basic_facade_builder/add_convention/"><code>add_convention</code></a></li>
+<li><a href="../basic_facade_builder/support/"><code>basic_facade_builder::support</code></a></li>
+<li><a href="../facade_aware_overload_t/">class template <code>facade_aware_overload_t</code></a></li>
 </ul>
 
 
@@ -2951,7 +2952,7 @@ Since: 4.0.0</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 23, 2025 12:48:12">May 23, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 25, 2025 12:56:14">May 25, 2025</span>
   </span>
 
     

@@ -76,6 +76,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#alias-template-fmt_formatalias-template-fmt_wformat" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -1855,6 +1860,21 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    skills::fmt_format<br />skills::fmt_wformat
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -1867,6 +1887,52 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2777,6 +2843,43 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See Also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -2792,9 +2895,50 @@
 
 
 
-  <h1>skills::fmt_format<br />skills::fmt_wformat</h1>
+<h1 id="alias-template-fmt_formatalias-template-fmt_wformat">Alias template <code>fmt_format</code><br />Alias template <code>fmt_wformat</code></h1>
+<blockquote>
+<p>Header: <code>proxy_fmt.h</code><br />
+Module: None<br />
+Namespace: <code>pro::skills</code><br />
+Since: 4.0.0</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">FB</span><span class="o">&gt;</span>
+<span class="k">using</span><span class="w"> </span><span class="n">fmt_format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* see below */</span><span class="p">;</span>
 
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="nc">FB</span><span class="o">&gt;</span>
+<span class="k">using</span><span class="w"> </span><span class="n">fmt_wformat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* see below */</span><span class="p">;</span>
+</code></pre></div>
+<p>The alias templates <code>fmt_format</code> and <code>fmt_wformat</code> modify a specialization of <a href="../basic_facade_builder/"><code>basic_facade_builder</code></a> to allow formatting via <a href="https://github.com/fmtlib/fmt">the {fmt} library</a>. Specializations of <code>fmt::formatter&lt;proxy_indirect_accessor&lt;F&gt;, char&gt;</code> and <code>fmt::formatter&lt;proxy_indirect_accessor&lt;F&gt;, wchar_t&gt;</code> will be enabled for the 2 skills, respectively, where <code>F</code> is a built <a href="../facade/">facade</a> type.</p>
+<p><code>fmt_format</code> and <code>fmt_wformat</code> also add constraints to a built facade type <code>F</code>, requiring a contained value of <code>proxy&lt;F&gt;</code> be <em>formattable</em>. Formally, let <code>p</code> be a contained value of <code>proxy&lt;F&gt;</code>, <code>CharT</code> be <code>char</code> (for <code>format</code>) or <code>wchar_t</code> (for <code>wformat</code>), <code>T</code> be <code>std::decay_t&lt;decltype(*std::as_const(p))&gt;</code>, <code>fmt::formatter&lt;T, CharT&gt;</code> shall be an enabled specialization of <code>fmt::formatter</code>.</p>
+<h2 id="notes">Notes</h2>
+<p>This facility requires <a href="https://github.com/fmtlib/fmt">the {fmt} library</a> to be properly installed and included before including <code>proxy_fmt.h</code>.</p>
+<ul>
+<li>The minimum required version of {fmt} is 6.1.0.</li>
+<li>If you are using {fmt} version 8.0.0 or newer, you must also include the header fmt/xchar.h.</li>
+<li>When using modules, ensure that the macro <code>FMT_VERSION</code> is predefined.</li>
+</ul>
+<h2 id="example">Example</h2>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
 
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fmt/format.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fmt/xchar.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;proxy/proxy.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;proxy/proxy_fmt.h&gt;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Formattable</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">facade_builder</span>
+<span class="w">    </span><span class="o">::</span><span class="n">support</span><span class="o">&lt;</span><span class="n">pro</span><span class="o">::</span><span class="n">skills</span><span class="o">::</span><span class="n">fmt_format</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="o">::</span><span class="n">build</span><span class="w"> </span><span class="p">{};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">pro</span><span class="o">::</span><span class="n">proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pro</span><span class="o">::</span><span class="n">make_proxy</span><span class="o">&lt;</span><span class="n">Formattable</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">3.14159</span><span class="p">);</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">fmt</span><span class="o">::</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;*p = {:.2f}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">);</span><span class="w">  </span><span class="c1">// Prints &quot;*p = 3.14&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../basic_facade_builder/support/"><code>basic_facade_builder::support</code></a></li>
+<li><a href="../skills_format/">alias template <code>skills::format</code></a></li>
+</ul>
 
 
 
@@ -2815,7 +2959,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 23, 2025 12:31:53">May 23, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 25, 2025 12:56:14">May 25, 2025</span>
   </span>
 
     
