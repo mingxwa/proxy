@@ -3069,9 +3069,7 @@
 <ul>
 <li><a href="https://learn.microsoft.com/en-us/vcpkg/get_started/overview">vcpkg</a>: <a href="https://vcpkg.io/en/package/proxy">proxy port on vcpkg.io</a></li>
 <li><a href="https://conan.io/">conan</a>: <a href="https://conan.io/center/recipes/proxy">proxy recipe on conan.io</a></li>
-<li>
-<p><a href="https://github.com/cpm-cmake/CPM.cmake">CPM</a> / CMake <a href="https://cmake.org/cmake/help/latest/module/FetchContent.html">FetchContent_Declare</a>:</p>
-<div class="highlight"><pre><span></span><code><span class="nb">CPMAddPackage</span><span class="p">(</span>
+<li><a href="https://github.com/cpm-cmake/CPM.cmake">CPM</a> / CMake <a href="https://cmake.org/cmake/help/latest/module/FetchContent.html">FetchContent_Declare</a>:<div class="highlight"><pre><span></span><code><span class="nb">CPMAddPackage</span><span class="p">(</span>
 <span class="w">  </span><span class="s">NAME</span><span class="w"> </span><span class="s">proxy</span>
 <span class="w">  </span><span class="s">GIT_TAG</span><span class="w"> </span><span class="s">4.0.0</span><span class="w"> </span><span class="c"># or above</span>
 <span class="w">  </span><span class="s">GIT_REPOSITORY</span><span class="w"> </span><span class="s">https://github.com/microsoft/proxy.git</span>
@@ -3111,18 +3109,22 @@
 <li><code>#include &lt;iostream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/cout"><code>std::cout</code></a>.</li>
 <li><code>#include &lt;string&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/string/basic_string"><code>std::string</code></a>.</li>
 <li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library. Most of the facilities of the library are defined in namespace <code>pro</code>.</li>
-<li><code>struct Formattable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Formattable</code>. The term "facade", formally defined as the <a href="https://microsoft.github.io/proxy/spec/ProFacade"><em>ProFacade</em> requirements</a>, is how the "Proxy" library models runtime abstraction. Specifically,</li>
+<li><code>struct Formattable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Formattable</code>. The term "facade", formally defined as the <a href="https://microsoft.github.io/proxy/spec/ProFacade"><em>ProFacade</em> requirements</a>, is how the "Proxy" library models runtime abstraction. Specifically,<ul>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder"><code>pro::facade_builder</code></a>: Provides capability to build a facade type at compile-time.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support"><code>support</code></a><code>&lt;</code><a href="https://microsoft.github.io/proxy/spec/skills_format"><code>pro::skills::format</code></a><code>&gt;</code>: Specifies the capability of formatting (via <a href="https://en.cppreference.com/w/cpp/utility/format">standard formatting functions</a>).</li>
 <li><a href="https://microsoft.github.io/proxy/docs/basic_facade_builder/build.html"><code>build</code></a>: Builds the context into a facade type.</li>
+</ul>
+</li>
 <li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p1 = &amp;str</code>: Creates a <code>proxy</code> object from a raw pointer of <code>std::string</code>. <code>p1</code> behaves like a raw pointer, and does not have ownership of the underlying <code>std::string</code>. If the lifetime of <code>str</code> ends before <code>p1</code>, <code>p1</code> becomes dangling.</li>
 <li><code>std::format("p1 = {}\n", *p1)</code>: This is how it works. <code>*p1</code> is formatted as "Hello World" because the capability was defined in the facade <code>Formattable</code>, so it works as if by calling <code>std::format("p1 = {}\n", str)</code>.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p2 =</code><a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique"><code>std::make_unique</code></a><code>&lt;int&gt;(123)</code>: Creates a <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a><code>&lt;int&gt;</code> and converts to a <code>proxy</code>. Different from <code>p1</code>, <code>p2</code> has ownership of the underlying <code>int</code> because it is instantiated from a value of <code>std::unique_ptr</code>, and will call the destructor of <code>std::unique_ptr</code> when <code>p2</code> is destroyed, while <code>p1</code> does not have ownership of the underlying <code>int</code> because it is instantiated from a raw pointer. <code>p1</code> and <code>p2</code> are of the same type <code>pro::proxy&lt;Formattable&gt;</code>, which means you can have a function that returns <code>pro::proxy&lt;Formattable&gt;</code> without exposing any information about the implementation details to its caller.</li>
 <li><code>std::format("p2 = {}\n", *p2)</code>: Formats <code>*p2</code> as "123" with no surprises.</li>
-<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p3 =</code><a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a><code>&lt;Formattable&gt;(3.14159)</code>: Creates a <code>proxy</code> from a <code>double</code> without specifying the underlying pointer type. Specifically,</li>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Formattable&gt; p3 =</code><a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a><code>&lt;Formattable&gt;(3.14159)</code>: Creates a <code>proxy</code> from a <code>double</code> without specifying the underlying pointer type. Specifically,<ul>
 <li>Similar with <code>p2</code>, <code>p3</code> also has ownership of the underlying <code>double</code> value, but can effectively avoid heap allocation.</li>
 <li>Since the size of the underlying type (<code>double</code>) is known to be small (on major 32- or 64-bit platforms), <a href="https://microsoft.github.io/proxy/spec/make_proxy"><code>pro::make_proxy</code></a> realizes the fact at compile-time, and falls back to <a href="https://microsoft.github.io/proxy/spec/make_proxy_inplace"><code>pro::make_proxy_inplace</code></a>, which guarantees no heap allocation.</li>
 <li>The "Proxy" library explicitly defines when heap allocation occurs or not to avoid users falling into performance hell, which is different from <a href="https://en.cppreference.com/w/cpp/utility/functional/function"><code>std::function</code></a> and other existing polymorphic wrappers in the standard.</li>
+</ul>
+</li>
 <li><code>std::format("p3 = {:.2f}\n", *p3)</code>: Formats <code>*p3</code> as "3.14" as per the <a href="https://en.cppreference.com/w/cpp/utility/format/spec">standard format specification</a> with no surprises.</li>
 <li>When <code>main</code> returns, <code>p2</code> and <code>p3</code> will destroy the underlying objects, while <code>p1</code> does nothing because it holds a raw pointer that does not have ownership of the underlying <code>std::string</code>.</li>
 </ul>
@@ -3157,17 +3159,17 @@
 <li><code>#include &lt;iostream&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/io/cout"><code>std::cout</code></a>.</li>
 <li><code>#include &lt;string&gt;</code>: For <a href="https://en.cppreference.com/w/cpp/string/basic_string"><code>std::string</code></a>.</li>
 <li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library.</li>
-<li><code>struct Streamable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Streamable</code>. Specifically,</li>
+<li><code>struct Streamable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Streamable</code>. Specifically,<ul>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder"><code>pro::facade_builder</code></a>: Gets prepared to build another facade.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention"><code>add_convention</code></a>: Adds a generalized "calling convention", defined by a "dispatch" and several "overloads", to the build context.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/operator_dispatch"><code>pro::operator_dispatch</code></a><code>&lt;"&lt;&lt;", true&gt;</code>: Specifies a dispatch for operator <code>&lt;&lt;</code> expressions where the primary operand (<code>proxy</code>) is on the right-hand side (specified by the second template parameter <code>true</code>). Note that polymorphism in the "Proxy" library is defined by expressions rather than member functions, which is different from C++ virtual functions or other OOP languages.</li>
 <li><code>std::ostream&amp;(std::ostream&amp; out) const</code>: The signature of the calling convention, similar with <a href="https://en.cppreference.com/w/cpp/utility/functional/move_only_function"><code>std::move_only_function</code></a>. <code>const</code> specifies that the primary operand is <code>const</code>.</li>
-<li>
-<p><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/build"><code>build</code></a>: Builds the context into a facade type.</p>
+<li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/build"><code>build</code></a>: Builds the context into a facade type.</li>
+</ul>
 </li>
-<li>
-<p><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p1 = &amp;str</code>: Creates a <code>proxy</code> object from a raw pointer of <code>std::string</code>.</p>
-</li>
+</ul>
+<ul>
+<li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p1 = &amp;str</code>: Creates a <code>proxy</code> object from a raw pointer of <code>std::string</code>.</li>
 <li><code>std::cout &lt;&lt; *p1</code>: It prints "Hello World" because the calling convention is defined in the facade <code>Streamable</code>, so it works as if by calling <code>std::cout &lt;&lt; str</code>.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/proxy"><code>pro::proxy</code></a><code>&lt;Streamable&gt; p2 =</code><a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique"><code>std::make_unique</code></a><code>&lt;int&gt;(123)</code>: Creates a <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr"><code>std::unique_ptr</code></a><code>&lt;int&gt;</code> and converts to a <code>proxy</code>.</li>
 <li><code>std::cout &lt;&lt; *p2</code>: Prints "123" with no surprises.</li>
@@ -3234,9 +3236,11 @@
 <li><code>#include &lt;proxy/proxy.h&gt;</code>: For the "Proxy" library.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH"><code>PRO_DEF_MEM_DISPATCH</code></a><code>(MemDraw, Draw)</code>: Defines a dispatch type <code>MemDraw</code> for expressions of calling member function <code>Draw</code>.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/PRO_DEF_MEM_DISPATCH"><code>PRO_DEF_MEM_DISPATCH</code></a><code>(MemArea, Area)</code>: Defines a dispatch type <code>MemArea</code> for expressions of calling member function <code>Area</code>.</li>
-<li><code>struct Drawable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Drawable</code>. Specifically,</li>
+<li><code>struct Drawable : pro::facade_builder ... ::build {}</code>: Defines a facade type <code>Drawable</code>. Specifically,<ul>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/add_convention"><code>add_convention</code></a>: Adds calling conventions to the build context.</li>
 <li><a href="https://microsoft.github.io/proxy/spec/basic_facade_builder/support_copy"><code>support_copy</code></a><code>&lt;</code><a href="https://microsoft.github.io/proxy/spec/constraint_level"><code>pro::constraint_level</code></a><code>::nontrivial&gt;</code>: Specifies the underlying pointer type shall be copyable, which also makes the resulting <code>proxy</code> type copyable.</li>
+</ul>
+</li>
 <li><code>class Rectangle</code>: An implementation of <code>Drawable</code>.</li>
 <li>Function <code>PrintDrawableToString</code>: Converts a <code>Drawable</code> into a <code>std::string</code>. Note that this is a function rather than a function template, which means it can generate <a href="https://en.wikipedia.org/wiki/Application_binary_interface">ABI</a> in a larger build system.</li>
 <li><code>pro::proxy&lt;Drawable&gt; p = pro::make_proxy&lt;Drawable, Rectangle&gt;(3, 5)</code>: Creates a <code>proxy&lt;Drawable&gt;</code> object containing a <code>Rectangle</code>.</li>

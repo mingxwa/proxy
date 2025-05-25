@@ -2910,14 +2910,18 @@
 <p>The alias templates <code>add_reflection</code>, <code>add_indirect_reflection</code> and <code>add_direct_reflection</code> of <code>basic_facade_builder&lt;Cs, Rs, C&gt;</code> add reflection types to the template parameters. Specifically,</p>
 <ul>
 <li><code>add_reflection</code> is equivalent to <code>add_indirect_reflection</code>.</li>
-<li><code>add_indirect_reflection</code> merges an implementation-defined reflection type <code>Refl</code> into <code>Rs</code>, where:</li>
+<li><code>add_indirect_reflection</code> merges an implementation-defined reflection type <code>Refl</code> into <code>Rs</code>, where:<ul>
 <li><code>Refl::is_direct</code> is <code>false</code>.</li>
 <li><code>typename Refl::reflector_type</code> is <code>R</code>.</li>
 <li><code>typename Refl::template accessor&lt;F&gt;</code> is <code>typename R::template accessor&lt;F, false, R&gt;</code> if applicable.</li>
-<li><code>add_direct_reflection</code> merges an implementation-defined reflection type <code>Refl</code> into <code>Rs</code>, where:</li>
+</ul>
+</li>
+<li><code>add_direct_reflection</code> merges an implementation-defined reflection type <code>Refl</code> into <code>Rs</code>, where:<ul>
 <li><code>Refl::is_direct</code> is <code>true</code>.</li>
 <li><code>typename Refl::reflector_type</code> is <code>R</code>.</li>
 <li><code>typename Refl::template accessor&lt;F&gt;</code> is <code>typename R::template accessor&lt;F, true, R&gt;</code> if applicable.</li>
+</ul>
+</li>
 </ul>
 <p>When <code>Rs</code> already contains <code>Refl</code>, the template parameters shall not change.</p>
 <h2 id="notes">Notes</h2>
