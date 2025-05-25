@@ -1,3 +1,9 @@
 .md-typeset table:not(.highlight) {
   font-size: .8rem;
 }
+
+.md-typeset table:not(.highlight) th,
+.md-typeset table:not(.highlight) td {
+  padding: .25em .5em;
+  line-height: 1.2;
+}
