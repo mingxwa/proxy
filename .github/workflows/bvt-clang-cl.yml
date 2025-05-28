@@ -1,0 +1,29 @@
+on:
+  workflow_call:
+
+jobs:
+  bvt-clang-cl:
+    runs-on: windows-2025
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: setup MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: build and run test with Clang-cl
+      run: |
+        cmake -B build -TClangCL -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake --build build --config Release -j
+        ctest --test-dir build -j
+        mkdir build\drop > $null
+        .\tools\dump_build_env_clang_cl.ps1 -OutputPath build\drop\env-info.json
+
+    - name: run benchmarks
+      run: |
+        build\benchmarks\Release\msft_proxy_benchmarks.exe --benchmark_min_warmup_time=0.1 --benchmark_min_time=0.1s --benchmark_repetitions=30 --benchmark_enable_random_interleaving=true --benchmark_report_aggregates_only=true --benchmark_format=json > build\drop\benchmarking-results.json
+
+    - name: archive benchmarking results
+      uses: actions/upload-artifact@v4
+      with:
+        name: drop-clang-cl
+        path: build/drop/

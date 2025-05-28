@@ -5,7 +5,7 @@ param(
 )
 
 $osInfo = Get-CimInstance Win32_OperatingSystem
-$compiler = ((cl /? 2>&1 | Out-String) -split '\r')[0] -replace '^cl\s:\s',''
+$compiler = (& clang-cl --version 2>&1 | Select-Object -First 1).Trim()
 [ordered]@{
     OS = $osInfo.Caption
     KernelVersion = $osInfo.Version

@@ -1,4 +1,3 @@
-
 if(PROXY_BUILD_MODULES)
   target_sources(msft_proxy_tests
   PRIVATE

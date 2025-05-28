@@ -22,6 +22,12 @@
 #define ___PRO_DEBUG(...) __VA_ARGS__
 #endif  // NDEBUG
 
+#if __cpp_exceptions >= 199711L
+#define ___PRO_THROW(...) throw __VA_ARGS__
+#else
+#define ___PRO_THROW(...) std::abort()
+#endif  // __cpp_exceptions >= 199711L
+
 #define __msft_lib_proxy 202503L
 
 ////////

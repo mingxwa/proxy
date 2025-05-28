@@ -19,6 +19,11 @@
       "BenchmarkingResultsPath": "artifacts/drop-clang/benchmarking-results.json"
     },
     {
+      "Description": "Clang-cl on Windows",
+      "InfoPath": "artifacts/drop-clang-cl/env-info.json",
+      "BenchmarkingResultsPath": "artifacts/drop-clang-cl/benchmarking-results.json"
+    },
+    {
       "Description": "Apple Clang on macOS",
       "InfoPath": "artifacts/drop-appleclang/env-info.json",
       "BenchmarkingResultsPath": "artifacts/drop-appleclang/benchmarking-results.json"

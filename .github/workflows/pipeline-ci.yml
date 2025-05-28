@@ -20,6 +20,10 @@ jobs:
     uses: ./.github/workflows/bvt-msvc.yml
     name: Run BVT with MSVC
 
+  run-bvt-clang-cl:
+    uses: ./.github/workflows/bvt-clang-cl.yml
+    name: Run BVT with Clang-cl
+
   run-bvt-appleclang:
     uses: ./.github/workflows/bvt-appleclang.yml
     name: Run BVT with AppleClang
@@ -35,4 +39,4 @@ jobs:
   report:
     uses: ./.github/workflows/bvt-report.yml
     name: Generate report
-    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc]
+    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-clang-cl, run-bvt-appleclang, run-bvt-nvhpc]

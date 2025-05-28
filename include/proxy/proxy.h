@@ -40,12 +40,6 @@
 #error Proxy requires C++20 attribute no_unique_address.
 #endif
 
-#if __cpp_exceptions >= 199711L
-#define ___PRO_THROW(...) throw __VA_ARGS__
-#else
-#define ___PRO_THROW(...) std::abort()
-#endif  // __cpp_exceptions >= 199711L
-
 namespace pro {
 
 namespace details {
