@@ -12,7 +12,7 @@ jobs:
 
     - name: build and run test with Clang-cl
       run: |
-        cmake -B build -TClangCL -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake -B build -TClangCL -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE -DCMAKE_CXX_SCAN_FOR_MODULES=ON
         cmake --build build --config Release -j
         ctest --test-dir build -j
         mkdir build\drop > $null
