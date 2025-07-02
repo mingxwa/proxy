@@ -6,7 +6,6 @@ export module proxy.v4;
 
 export namespace pro::inline v4 {
 
-using v4::access_proxy;
 using v4::allocate_proxy;
 using v4::allocate_proxy_shared;
 using v4::bad_proxy_cast;
@@ -61,7 +60,6 @@ using skills::as_weak;
 // on implementation details.
 namespace details {
 
-using details::adl_accessor_arg_t;
 using details::non_proxy_arg;
 
 } // namespace details

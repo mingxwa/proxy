@@ -82,7 +82,7 @@ struct Container
                           FreeAppendOverloadTraits<T>::template Type>> //
       ::build {};
 
-PRO_DEF_MEM_DISPATCH(MemAt, at, at);
+PRO_DEF_MEM_DISPATCH(MemAt, at);
 
 struct ResourceDictionary
     : pro::facade_builder                                           //
