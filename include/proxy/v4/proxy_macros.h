@@ -134,7 +134,7 @@
         return __VA_ARGS__(::std::forward<p>(pro_self),                      \
             ::std::forward<ProArgs>(pro_args)...);                           \
       }                                                                      \
-    )                                                                        \
+    ) \
   }
 #define PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, func, ttype)                  \
   struct name {                                                                \
