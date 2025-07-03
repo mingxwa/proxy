@@ -2418,14 +2418,14 @@ struct operator_dispatch;
       return proxy_invoke<ProD, R(Arg) q>(std::forward<p>(self),               \
                                           std::forward<Arg>(arg));             \
     }                                                                          \
-    PRO4D_DEBUG(                                          \
-      accessor() noexcept { std::ignore = &pro_symbol_guard; } \
-                                                            \
-    private:                                                \
-      static inline R pro_symbol_guard(Arg arg, p self) ne { \
-        return std::forward<Arg>(arg) __VA_ARGS__ std::forward<p>(self);         \
-      }                                                     \
-    )                    \
+    PRO4D_DEBUG(                                                               \
+      accessor() noexcept { std::ignore = &pro_symbol_guard; }                 \
+                                                                               \
+    private:                                                                   \
+      static inline R pro_symbol_guard(Arg arg, p self) ne {                   \
+        return std::forward<Arg>(arg) __VA_ARGS__ std::forward<p>(self);       \
+      }                                                                        \
+    )                                                                          \
   }
 #define PROD_RHS_OP_DISPATCH_IMPL(...)                                         \
   template <>                                                                  \
@@ -2463,10 +2463,12 @@ struct operator_dispatch;
       return arg;                                                              \
     }                                                                          \
     PRO4D_DEBUG(                                                               \
-        accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
+      accessor() noexcept { std::ignore = &pro_symbol_guard; }                 \
                                                                                \
-        private : static inline Arg& pro_symbol_guard(Arg& arg, p self)        \
-            ne { return arg __VA_ARGS__ std::forward<p>(self); })              \
+    private:                                                                   \
+      static inline Arg& pro_symbol_guard(Arg& arg, p self)                    \
+          ne { return arg __VA_ARGS__ std::forward<p>(self); }                 \
+    )                                                                          \
   }
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \

@@ -125,14 +125,15 @@
       return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) q>(                \
           ::std::forward<p>(pro_self), ::std::forward<ProArgs>(pro_args)...);  \
     }                                                                          \
-    PRO4D_DEBUG(                                                         \
-      accessor() noexcept { ::std::ignore = &pro_symbol_guard; }              \
-                                                                           \
-    private:                                                               \
-      static inline ProR pro_symbol_guard(p pro_self, ProArgs... pro_args) ne { \
-        return __VA_ARGS__(::std::forward<p>(pro_self),       \
-            ::std::forward<ProArgs>(pro_args)...);                            \
-      }                                                                    \
+    PRO4D_DEBUG(                                                               \
+      accessor() noexcept { ::std::ignore = &pro_symbol_guard; }               \
+                                                                               \
+    private:                                                                   \
+      static inline ProR pro_symbol_guard(p pro_self, ProArgs... pro_args)     \
+          ne {                                                                 \
+        return __VA_ARGS__(::std::forward<p>(pro_self),                        \
+            ::std::forward<ProArgs>(pro_args)...);                             \
+      }                                                                        \
     )     \
   }
 #define PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, func, ttype)                  \
