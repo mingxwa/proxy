@@ -70,17 +70,17 @@
     requires(sizeof...(ProOs) > 1u &&                                          \
              (::std::is_constructible_v<accessor<ProP, ProD, ProOs>> && ...))  \
   struct accessor<ProP, ProD, ProOs...> : accessor<ProP, ProD, ProOs>... {};   \
-  macro(, , ProP&, __VA_ARGS__);                            \
-  macro(noexcept, noexcept, ProP&, __VA_ARGS__);            \
-  macro(&, , ProP&, __VA_ARGS__);                           \
-  macro(& noexcept, noexcept, ProP&, __VA_ARGS__);          \
-  macro(&&, , ProP&&, __VA_ARGS__);            \
-  macro(&& noexcept, noexcept, ProP&&, __VA_ARGS__);                                                          \
-  macro(const, , const ProP&, __VA_ARGS__);                 \
-  macro(const noexcept, noexcept, const ProP&, __VA_ARGS__);                                                          \
-  macro(const&, , const ProP&, __VA_ARGS__);                \
-  macro(const& noexcept, noexcept, const ProP&, __VA_ARGS__);                                                          \
-  macro(const&&, , const ProP&&, __VA_ARGS__); \
+  macro(, , ProP&, __VA_ARGS__);                                               \
+  macro(noexcept, noexcept, ProP&, __VA_ARGS__);                               \
+  macro(&, , ProP&, __VA_ARGS__);                                              \
+  macro(& noexcept, noexcept, ProP&, __VA_ARGS__);                             \
+  macro(&&, , ProP&&, __VA_ARGS__);                                            \
+  macro(&& noexcept, noexcept, ProP&&, __VA_ARGS__);                           \
+  macro(const, , const ProP&, __VA_ARGS__);                                    \
+  macro(const noexcept, noexcept, const ProP&, __VA_ARGS__);                   \
+  macro(const&, , const ProP&, __VA_ARGS__);                                   \
+  macro(const& noexcept, noexcept, const ProP&, __VA_ARGS__);                  \
+  macro(const&&, , const ProP&&, __VA_ARGS__);                                 \
   macro(const&& noexcept, noexcept, const ProP&&, __VA_ARGS__);
 
 #define PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(...)                           \
@@ -118,12 +118,12 @@
 #define PRO4_DEF_MEM_DISPATCH(name, ...)                                       \
   PRO4D_EXPAND_MACRO(PRO4D_DEF_MEM_DISPATCH, name, __VA_ARGS__)
 
-#define PRO4D_DEF_FREE_ACCESSOR(q, ne, p, ...)                    \
+#define PRO4D_DEF_FREE_ACCESSOR(q, ne, p, ...)                                 \
   template <class ProP, class ProD, class ProR, class... ProArgs>              \
   struct accessor<ProP, ProD, ProR(ProArgs...) q> {                            \
-    friend ProR __VA_ARGS__(p pro_self, ProArgs... pro_args) ne {                \
+    friend ProR __VA_ARGS__(p pro_self, ProArgs... pro_args) ne {              \
       return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) q>(                \
-          ::std::forward<p>(pro_self), ::std::forward<ProArgs>(pro_args)...);                         \
+          ::std::forward<p>(pro_self), ::std::forward<ProArgs>(pro_args)...);  \
     }                                                                          \
     PRO4D_DEBUG(                                                         \
       accessor() noexcept { ::std::ignore = &pro_symbol_guard; }              \
