@@ -2209,7 +2209,7 @@ struct proxy_cast_accessor_impl {
                              .is_ref = true,
                              .is_const = std::is_const_v<U>,
                              .result_ptr = &result};
-      proxy_invoke<D, O>(std::forward<QualifiedSelf>(self), ctx);
+      proxy_invoke<D, O>(static_cast<QualifiedSelf>(self), ctx);
       if (result == nullptr) [[unlikely]] {
         PRO4D_THROW(bad_proxy_cast{});
       }
@@ -2220,7 +2220,7 @@ struct proxy_cast_accessor_impl {
                              .is_ref = false,
                              .is_const = false,
                              .result_ptr = &result};
-      proxy_invoke<D, O>(std::forward<QualifiedSelf>(self), ctx);
+      proxy_invoke<D, O>(static_cast(self), ctx);
       if (!result.has_value()) [[unlikely]] {
         PRO4D_THROW(bad_proxy_cast{});
       }
