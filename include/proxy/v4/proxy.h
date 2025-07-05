@@ -2402,19 +2402,19 @@ struct operator_dispatch;
             PROD_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)           \
   };
 
-#define PROD_DEF_RHS_OP_ACCESSOR(q, ne, p, ...)                                \
-  template <class ProP, class ProD, class R, class Arg>                        \
-  struct accessor<ProP, ProD, R(Arg) q> {                                      \
-    friend R operator __VA_ARGS__(Arg arg, p self) ne {                        \
-      return proxy_invoke<ProD, R(Arg) q>(std::forward<p>(self),               \
+#define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                                \
+  template <class P, class D, class R, class Arg>                        \
+  struct accessor<P, D, R(Arg) oq> {                                      \
+    friend R operator __VA_ARGS__(Arg arg, P pq self) ne {                        \
+      return proxy_invoke<D, R(Arg) oq>(static_cast<P pq>(self),               \
                                           std::forward<Arg>(arg));             \
     }                                                                          \
     PRO4D_DEBUG(                                                             \
       accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
                                                                              \
     private:                                                                 \
-      static inline R pro_symbol_guard(Arg arg, p self) ne {                 \
-        return std::forward<Arg>(arg) __VA_ARGS__ std::forward<p>(self);     \
+      static inline R pro_symbol_guard(Arg arg, P pq self) ne {                 \
+        return std::forward<Arg>(arg) __VA_ARGS__ static_cast<P pq>(self);     \
       }                                                                      \
     ) \
   }
@@ -2446,18 +2446,18 @@ struct operator_dispatch;
       return static_cast<P pq>(*this);                                                             \
     }                                                                          \
   }
-#define PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(q, ne, p, ...)                     \
-  template <class ProP, class ProD, class R, class Arg>                        \
-  struct accessor<ProP, ProD, R(Arg&) q> {                                     \
-    friend Arg& operator __VA_ARGS__(Arg & arg, p self) ne {                   \
-      proxy_invoke<ProD, R(Arg&) q>(std::forward<p>(self), arg);               \
+#define PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                     \
+  template <class P, class D, class R, class Arg>                        \
+  struct accessor<P, D, R(Arg&) oq> {                                     \
+    friend Arg& operator __VA_ARGS__(Arg & arg, P pq self) ne {                   \
+      proxy_invoke<D, R(Arg&) oq>(static_cast<P pq>(self), arg);               \
       return arg;                                                              \
     }                                                                          \
     PRO4D_DEBUG(                                                               \
         accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
                                                                                \
-        private : static inline Arg& pro_symbol_guard(Arg& arg, p self)        \
-            ne { return arg __VA_ARGS__ std::forward<p>(self); })              \
+        private : static inline Arg& pro_symbol_guard(Arg& arg, P pq self)        \
+            ne { return arg __VA_ARGS__ static_cast<P pq>(self); })              \
   }
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \
