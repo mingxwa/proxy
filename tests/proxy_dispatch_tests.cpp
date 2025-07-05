@@ -84,7 +84,7 @@ TEST(ProxyDispatchTests, TestOpSlash) {
   ASSERT_EQ(*p / 2, 6);
 }
 
-TEST(ProxyDispatchTests, TestOpPercent) {
+TEST(ProxyDispatchTests, TestOpModulo) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<"%">,
                                             int(int val)>::build {};
@@ -319,6 +319,16 @@ TEST(ProxyDispatchTests, TestOpDivisionAssignment) {
   ASSERT_EQ(v, 3);
 }
 
+TEST(ProxyDispatchTests, TestOpModuloAssignment) {
+  struct TestFacade
+      : pro::facade_builder::add_convention<pro::operator_dispatch<"%=">,
+                                            void(int val)>::build {};
+  int v = 17;
+  pro::proxy<TestFacade> p = &v;
+  (*p %= 6) %= 3; // 17 % 6 = 5; 5 % 3 = 2
+  ASSERT_EQ(v, 2);
+}
+
 TEST(ProxyDispatchTests, TestOpBitwiseAndAssignment) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<"&=">,
@@ -484,7 +494,7 @@ TEST(ProxyDispatchTests, TestRhsOpSlash) {
   ASSERT_EQ(50 / *p, 4);
 }
 
-TEST(ProxyDispatchTests, TestRhsOpPercent) {
+TEST(ProxyDispatchTests, TestRhsOpModulo) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<"%", true>,
                                             int(int val)>::build {};
