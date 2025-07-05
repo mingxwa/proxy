@@ -2279,14 +2279,11 @@ struct proxy_typeid_reflector {
       const proxy_typeid_reflector& refl = proxy_reflect<R>(self);
       return *refl.info;
     }
-  PRO4D_DEBUG(
-    accessor() noexcept { std::ignore = &pro_symbol_guard; }
+    PRO4D_DEBUG(
+        accessor() noexcept { std::ignore = &pro_symbol_guard; }
 
-  private:
-    static inline const std::type_info& pro_symbol_guard(const Self& self) {
-      return proxy_typeid(self);
-    }
-  )
+        private : static inline const std::type_info& pro_symbol_guard(
+            const Self& self) { return proxy_typeid(self); })
   };
 
   const std::type_info* info;
@@ -2459,14 +2456,12 @@ struct operator_dispatch;
       proxy_invoke<D, R(Arg&) oq>(static_cast<P pq>(self), arg);               \
       return arg;                                                              \
     }                                                                          \
-    PRO4D_DEBUG(                                                             \
-      accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
-                                                                             \
-    private:                                                                 \
-      static inline Arg& pro_symbol_guard(Arg& arg, P pq self) {             \
-        return arg __VA_ARGS__ static_cast<P pq>(self);                      \
-      }                                                                      \
-    )                                                                        \
+    PRO4D_DEBUG(                                                               \
+        accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
+                                                                               \
+        private : static inline Arg& pro_symbol_guard(                         \
+            Arg& arg,                                                          \
+            P pq self) { return arg __VA_ARGS__ static_cast<P pq>(self); })    \
   }
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \
