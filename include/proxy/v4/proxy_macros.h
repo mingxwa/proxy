@@ -130,8 +130,9 @@
       accessor() noexcept { ::std::ignore = &pro_symbol_guard; }             \
                                                                              \
     private:                                                                 \
-      static inline ProR pro_symbol_guard(ProP pq pro_self, ProArgs... pro_args) {                                                               \
-        return __VA_ARGS__(static_cast<ProP pq>(pro_self),                      \
+      static inline ProR pro_symbol_guard(ProP pq pro_self,                  \
+                                          ProArgs... pro_args) {             \
+        return __VA_ARGS__(static_cast<ProP pq>(pro_self),                   \
             ::std::forward<ProArgs>(pro_args)...);                           \
       }                                                                      \
     ) \
