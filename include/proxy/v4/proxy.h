@@ -929,10 +929,10 @@ auto proxy_invoke(const proxy<F>&& p, Args&&... args) ->
 }
 
 template <class R, facade F>
-const R& proxy_reflect(const proxy_indirect_accessor<F>& ia) noexcept {
+const R& proxy_reflect(const proxy_indirect_accessor<F>& p) noexcept {
   return static_cast<const details::refl_meta<false, R>&>(
              details::proxy_helper<F>::get_meta(
-                 details::as_proxy<F, details::qualifier_type::const_lv>(ia)))
+                 details::as_proxy<F, details::qualifier_type::const_lv>(p)))
       .reflector;
 }
 template <class R, facade F>
@@ -2611,11 +2611,11 @@ struct formatter<pro::v4::proxy_indirect_accessor<F>, CharT> {
   }
 
   template <class OutIt>
-  OutIt format(const pro::v4::proxy_indirect_accessor<F>& ia,
+  OutIt format(const pro::v4::proxy_indirect_accessor<F>& p,
                basic_format_context<OutIt, CharT>& fc) const {
     return pro::v4::proxy_invoke<pro::v4::details::format_dispatch,
                                  pro::v4::details::format_overload_t<CharT>>(
-        ia, spec_, fc);
+        p, spec_, fc);
   }
 
 private:
