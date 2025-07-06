@@ -37,10 +37,10 @@
     return __VA_ARGS__;                                                        \
   }
 
-#define PRO4D_DEF_AGGRETATE_MEM_ACCESSOR_BODY(...) \
+#define PRO4D_DEF_AGGRETATE_MEM_ACCESSOR_BODY(...)                             \
   using accessor<ProP, ProD, ProOs>::__VA_ARGS__...;
 #define PRO4D_DEF_AGGRETATE_FREE_ACCESSOR_BODY(...)
-#define PRO4D_DEF_ACCESSOR_TEMPLATE(type, macro, ...)                           \
+#define PRO4D_DEF_ACCESSOR_TEMPLATE(type, macro, ...)                          \
   template <class ProP, class ProD, class... ProOs>                            \
   struct PRO4D_ENFORCE_EBO accessor {                                          \
     accessor() = delete;                                                       \
@@ -48,19 +48,19 @@
   template <class ProP, class ProD, class... ProOs>                            \
     requires(sizeof...(ProOs) > 1u &&                                          \
              (::std::is_constructible_v<accessor<ProP, ProD, ProOs>> && ...))  \
-  struct accessor<ProP, ProD, ProOs...> : accessor<ProP, ProD, ProOs>... { \
-    PRO4D_DEF_AGGRETATE_##type##_ACCESSOR_BODY(__VA_ARGS__) \
-  };   \
+  struct accessor<ProP, ProD, ProOs...> : accessor<ProP, ProD, ProOs>... {     \
+    PRO4D_DEF_AGGRETATE_##type##_ACCESSOR_BODY(__VA_ARGS__)                    \
+  };                                                                           \
   macro(, &, , __VA_ARGS__);                                                   \
-  macro(, &, noexcept, __VA_ARGS__);                                   \
+  macro(, &, noexcept, __VA_ARGS__);                                           \
   macro(&, &, , __VA_ARGS__);                                                  \
-  macro(&, &, noexcept, __VA_ARGS__);                                 \
+  macro(&, &, noexcept, __VA_ARGS__);                                          \
   macro(&&, &&, , __VA_ARGS__);                                                \
-  macro(&&, &&, noexcept, __VA_ARGS__);                               \
+  macro(&&, &&, noexcept, __VA_ARGS__);                                        \
   macro(const, const&, , __VA_ARGS__);                                         \
-  macro(const, const&, noexcept, __VA_ARGS__);                        \
+  macro(const, const&, noexcept, __VA_ARGS__);                                 \
   macro(const&, const&, , __VA_ARGS__);                                        \
-  macro(const&, const&, noexcept, __VA_ARGS__);                       \
+  macro(const&, const&, noexcept, __VA_ARGS__);                                \
   macro(const&&, const&&, , __VA_ARGS__);                                      \
   macro(const&&, const&&, noexcept, __VA_ARGS__);
 
@@ -74,12 +74,12 @@
   PRO4D_EXPAND_IMPL(                                                           \
       PRO4D_EXPAND_MACRO_IMPL(macro, __VA_ARGS__, 3, 2)(__VA_ARGS__))
 
-#define PRO4D_DEF_MEM_ACCESSOR(oq, pq, ne, ...)                                    \
+#define PRO4D_DEF_MEM_ACCESSOR(oq, pq, ne, ...)                                \
   template <class ProP, class ProD, class ProR, class... ProArgs>              \
-  struct accessor<ProP, ProD, ProR(ProArgs...) oq ne> {                           \
+  struct accessor<ProP, ProD, ProR(ProArgs...) oq ne> {                        \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    ProR __VA_ARGS__(ProArgs... pro_args) oq ne {                                 \
-      return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) oq ne>(               \
+    ProR __VA_ARGS__(ProArgs... pro_args) oq ne {                              \
+      return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) oq ne>(            \
           static_cast<ProP pq>(*this), ::std::forward<ProArgs>(pro_args)...);  \
     }                                                                          \
   }
@@ -89,7 +89,7 @@
     PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
     PRO4D_DIRECT_FUNC_IMPL(::std::forward<ProT>(pro_self).impl(                \
         ::std::forward<ProArgs>(pro_args)...))                                 \
-        PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)          \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)         \
   }
 #define PRO4D_DEF_MEM_DISPATCH_2(name, impl)                                   \
   PRO4D_DEF_MEM_DISPATCH_IMPL(name, impl, impl,                                \
@@ -101,9 +101,9 @@
 
 #define PRO4D_DEF_FREE_ACCESSOR(oq, pq, ne, ...)                               \
   template <class ProP, class ProD, class ProR, class... ProArgs>              \
-  struct accessor<ProP, ProD, ProR(ProArgs...) oq ne> {                           \
+  struct accessor<ProP, ProD, ProR(ProArgs...) oq ne> {                        \
     friend ProR __VA_ARGS__(ProP pq pro_self, ProArgs... pro_args) ne {        \
-      return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) oq ne>(               \
+      return ::pro::v4::proxy_invoke<ProD, ProR(ProArgs...) oq ne>(            \
           static_cast<ProP pq>(pro_self),                                      \
           ::std::forward<ProArgs>(pro_args)...);                               \
     }                                                                          \
@@ -124,7 +124,7 @@
     PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
     PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProT>(pro_self),                \
                                 ::std::forward<ProArgs>(pro_args)...))         \
-        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, func)        \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, func)       \
   }
 #define PRO4D_DEF_FREE_DISPATCH_2(name, impl)                                  \
   PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, impl,                               \
@@ -140,7 +140,7 @@
     PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
     PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProT>(pro_self),                \
                                 ::std::forward<ProArgs>(pro_args)...))         \
-        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_MEM_ACCESSOR, func)          \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_MEM_ACCESSOR, func)        \
   }
 #define PRO4D_DEF_FREE_AS_MEM_DISPATCH_2(name, impl)                           \
   PRO4D_DEF_FREE_AS_MEM_DISPATCH_IMPL(name, impl, impl)
