@@ -57,7 +57,7 @@ struct accessor<F, IsDirect, D, R() cv ref noex> {
 
 ### Assignment SOPs
 
-When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
+When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"%="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
 
 ```cpp
 // (5)
@@ -98,7 +98,7 @@ struct accessor<F, IsDirect, D, R(Arg) cv ref noex> {
 
 ### Assignment SOPs
 
-When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
+When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"%="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
 
 ```cpp
 // (8)

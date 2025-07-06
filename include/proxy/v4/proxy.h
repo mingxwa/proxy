@@ -1684,24 +1684,22 @@ struct proxy_arg_traits<proxy_indirect_accessor<F>> : applicable_traits {};
 template <class T>
 concept non_proxy_arg = !proxy_arg_traits<std::decay_t<T>>::applicable;
 
-#define PROD_DEF_CAST_ACCESSOR(oq, pq, ...)                                    \
+#define PROD_DEF_CAST_ACCESSOR(oq, pq, ne, ...)                                    \
   template <class P, class D, class T>                                         \
-  struct accessor<P, D, T() oq> {                                              \
+  struct accessor<P, D, T() oq ne> {                                              \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(operator T)                        \
-    explicit(Expl) operator T() oq {                                           \
+    explicit(Expl) operator T() oq ne {                                           \
       if constexpr (Nullable) {                                                \
         if (!static_cast<const P&>(*this).has_value()) {                       \
           return nullptr;                                                      \
         }                                                                      \
       }                                                                        \
-      return proxy_invoke<D, T() oq>(static_cast<P pq>(*this));                \
+      return proxy_invoke<D, T() oq ne>(static_cast<P pq>(*this));                \
     }                                                                          \
   }
 template <bool Expl, bool Nullable>
 struct cast_dispatch_base {
-  PRO4D_DEF_MEM_ACCESSOR_TEMPLATE(
-      PROD_DEF_CAST_ACCESSOR,
-      operator typename overload_traits<ProOs>::return_type)
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_CAST_ACCESSOR, operator typename overload_traits<ProOs>::return_type)
 };
 #undef PROD_DEF_CAST_ACCESSOR
 
@@ -2241,10 +2239,10 @@ struct proxy_cast_accessor_impl {
   }
 };
 
-#define PROD_DEF_PROXY_CAST_ACCESSOR(q, ...)                                   \
+#define PROD_DEF_PROXY_CAST_ACCESSOR(oq, pq, ne, ...)                                   \
   template <class P, class D>                                                  \
-  struct accessor<P, D, void(proxy_cast_context) q>                            \
-      : proxy_cast_accessor_impl<P, D, void(proxy_cast_context) q> {}
+  struct accessor<P, D, void(proxy_cast_context) oq ne>                            \
+      : proxy_cast_accessor_impl<P, D, void(proxy_cast_context) oq ne> {}
 struct proxy_cast_dispatch {
   template <non_proxy_arg T>
   PRO4D_STATIC_CALL(void, T&& self, proxy_cast_context ctx) {
@@ -2263,7 +2261,7 @@ struct proxy_cast_dispatch {
       }
     }
   }
-  PRO4D_DEF_FREE_ACCESSOR_TEMPLATE(PROD_DEF_PROXY_CAST_ACCESSOR)
+  PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PROD_DEF_PROXY_CAST_ACCESSOR)
 };
 #undef PROD_DEF_PROXY_CAST_ACCESSOR
 
@@ -2366,12 +2364,12 @@ using as_weak = typename FB::template add_direct_convention<
 template <details::sign Sign, bool Rhs = false>
 struct operator_dispatch;
 
-#define PROD_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ...)                             \
+#define PROD_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                             \
   template <class P, class D, class R>                                         \
-  struct accessor<P, D, R() oq> {                                              \
+  struct accessor<P, D, R() oq ne> {                                              \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    R __VA_ARGS__() oq {                                                       \
-      return proxy_invoke<D, R() oq>(static_cast<P pq>(*this));                \
+    R __VA_ARGS__() oq ne {                                                       \
+      return proxy_invoke<D, R() oq ne>(static_cast<P pq>(*this));                \
     }                                                                          \
   }
 #define PROD_DEF_LHS_UNARY_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
@@ -2400,15 +2398,15 @@ struct operator_dispatch;
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
     PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                       \
-        PRO4D_DEF_MEM_ACCESSOR_TEMPLATE(                                       \
-            PROD_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)           \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(                                       \
+            MEM, PROD_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)           \
   };
 
 #define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                              \
   template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg) oq> {                                           \
+  struct accessor<P, D, R(Arg) oq ne> {                                           \
     friend R operator __VA_ARGS__(Arg arg, P pq self) ne {                     \
-      return proxy_invoke<D, R(Arg) oq>(static_cast<P pq>(self),               \
+      return proxy_invoke<D, R(Arg) oq ne>(static_cast<P pq>(self),               \
                                         std::forward<Arg>(arg));               \
     }                                                                          \
     PRO4D_DEBUG(                                                             \
@@ -2427,8 +2425,7 @@ struct operator_dispatch;
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
-        PRO4D_DEF_FREE_ACCESSOR_TEMPLATE(PROD_DEF_RHS_OP_ACCESSOR,             \
-                                         __VA_ARGS__)                          \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PROD_DEF_RHS_OP_ACCESSOR, __VA_ARGS__)                          \
   };
 
 #define PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(...)                             \
@@ -2439,21 +2436,21 @@ struct operator_dispatch;
   PROD_LHS_OP_DISPATCH_IMPL(BINARY, __VA_ARGS__)                               \
   PROD_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
 
-#define PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ...)                       \
+#define PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                       \
   template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg) oq> {                                           \
+  struct accessor<P, D, R(Arg) oq ne> {                                           \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    decltype(auto) __VA_ARGS__(Arg arg) oq {                                   \
-      proxy_invoke<D, R(Arg) oq>(static_cast<P pq>(*this),                     \
+    decltype(auto) __VA_ARGS__(Arg arg) oq ne {                                   \
+      proxy_invoke<D, R(Arg) oq ne>(static_cast<P pq>(*this),                     \
                                  std::forward<Arg>(arg));                      \
       return static_cast<P pq>(*this);                                         \
     }                                                                          \
   }
 #define PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                   \
   template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg&) oq> {                                          \
+  struct accessor<P, D, R(Arg&) oq ne> {                                          \
     friend Arg& operator __VA_ARGS__(Arg & arg, P pq self) ne {                \
-      proxy_invoke<D, R(Arg&) oq>(static_cast<P pq>(self), arg);               \
+      proxy_invoke<D, R(Arg&) oq ne>(static_cast<P pq>(self), arg);               \
       return arg;                                                              \
     }                                                                          \
     PRO4D_DEBUG(                                                               \
@@ -2470,8 +2467,7 @@ struct operator_dispatch;
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                               \
                                __VA_ARGS__ std::forward<Arg>(arg))             \
-        PRO4D_DEF_MEM_ACCESSOR_TEMPLATE(                                       \
-            PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)         \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)         \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
@@ -2479,8 +2475,7 @@ struct operator_dispatch;
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
-        PRO4D_DEF_FREE_ACCESSOR_TEMPLATE(PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR,  \
-                                         __VA_ARGS__)                          \
+        PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR, __VA_ARGS__)                          \
   };
 
 PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(+)
@@ -2524,7 +2519,7 @@ struct operator_dispatch<"()", false> {
   template <details::non_proxy_arg T, class... Args>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)(std::forward<Args>(args)...))
-      PRO4D_DEF_MEM_ACCESSOR_TEMPLATE(PRO4D_DEF_MEM_ACCESSOR, operator())
+      PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, operator())
 };
 template <>
 struct operator_dispatch<"[]", false> {
@@ -2537,7 +2532,7 @@ struct operator_dispatch<"[]", false> {
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)[std::forward<Arg>(arg)])
 #endif // __cpp_multidimensional_subscript >= 202110L
-      PRO4D_DEF_MEM_ACCESSOR_TEMPLATE(PRO4D_DEF_MEM_ACCESSOR, operator[])
+      PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, operator[])
 };
 
 #undef PROD_ASSIGNMENT_OP_DISPATCH_IMPL

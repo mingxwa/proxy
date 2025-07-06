@@ -690,6 +690,17 @@ TEST(ProxyDispatchTests, TestRhsOpDivisionAssignment) {
   ASSERT_EQ(rhs, 3);
 }
 
+TEST(ProxyDispatchTests, TestRhsOpModuloAssignment) {
+  struct TestFacade
+      : pro::facade_builder::add_convention<pro::operator_dispatch<"%=", true>,
+                                            void(int& val)>::build {};
+  int lhs = 17, rhs = 6;
+  pro::proxy<TestFacade> p = &rhs;
+  ASSERT_EQ(&(lhs %= *p), &lhs);
+  ASSERT_EQ(lhs, 5);
+  ASSERT_EQ(rhs, 6);
+}
+
 TEST(ProxyDispatchTests, TestRhsOpBitwiseAndAssignment) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<"&=", true>,
