@@ -768,8 +768,8 @@ struct facade_traits<F>
     verdict &= facade_traits::template diagnose_proxiable_conv<P>();
     verdict &= facade_traits::template diagnose_proxiable_refl<P>();
     if (!verdict) {
-      std::abort();
-    } // Propagate the error to the caller side
+      std::abort(); // Propagate the error to the caller side
+    }
   }
 
   template <class P>
@@ -859,11 +859,11 @@ decltype(auto) invoke_impl(P&& p, Args&&... args) {
 }
 template <class F, qualifier_type Q>
 add_qualifier_t<proxy<F>, Q>
-    as_proxy(add_qualifier_t<proxy_indirect_accessor<F>, Q> ia) {
+    as_proxy(add_qualifier_t<proxy_indirect_accessor<F>, Q> p) {
   return static_cast<add_qualifier_t<proxy<F>, Q>>(
       *reinterpret_cast<
           add_qualifier_ptr_t<inplace_ptr<proxy_indirect_accessor<F>>, Q>>(
-          std::addressof(ia)));
+          std::addressof(p)));
 }
 
 } // namespace details
@@ -878,31 +878,31 @@ struct proxy_indirect_accessor : details::facade_traits<F>::indirect_accessor {
 };
 
 template <class D, class O, facade F, class... Args>
-auto proxy_invoke(proxy_indirect_accessor<F>& ia, Args&&... args) ->
+auto proxy_invoke(proxy_indirect_accessor<F>& p, Args&&... args) ->
     typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, false, D, O>(
-      details::as_proxy<F, details::qualifier_type::lv>(ia),
+      details::as_proxy<F, details::qualifier_type::lv>(p),
       std::forward<Args>(args)...);
 }
 template <class D, class O, facade F, class... Args>
-auto proxy_invoke(const proxy_indirect_accessor<F>& ia, Args&&... args) ->
+auto proxy_invoke(const proxy_indirect_accessor<F>& p, Args&&... args) ->
     typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, false, D, O>(
-      details::as_proxy<F, details::qualifier_type::const_lv>(ia),
+      details::as_proxy<F, details::qualifier_type::const_lv>(p),
       std::forward<Args>(args)...);
 }
 template <class D, class O, facade F, class... Args>
-auto proxy_invoke(proxy_indirect_accessor<F>&& ia, Args&&... args) ->
+auto proxy_invoke(proxy_indirect_accessor<F>&& p, Args&&... args) ->
     typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, false, D, O>(
-      details::as_proxy<F, details::qualifier_type::rv>(std::move(ia)),
+      details::as_proxy<F, details::qualifier_type::rv>(std::move(p)),
       std::forward<Args>(args)...);
 }
 template <class D, class O, facade F, class... Args>
-auto proxy_invoke(const proxy_indirect_accessor<F>&& ia, Args&&... args) ->
+auto proxy_invoke(const proxy_indirect_accessor<F>&& p, Args&&... args) ->
     typename details::overload_traits<O>::return_type {
   return details::invoke_impl<F, false, D, O>(
-      details::as_proxy<F, details::qualifier_type::const_rv>(std::move(ia)),
+      details::as_proxy<F, details::qualifier_type::const_rv>(std::move(p)),
       std::forward<Args>(args)...);
 }
 template <class D, class O, facade F, class... Args>
@@ -2220,7 +2220,7 @@ struct proxy_cast_accessor_impl {
                              .is_ref = false,
                              .is_const = false,
                              .result_ptr = &result};
-      proxy_invoke<D, O>(static_cast(self), ctx);
+      proxy_invoke<D, O>(static_cast<QualifiedSelf>(self), ctx);
       if (!result.has_value()) [[unlikely]] {
         PRO4D_THROW(bad_proxy_cast{});
       }
