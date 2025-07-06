@@ -44,7 +44,7 @@ T* proxy_cast(proxy<F>* operand) noexcept;
 
 Performs type-safe access to the contained object of `proxy<F>` where `F` is a [facade](../facade.md) type built from skill `rtti`, `indirect_rtti` or `direct_rtti`.
 
-- `(1-3)` Let `p` be [`access_proxy`](../access_proxy.md)`<F>(operand)`, `ptr` be the contained value of `p` (if any). If `p` does not contain a value or `std::is_same_v<std::decay_t<decltype(expr)>, std::decay_t<T>>` is `false`, throws [`bad_proxy_cast`](../bad_proxy_cast.md). Otherwise, returns `static_cast<T>(expr)`. Specifically, `expr` is defined as
+- `(1-3)` Let `p` be `access_proxy<F>(operand)` (TODO: Delete), `ptr` be the contained value of `p` (if any). If `p` does not contain a value or `std::is_same_v<std::decay_t<decltype(expr)>, std::decay_t<T>>` is `false`, throws [`bad_proxy_cast`](../bad_proxy_cast.md). Otherwise, returns `static_cast<T>(expr)`. Specifically, `expr` is defined as
   - `(1)`: `*std::as_const(ptr)`.
   - `(2)`: `*ptr`.
   - `(3)`: `*std::move(ptr)`.

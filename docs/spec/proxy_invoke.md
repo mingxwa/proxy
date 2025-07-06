@@ -68,5 +68,4 @@ int main() {
 
 ## See Also
 
-- [function template `access_proxy`](access_proxy.md)
 - [function template `proxy_reflect`](proxy_reflect.md)
