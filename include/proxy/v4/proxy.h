@@ -252,7 +252,7 @@ concept invocable_dispatch =
      (!NE && std::is_destructible_v<P>));
 
 template <class D, class R, class... Args>
-R invoke_dispatch(Args&&... args) {
+R invoke_dispatch_impl(Args&&... args) {
   if constexpr (std::is_void_v<R>) {
     D{}(std::forward<Args>(args)...);
   } else {
@@ -272,16 +272,16 @@ decltype(auto) get_operand(P&& ptr) {
 }
 template <class F, bool IsDirect, class D, class P, qualifier_type Q, bool NE,
           class R, class... Args>
-R conv_dispatcher(add_qualifier_t<proxy<F>, Q> self,
+R invoke_dispatch(add_qualifier_t<proxy<F>, Q> self,
                   Args... args) noexcept(NE) {
   if constexpr (Q == qualifier_type::rv) {
     proxy_resetting_guard<F, P> guard{self};
-    return invoke_dispatch<D, R>(
+    return invoke_dispatch_impl<D, R>(
         get_operand<IsDirect>(
             proxy_helper<F>::template get_ptr<P, Q>(std::move(self))),
         std::forward<Args>(args)...);
   } else {
-    return invoke_dispatch<D, R>(
+    return invoke_dispatch_impl<D, R>(
         get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(
             std::forward<add_qualifier_t<proxy<F>, Q>>(self))),
         std::forward<Args>(args)...);
@@ -302,7 +302,7 @@ struct overload_traits_impl : applicable_traits {
       invocable_dispatch<IsDirect, D, P, Q, NE, R, Args...>;
   template <class F, bool IsDirect, class D, class P>
   static constexpr auto dispatcher =
-      &conv_dispatcher<F, IsDirect, D, P, Q, NE, R, Args...>;
+      &invoke_dispatch<F, IsDirect, D, P, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
