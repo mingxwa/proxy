@@ -272,8 +272,10 @@ decltype(auto) get_operand(P&& ptr) {
     return *std::forward<P>(ptr);
   }
 }
-template <class F, bool IsDirect, class D, class P, qualifier_type Q, bool NE, class R, class... Args>
-R conv_dispatcher(add_qualifier_t<proxy<F>, Q> self, Args... args) noexcept(NE) {
+template <class F, bool IsDirect, class D, class P, qualifier_type Q, bool NE,
+          class R, class... Args>
+R conv_dispatcher(add_qualifier_t<proxy<F>, Q> self,
+                  Args... args) noexcept(NE) {
   if constexpr (Q == qualifier_type::rv) {
     proxy_resetting_guard<F, P> guard{self};
     return invoke_dispatch<D, R>(
@@ -298,7 +300,8 @@ struct overload_traits_impl : applicable_traits {
                                 Args...) noexcept(NE);
 
   template <class F, bool IsDirect, class D, class P>
-  static constexpr auto dispatcher = &conv_dispatcher<F, IsDirect, D, P, Q, NE, R, Args...>;
+  static constexpr auto dispatcher =
+      &conv_dispatcher<F, IsDirect, D, P, Q, NE, R, Args...>;
 
   template <bool IsDirect, class D, class P>
   static constexpr bool applicable_ptr =
@@ -375,7 +378,8 @@ struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
   constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {}
+      : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {
+  }
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
 };
