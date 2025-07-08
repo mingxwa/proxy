@@ -373,8 +373,9 @@ template <class F, bool IsDirect, class D, class O>
 struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
-  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept : dispatcher(&overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {
-  }
+  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
+      : dispatcher(
+            &overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {}
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
 };
