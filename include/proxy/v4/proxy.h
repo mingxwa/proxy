@@ -244,8 +244,10 @@ template <bool IsDirect, class D, class P, qualifier_type Q, bool NE, class R,
 concept invocable_dispatch =
     (IsDirect || (requires { *std::declval<add_qualifier_t<P, Q>>(); } &&
                   (!NE || noexcept(*std::declval<add_qualifier_t<P, Q>>())))) &&
-    ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>) ||
-    (!NE && std::is_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>)) &&
+    ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<IsDirect, P, Q>,
+                                          Args...>) ||
+     (!NE &&
+      std::is_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>)) &&
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
 
@@ -296,7 +298,8 @@ struct overload_traits_impl : applicable_traits {
                                 Args...) noexcept(NE);
 
   template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr = invocable_dispatch<IsDirect, D, P, Q, NE, R, Args...>;
+  static constexpr bool applicable_ptr =
+      invocable_dispatch<IsDirect, D, P, Q, NE, R, Args...>;
   template <class F, bool IsDirect, class D, class P>
   static constexpr auto dispatcher =
       &conv_dispatcher<F, IsDirect, D, P, Q, NE, R, Args...>;
