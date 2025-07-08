@@ -272,23 +272,6 @@ decltype(auto) get_operand(P&& ptr) {
     return *std::forward<P>(ptr);
   }
 }
-template <class F, bool IsDirect, class D, class P, qualifier_type Q, class R,
-          class... Args>
-R conv_dispatcher(add_qualifier_t<proxy<F>, Q> self, Args... args) noexcept(
-    invocable_dispatch_ptr<IsDirect, D, P, Q, true, R, Args...>) {
-  if constexpr (Q == qualifier_type::rv) {
-    proxy_resetting_guard<F, P> guard{self};
-    return invoke_dispatch<D, R>(
-        get_operand<IsDirect>(
-            proxy_helper<F>::template get_ptr<P, Q>(std::move(self))),
-        std::forward<Args>(args)...);
-  } else {
-    return invoke_dispatch<D, R>(
-        get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(
-            std::forward<add_qualifier_t<proxy<F>, Q>>(self))),
-        std::forward<Args>(args)...);
-  }
-}
 
 template <class O>
 struct overload_traits : inapplicable_traits {};
@@ -300,22 +283,17 @@ struct overload_traits_impl : applicable_traits {
                                 Args...) noexcept(NE);
 
   template <class F, bool IsDirect, class D, class P>
-  static consteval bool is_applicable_ptr() {
-    if constexpr (invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>) {
-      return true;
+  static R dispatcher(add_qualifier_t<proxy<F>, Q> self, Args... args) noexcept(NE) {
+    if constexpr (Q == qualifier_type::rv) {
+      proxy_resetting_guard<F, P> guard{self};
+      return invoke_dispatch<D, R>(get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(std::move(self))), std::forward<Args>(args)...);
     } else {
-      return invocable_dispatch_ptr<IsDirect, D, proxy<F>, Q, NE, R, Args...>;
-    }
-  }
-  template <class F, bool IsDirect, class D, class P>
-  static consteval dispatcher_type<F> get_dispatcher() {
-    if constexpr (invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>) {
-      return &conv_dispatcher<F, IsDirect, D, P, Q, R, Args...>;
-    } else {
-      return &conv_dispatcher<F, IsDirect, D, proxy<F>, Q, R, Args...>;
+      return invoke_dispatch<D, R>(get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(std::forward<add_qualifier_t<proxy<F>, Q>>(self))), std::forward<Args>(args)...);
     }
   }
 
+  template <bool IsDirect, class D, class P>
+  static constexpr bool applicable_ptr = invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -374,10 +352,7 @@ concept extended_overload = overload_traits<O>::applicable ||
                             overload_substitution_traits<O>::applicable;
 template <class P, class F, bool IsDirect, class D, class O>
 consteval bool diagnose_proxiable_required_convention_not_implemented() {
-  constexpr bool verdict =
-      overload_traits<substituted_overload_t<O, F>>::applicable &&
-      overload_traits<substituted_overload_t<O, F>>::template is_applicable_ptr<
-          F, IsDirect, D, P>();
+  constexpr bool verdict = overload_traits<substituted_overload_t<O, F>>::applicable && overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<IsDirect, D, P>;
   static_assert(verdict,
                 "not proxiable due to a required convention not implemented");
   return verdict;
@@ -387,9 +362,7 @@ template <class F, bool IsDirect, class D, class O>
 struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
-  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(
-            overload_traits<O>::template get_dispatcher<F, IsDirect, D, P>()) {}
+  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {}
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
 };
@@ -463,11 +436,7 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
   }
 
   template <class P>
-  static constexpr bool applicable_ptr =
-      (overload_traits<substituted_overload_t<Os, F>>::
-           template is_applicable_ptr<F, C::is_direct,
-                                      typename C::dispatch_type, P>() &&
-       ...);
+  static constexpr bool applicable_ptr = (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<C::is_direct, typename C::dispatch_type, P> && ...);
 };
 template <class C, class F>
 struct conv_traits
@@ -2582,10 +2551,8 @@ public:
 template <class D>
 struct weak_dispatch : D {
   using D::operator();
-  template <class T, class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, const T&, Args&&...)
-    requires(details::proxy_arg_traits<T>::applicable)
-  {
+  template <class... Args>
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, Args&&...) {
     PRO4D_THROW(not_implemented{});
   }
 };

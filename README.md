@@ -47,7 +47,7 @@ Please refer to the [Proxy's Frequently Asked Questions](https://microsoft.githu
 
 ### Hello World
 
-Let's get started with the following "Hello World" example ([run](https://godbolt.org/z/jr81Poz83)):
+Let's get started with the following "Hello World" example:
 
 ```cpp
 #include <format>
@@ -98,7 +98,7 @@ Note: If you prefer the library to be consumed as a (C++20) module, refer to [C+
 
 ### Hello World (Stream Version)
 
-In the previous "Hello World" example, we demonstrated how `proxy` could manage different types of objects and be formatted with `std::format`. While `std::format` is not the only option to print objects in C++, can we simply make `proxy` work with `std::cout`? The answer is "yes". The previous example is equivalent to the following implementation ([run](https://godbolt.org/z/q1b14WGff)):
+In the previous "Hello World" example, we demonstrated how `proxy` could manage different types of objects and be formatted with `std::format`. While `std::format` is not the only option to print objects in C++, can we simply make `proxy` work with `std::cout`? The answer is "yes". The previous example is equivalent to the following implementation:
 
 ```cpp
 #include <iomanip>
