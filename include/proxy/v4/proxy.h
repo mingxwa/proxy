@@ -1661,15 +1661,6 @@ public:
 
 namespace details {
 
-template <class T>
-struct proxy_arg_traits : inapplicable_traits {};
-template <class F>
-struct proxy_arg_traits<proxy<F>> : applicable_traits {};
-template <class F>
-struct proxy_arg_traits<proxy_indirect_accessor<F>> : applicable_traits {};
-template <class T>
-concept non_proxy_arg = !proxy_arg_traits<std::decay_t<T>>::applicable;
-
 #define PROD_DEF_CAST_ACCESSOR(oq, pq, ne, ...)                                \
   template <class P, class D, class T>                                         \
   struct accessor<P, D, T() oq ne> {                                           \
@@ -1692,7 +1683,7 @@ struct cast_dispatch_base {
 #undef PROD_DEF_CAST_ACCESSOR
 
 struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
-  template <non_proxy_arg T>
+  template <class T>
   PRO4D_STATIC_CALL(T&&, T&& self) noexcept {
     return std::forward<T>(self);
   }
@@ -2103,7 +2094,7 @@ using facade_builder =
 namespace details {
 
 struct view_conversion_dispatch : cast_dispatch_base<false, true> {
-  template <non_proxy_arg T>
+  template <class T>
   PRO4D_STATIC_CALL(auto, T& value) noexcept
     requires(requires {
       { std::addressof(*value) } noexcept;
@@ -2118,7 +2109,7 @@ template <class F>
 using view_conversion_overload = proxy_view<F>() noexcept;
 
 struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
-  template <non_proxy_arg P>
+  template <class P>
   PRO4D_STATIC_CALL(auto, const P& self) noexcept
     requires(requires(const typename P::weak_type& w) {
       { w.lock() } noexcept -> std::same_as<P>;
@@ -2232,7 +2223,7 @@ struct proxy_cast_accessor_impl {
   struct accessor<P, D, void(proxy_cast_context) oq ne>                        \
       : proxy_cast_accessor_impl<P, D, void(proxy_cast_context) oq ne> {}
 struct proxy_cast_dispatch {
-  template <non_proxy_arg T>
+  template <class T>
   PRO4D_STATIC_CALL(void, T&& self, proxy_cast_context ctx) {
     if (typeid(T) == *ctx.type_ptr) [[likely]] {
       if (ctx.is_ref) {
@@ -2364,18 +2355,18 @@ struct operator_dispatch;
 #define PROD_DEF_LHS_BINARY_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
 #define PROD_DEF_LHS_ALL_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
-  template <details::non_proxy_arg T>                                          \
+  template <class T>                                          \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
   PRO4D_DIRECT_FUNC_IMPL(__VA_ARGS__ std::forward<T>(self))
 #define PROD_LHS_UNARY_OP_DISPATCH_BODY_IMPL(...)                              \
-  template <details::non_proxy_arg T>                                          \
+  template <class T>                                          \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
   PRO4D_DIRECT_FUNC_IMPL(                                                      \
-      __VA_ARGS__ std::forward<T>(self)) template <details::non_proxy_arg T>   \
+      __VA_ARGS__ std::forward<T>(self)) template <class T>   \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, int)                             \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self) __VA_ARGS__)
 #define PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL(...)                             \
-  template <details::non_proxy_arg T, class Arg>                               \
+  template <class T, class Arg>                               \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                       \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                                 \
                              __VA_ARGS__ std::forward<Arg>(arg))
@@ -2409,7 +2400,7 @@ struct operator_dispatch;
 #define PROD_RHS_OP_DISPATCH_IMPL(...)                                         \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
-    template <details::non_proxy_arg T, class Arg>                             \
+    template <class T, class Arg>                             \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
@@ -2452,7 +2443,7 @@ struct operator_dispatch;
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
-    template <details::non_proxy_arg T, class Arg>                             \
+    template <class T, class Arg>                             \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                               \
                                __VA_ARGS__ std::forward<Arg>(arg))             \
@@ -2461,7 +2452,7 @@ struct operator_dispatch;
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
-    template <details::non_proxy_arg T, class Arg>                             \
+    template <class T, class Arg>                             \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
@@ -2507,7 +2498,7 @@ PROD_BINARY_OP_DISPATCH_IMPL(->*)
 
 template <>
 struct operator_dispatch<"()", false> {
-  template <details::non_proxy_arg T, class... Args>
+  template <class T, class... Args>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)(std::forward<Args>(args)...))
       PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, operator())
@@ -2515,11 +2506,11 @@ struct operator_dispatch<"()", false> {
 template <>
 struct operator_dispatch<"[]", false> {
 #if __cpp_multidimensional_subscript >= 202110L
-  template <details::non_proxy_arg T, class... Args>
+  template <class T, class... Args>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)[std::forward<Args>(args)...])
 #else
-  template <details::non_proxy_arg T, class Arg>
+  template <class T, class Arg>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)[std::forward<Arg>(arg)])
 #endif // __cpp_multidimensional_subscript >= 202110L
@@ -2545,13 +2536,13 @@ struct operator_dispatch<"[]", false> {
 
 struct implicit_conversion_dispatch
     : details::cast_dispatch_base<false, false> {
-  template <details::non_proxy_arg T>
+  template <class T>
   PRO4D_STATIC_CALL(T&&, T&& self) noexcept {
     return std::forward<T>(self);
   }
 };
 struct explicit_conversion_dispatch : details::cast_dispatch_base<true, false> {
-  template <details::non_proxy_arg T>
+  template <class T>
   PRO4D_STATIC_CALL(auto, T&& self) noexcept {
     return details::explicit_conversion_adapter<T>{std::forward<T>(self)};
   }

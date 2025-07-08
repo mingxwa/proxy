@@ -55,15 +55,6 @@ using skills::as_weak;
 
 } // namespace skills
 
-// Currently, these are required by PRO_DEF_... macros.
-// In the future the macros might be refactored to avoid depending
-// on implementation details.
-namespace details {
-
-using details::non_proxy_arg;
-
-} // namespace details
-
 } // namespace pro::inline v4
 
 #if __STDC_HOSTED__ && __has_include(<format>)
