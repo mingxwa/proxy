@@ -83,7 +83,7 @@
           static_cast<ProP pq>(*this), ::std::forward<ProArgs>(pro_args)...);  \
     }                                                                          \
   }
-#define PRO4D_DEF_MEM_DISPATCH_IMPL(name, impl, func)                   \
+#define PRO4D_DEF_MEM_DISPATCH_IMPL(name, impl, func)                          \
   struct name {                                                                \
     template <class ProT, class... ProArgs>                                    \
     PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
@@ -117,7 +117,7 @@
       }                                                                      \
     ) \
   }
-#define PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, func)                  \
+#define PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, func)                         \
   struct name {                                                                \
     template <class ProT, class... ProArgs>                                    \
     PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \

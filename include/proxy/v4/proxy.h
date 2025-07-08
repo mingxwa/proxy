@@ -2355,18 +2355,17 @@ struct operator_dispatch;
 #define PROD_DEF_LHS_BINARY_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
 #define PROD_DEF_LHS_ALL_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
-  template <class T>                                          \
+  template <class T>                                                           \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
   PRO4D_DIRECT_FUNC_IMPL(__VA_ARGS__ std::forward<T>(self))
 #define PROD_LHS_UNARY_OP_DISPATCH_BODY_IMPL(...)                              \
-  template <class T>                                          \
+  template <class T>                                                           \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
-  PRO4D_DIRECT_FUNC_IMPL(                                                      \
-      __VA_ARGS__ std::forward<T>(self)) template <class T>   \
+  PRO4D_DIRECT_FUNC_IMPL(__VA_ARGS__ std::forward<T>(self)) template <class T> \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, int)                             \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self) __VA_ARGS__)
 #define PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL(...)                             \
-  template <class T, class Arg>                               \
+  template <class T, class Arg>                                                \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                       \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                                 \
                              __VA_ARGS__ std::forward<Arg>(arg))
@@ -2400,7 +2399,7 @@ struct operator_dispatch;
 #define PROD_RHS_OP_DISPATCH_IMPL(...)                                         \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
-    template <class T, class Arg>                             \
+    template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
@@ -2443,7 +2442,7 @@ struct operator_dispatch;
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
-    template <class T, class Arg>                             \
+    template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                               \
                                __VA_ARGS__ std::forward<Arg>(arg))             \
@@ -2452,7 +2451,7 @@ struct operator_dispatch;
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
-    template <class T, class Arg>                             \
+    template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
