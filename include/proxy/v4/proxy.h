@@ -283,17 +283,25 @@ struct overload_traits_impl : applicable_traits {
                                 Args...) noexcept(NE);
 
   template <class F, bool IsDirect, class D, class P>
-  static R dispatcher(add_qualifier_t<proxy<F>, Q> self, Args... args) noexcept(NE) {
+  static R dispatcher(add_qualifier_t<proxy<F>, Q> self,
+                      Args... args) noexcept(NE) {
     if constexpr (Q == qualifier_type::rv) {
       proxy_resetting_guard<F, P> guard{self};
-      return invoke_dispatch<D, R>(get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(std::move(self))), std::forward<Args>(args)...);
+      return invoke_dispatch<D, R>(
+          get_operand<IsDirect>(
+              proxy_helper<F>::template get_ptr<P, Q>(std::move(self))),
+          std::forward<Args>(args)...);
     } else {
-      return invoke_dispatch<D, R>(get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(std::forward<add_qualifier_t<proxy<F>, Q>>(self))), std::forward<Args>(args)...);
+      return invoke_dispatch<D, R>(
+          get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(
+              std::forward<add_qualifier_t<proxy<F>, Q>>(self))),
+          std::forward<Args>(args)...);
     }
   }
 
   template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr = invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>;
+  static constexpr bool applicable_ptr =
+      invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -352,7 +360,10 @@ concept extended_overload = overload_traits<O>::applicable ||
                             overload_substitution_traits<O>::applicable;
 template <class P, class F, bool IsDirect, class D, class O>
 consteval bool diagnose_proxiable_required_convention_not_implemented() {
-  constexpr bool verdict = overload_traits<substituted_overload_t<O, F>>::applicable && overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<IsDirect, D, P>;
+  constexpr bool verdict =
+      overload_traits<substituted_overload_t<O, F>>::applicable &&
+      overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<
+          IsDirect, D, P>;
   static_assert(verdict,
                 "not proxiable due to a required convention not implemented");
   return verdict;
@@ -362,7 +373,9 @@ template <class F, bool IsDirect, class D, class O>
 struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
-  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {}
+  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
+      : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {
+  }
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
 };
@@ -436,7 +449,10 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
   }
 
   template <class P>
-  static constexpr bool applicable_ptr = (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<C::is_direct, typename C::dispatch_type, P> && ...);
+  static constexpr bool applicable_ptr =
+      (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
+           C::is_direct, typename C::dispatch_type, P> &&
+       ...);
 };
 template <class C, class F>
 struct conv_traits
