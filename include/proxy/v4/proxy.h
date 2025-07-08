@@ -239,17 +239,13 @@ struct operand_traits<false, P, Q>
     : std::type_identity<decltype(*std::declval<add_qualifier_t<P, Q>>())> {};
 template <bool IsDirect, class P, qualifier_type Q>
 using operand_t = typename operand_traits<IsDirect, P, Q>::type;
-
-template <class D, bool NE, class R, class... Args>
-concept invocable_dispatch =
-    (NE && std::is_nothrow_invocable_r_v<R, D, Args...>) ||
-    (!NE && std::is_invocable_r_v<R, D, Args...>);
 template <bool IsDirect, class D, class P, qualifier_type Q, bool NE, class R,
           class... Args>
-concept invocable_dispatch_ptr =
+concept invocable_dispatch =
     (IsDirect || (requires { *std::declval<add_qualifier_t<P, Q>>(); } &&
                   (!NE || noexcept(*std::declval<add_qualifier_t<P, Q>>())))) &&
-    invocable_dispatch<D, NE, R, operand_t<IsDirect, P, Q>, Args...> &&
+    ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>) ||
+    (!NE && std::is_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>)) &&
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
 
@@ -299,13 +295,11 @@ struct overload_traits_impl : applicable_traits {
   using dispatcher_type = R (*)(add_qualifier_t<proxy<F>, Q>,
                                 Args...) noexcept(NE);
 
+  template <bool IsDirect, class D, class P>
+  static constexpr bool applicable_ptr = invocable_dispatch<IsDirect, D, P, Q, NE, R, Args...>;
   template <class F, bool IsDirect, class D, class P>
   static constexpr auto dispatcher =
       &conv_dispatcher<F, IsDirect, D, P, Q, NE, R, Args...>;
-
-  template <bool IsDirect, class D, class P>
-  static constexpr bool applicable_ptr =
-      invocable_dispatch_ptr<IsDirect, D, P, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
