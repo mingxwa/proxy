@@ -327,7 +327,8 @@ static_assert(!pro::facade<BadFacade_BadConstraints_BadAlignment>);
 struct BadFacade_BadConstraints_BadSize {
   using convention_types = std::tuple<>;
   using reflection_types = std::tuple<>;
-  static constexpr std::size_t max_size = 6u; // Should be a multiple of max_alignment
+  static constexpr std::size_t max_size =
+      6u; // Should be a multiple of max_alignment
   static constexpr std::size_t max_align = 4u;
   static constexpr auto copyability = pro::constraint_level::none;
   static constexpr auto relocatability = pro::constraint_level::nothrow;

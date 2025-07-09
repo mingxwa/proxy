@@ -76,7 +76,9 @@ template <class T, std::size_t I>
 concept has_tuple_element = requires { typename std::tuple_element_t<I, T>; };
 template <class T>
 consteval bool is_tuple_like_well_formed() {
-  if constexpr (requires { { std::tuple_size<T>::value } -> static_prop<std::size_t>; }) {
+  if constexpr (requires {
+                  { std::tuple_size<T>::value } -> static_prop<std::size_t>;
+                }) {
     if constexpr (is_consteval([] { return std::tuple_size<T>::value; })) {
       return []<std::size_t... I>(std::index_sequence<I...>) {
         return (has_tuple_element<T, I> && ...);
@@ -394,7 +396,9 @@ using composite_meta =
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
-  if constexpr (requires { { T::is_direct } -> static_prop<bool>; }) {
+  if constexpr (requires {
+                  { T::is_direct } -> static_prop<bool>;
+                }) {
     if constexpr (is_consteval([] { return T::is_direct; })) {
       return true;
     }
@@ -633,8 +637,12 @@ consteval bool is_facade_constraints_well_formed() {
                   { F::relocatability } -> static_prop<constraint_level>;
                   { F::destructibility } -> static_prop<constraint_level>;
                 }) {
-    if constexpr (is_consteval([] { return std::tuple{F::max_size, F::max_align, F::copyability, F::relocatability, F::destructibility}; })) {
-      return std::has_single_bit(F::max_align) && F::max_size % F::max_align == 0u;
+    if constexpr (is_consteval([] {
+                    return std::tuple{F::max_size, F::max_align, F::copyability,
+                                      F::relocatability, F::destructibility};
+                  })) {
+      return std::has_single_bit(F::max_align) &&
+             F::max_size % F::max_align == 0u;
     }
   }
   return false;
@@ -713,9 +721,12 @@ struct facade_traits<F>
     : instantiated_t<facade_conv_traits_impl, typename F::convention_types, F>,
       instantiated_t<facade_refl_traits_impl, typename F::reflection_types, F> {
   using meta = composite_meta<
-      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept, void(proxy<F>&) const, F::copyability>,
-      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) && noexcept, void(proxy<F>&) &&, F::relocatability>,
-      lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(), F::destructibility>,
+      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept,
+                      void(proxy<F>&) const, F::copyability>,
+      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) && noexcept,
+                      void(proxy<F>&) &&, F::relocatability>,
+      lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(),
+                      F::destructibility>,
       typename facade_traits::conv_meta, typename facade_traits::refl_meta>;
   using indirect_accessor =
       merged_composite_accessor<typename facade_traits::conv_indirect_accessor,
@@ -727,11 +738,18 @@ struct facade_traits<F>
   template <class P>
   static consteval void diagnose_proxiable() {
     bool verdict = true;
-    verdict &= diagnose_proxiable_size_too_large<P, F, sizeof(P), F::max_size>();
-    verdict &= diagnose_proxiable_align_too_large<P, F, alignof(P), F::max_align>();
-    verdict &= diagnose_proxiable_insufficient_copyability<P, F, F::copyability>();
-    verdict &= diagnose_proxiable_insufficient_relocatability<P, F, F::relocatability>();
-    verdict &= diagnose_proxiable_insufficient_destructibility<P, F, F::destructibility>();
+    verdict &=
+        diagnose_proxiable_size_too_large<P, F, sizeof(P), F::max_size>();
+    verdict &=
+        diagnose_proxiable_align_too_large<P, F, alignof(P), F::max_align>();
+    verdict &=
+        diagnose_proxiable_insufficient_copyability<P, F, F::copyability>();
+    verdict &=
+        diagnose_proxiable_insufficient_relocatability<P, F,
+                                                       F::relocatability>();
+    verdict &=
+        diagnose_proxiable_insufficient_destructibility<P, F,
+                                                        F::destructibility>();
     verdict &= facade_traits::template diagnose_proxiable_conv<P>();
     verdict &= facade_traits::template diagnose_proxiable_refl<P>();
     if (!verdict) {
@@ -920,15 +938,19 @@ public:
 
   proxy() noexcept { initialize(); }
   proxy(std::nullptr_t) noexcept : proxy() {}
-  proxy(const proxy&) noexcept requires(F::copyability == constraint_level::trivial) = default;
+  proxy(const proxy&) noexcept
+    requires(F::copyability == constraint_level::trivial)
+  = default;
   proxy(const proxy& rhs) noexcept(F::copyability == constraint_level::nothrow)
-    requires(F::copyability == constraint_level::nontrivial || F::copyability == constraint_level::nothrow)
+    requires(F::copyability == constraint_level::nontrivial ||
+             F::copyability == constraint_level::nothrow)
       : details::inplace_ptr<
             proxy_indirect_accessor<F>>() /* Make GCC happy */ {
     initialize(rhs);
   }
   proxy(proxy&& rhs) noexcept(F::relocatability == constraint_level::nothrow)
-    requires(F::relocatability >= constraint_level::nontrivial && F::copyability != constraint_level::trivial)
+    requires(F::relocatability >= constraint_level::nontrivial &&
+             F::copyability != constraint_level::trivial)
   {
     initialize(std::move(rhs));
   }
@@ -959,15 +981,23 @@ public:
   {
     initialize<P>(il, std::forward<Args>(args)...);
   }
-  proxy& operator=(std::nullptr_t) noexcept(F::destructibility >= constraint_level::nothrow)
+  proxy& operator=(std::nullptr_t) noexcept(F::destructibility >=
+                                            constraint_level::nothrow)
     requires(F::destructibility >= constraint_level::nontrivial)
   {
     reset();
     return *this;
   }
-  proxy& operator=(const proxy&) noexcept requires(F::copyability == constraint_level::trivial) = default;
-  proxy& operator=(const proxy& rhs) noexcept(F::copyability >= constraint_level::nothrow && F::destructibility >= constraint_level::nothrow)
-    requires((F::copyability == constraint_level::nontrivial || F::copyability == constraint_level::nothrow) && F::destructibility >= constraint_level::nontrivial)
+  proxy& operator=(const proxy&) noexcept
+    requires(F::copyability == constraint_level::trivial)
+  = default;
+  proxy& operator=(const proxy& rhs) noexcept(F::copyability >=
+                                                  constraint_level::nothrow &&
+                                              F::destructibility >=
+                                                  constraint_level::nothrow)
+    requires((F::copyability == constraint_level::nontrivial ||
+              F::copyability == constraint_level::nothrow) &&
+             F::destructibility >= constraint_level::nontrivial)
   {
     if (this != std::addressof(rhs)) [[likely]] {
       if constexpr (F::copyability == constraint_level::nothrow) {
@@ -979,7 +1009,10 @@ public:
     }
     return *this;
   }
-  proxy& operator=(proxy&& rhs) noexcept(F::relocatability >= constraint_level::nothrow && F::destructibility >= constraint_level::nothrow)
+  proxy& operator=(proxy&& rhs) noexcept(F::relocatability >=
+                                             constraint_level::nothrow &&
+                                         F::destructibility >=
+                                             constraint_level::nothrow)
     requires(F::relocatability >= constraint_level::nontrivial &&
              F::destructibility >= constraint_level::nontrivial &&
              F::copyability != constraint_level::trivial)
@@ -1006,9 +1039,12 @@ public:
     }
     return *this;
   }
-  ~proxy() requires(F::destructibility == constraint_level::trivial) = default;
+  ~proxy()
+    requires(F::destructibility == constraint_level::trivial)
+  = default;
   ~proxy() noexcept(F::destructibility == constraint_level::nothrow)
-    requires(F::destructibility == constraint_level::nontrivial || F::destructibility == constraint_level::nothrow)
+    requires(F::destructibility == constraint_level::nontrivial ||
+             F::destructibility == constraint_level::nothrow)
   {
     destroy();
   }
@@ -1021,10 +1057,14 @@ public:
     destroy();
     initialize();
   }
-  void swap(proxy& rhs) noexcept(F::relocatability >= constraint_level::nothrow || F::copyability == constraint_level::trivial)
-    requires(F::relocatability >= constraint_level::nontrivial || F::copyability == constraint_level::trivial)
+  void swap(proxy& rhs) noexcept(F::relocatability >=
+                                     constraint_level::nothrow ||
+                                 F::copyability == constraint_level::trivial)
+    requires(F::relocatability >= constraint_level::nontrivial ||
+             F::copyability == constraint_level::trivial)
   {
-    if constexpr (F::relocatability == constraint_level::trivial || F::copyability == constraint_level::trivial) {
+    if constexpr (F::relocatability == constraint_level::trivial ||
+                  F::copyability == constraint_level::trivial) {
       std::swap(meta_, rhs.meta_);
       std::swap(ptr_, rhs.ptr_);
     } else {
@@ -1042,8 +1082,12 @@ public:
     }
   }
   template <class P, class... Args>
-  constexpr P& emplace(Args&&... args) noexcept(std::is_nothrow_constructible_v<P, Args...> && F::destructibility >= constraint_level::nothrow)
-    requires(details::ptr_traits<P>::applicable && std::is_constructible_v<P, Args...> && F::destructibility >= constraint_level::nontrivial)
+  constexpr P& emplace(Args&&... args) noexcept(
+      std::is_nothrow_constructible_v<P, Args...> &&
+      F::destructibility >= constraint_level::nothrow)
+    requires(details::ptr_traits<P>::applicable &&
+             std::is_constructible_v<P, Args...> &&
+             F::destructibility >= constraint_level::nontrivial)
   {
     reset();
     return initialize<P>(std::forward<Args>(args)...);
@@ -1072,21 +1116,26 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     meta_.reset();
   }
-  void initialize(const proxy& rhs) requires(F::copyability != constraint_level::none) {
+  void initialize(const proxy& rhs)
+    requires(F::copyability != constraint_level::none)
+  {
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
       if constexpr (F::copyability == constraint_level::trivial) {
         std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
         meta_ = rhs.meta_;
       } else {
-        proxy_invoke<details::copy_dispatch, void(proxy&) const noexcept(F::copyability == constraint_level::nothrow)>(
-            rhs, *this);
+        proxy_invoke<details::copy_dispatch,
+                     void(proxy&) const noexcept(
+                         F::copyability == constraint_level::nothrow)>(rhs,
+                                                                       *this);
       }
     } else {
       meta_.reset();
     }
   }
-  void initialize(proxy&& rhs) requires(F::relocatability != constraint_level::none)
+  void initialize(proxy&& rhs)
+    requires(F::relocatability != constraint_level::none)
   {
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
@@ -1095,7 +1144,9 @@ private:
         meta_ = rhs.meta_;
         rhs.meta_.reset();
       } else {
-        proxy_invoke<details::copy_dispatch, void(proxy&) && noexcept(F::relocatability == constraint_level::nothrow)>(
+        proxy_invoke<details::copy_dispatch,
+                     void(proxy&) && noexcept(F::relocatability ==
+                                              constraint_level::nothrow)>(
             std::move(rhs), *this);
       }
     } else {
@@ -1114,10 +1165,14 @@ private:
     }
     return result;
   }
-  void destroy() requires(F::destructibility != constraint_level::none) {
+  void destroy()
+    requires(F::destructibility != constraint_level::none)
+  {
     if constexpr (F::destructibility != constraint_level::trivial) {
       if (meta_.has_value()) {
-        proxy_invoke<details::destroy_dispatch, void() noexcept(F::destructibility == constraint_level::nothrow)>(*this);
+        proxy_invoke<details::destroy_dispatch,
+                     void() noexcept(F::destructibility ==
+                                     constraint_level::nothrow)>(*this);
       }
     }
   }
@@ -1647,8 +1702,13 @@ private:
 constexpr std::size_t invalid_size = std::numeric_limits<std::size_t>::max();
 constexpr constraint_level invalid_cl = static_cast<constraint_level>(
     std::numeric_limits<std::underlying_type_t<constraint_level>>::min());
-consteval std::size_t merge_size(std::size_t a, std::size_t b) { return a < b ? a : b; }
-consteval constraint_level merge_constraint(constraint_level a, constraint_level b) { return a < b ? b : a; }
+consteval std::size_t merge_size(std::size_t a, std::size_t b) {
+  return a < b ? a : b;
+}
+consteval constraint_level merge_constraint(constraint_level a,
+                                            constraint_level b) {
+  return a < b ? b : a;
+}
 
 consteval std::size_t max_align_of(std::size_t value) {
   value &= ~value + 1u;
@@ -1682,7 +1742,9 @@ struct refl_impl {
   template <class F>
   using accessor = instantiated_accessor_t<R, F, IsDirect>;
 };
-template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign, constraint_level Copyability, constraint_level Relocatability, constraint_level Destructibility>
+template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign,
+          constraint_level Copyability, constraint_level Relocatability,
+          constraint_level Destructibility>
 struct facade_impl {
   using convention_types = Cs;
   using reflection_types = Rs;
@@ -1769,7 +1831,9 @@ template <class Cs, class F, bool WithUpwardConversion>
 using merge_facade_conv_t = typename add_upward_conversion_conv<
     instantiated_t<merge_conv_tuple_t, typename F::convention_types, Cs>, F,
     WithUpwardConversion ? F::copyability : constraint_level::none,
-    (WithUpwardConversion && F::copyability != constraint_level::trivial) ? F::relocatability : constraint_level::none>::type;
+    (WithUpwardConversion && F::copyability != constraint_level::trivial)
+        ? F::relocatability
+        : constraint_level::none>::type;
 
 template <class O>
 using observer_upward_conversion_overload =
@@ -1919,44 +1983,83 @@ struct weak_facade : details::instantiated_t<details::weak_facade_impl,
                                              typename F::convention_types, F> {
 };
 
-template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign, constraint_level Copyability, constraint_level Relocatability, constraint_level Destructibility>
+template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign,
+          constraint_level Copyability, constraint_level Relocatability,
+          constraint_level Destructibility>
 struct basic_facade_builder {
   template <class D, details::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
-  using add_indirect_convention = basic_facade_builder<details::add_conv_t<Cs, details::conv_impl<false, D, Os...>>, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+  using add_indirect_convention = basic_facade_builder<
+      details::add_conv_t<Cs, details::conv_impl<false, D, Os...>>, Rs, MaxSize,
+      MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, details::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
-  using add_direct_convention = basic_facade_builder<details::add_conv_t<Cs, details::conv_impl<true, D, Os...>>, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+  using add_direct_convention = basic_facade_builder<
+      details::add_conv_t<Cs, details::conv_impl<true, D, Os...>>, Rs, MaxSize,
+      MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, details::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_convention = add_indirect_convention<D, Os...>;
   template <class R>
-  using add_indirect_reflection = basic_facade_builder<Cs, details::add_tuple_t<Rs, details::refl_impl<false, R>>, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+  using add_indirect_reflection = basic_facade_builder<
+      Cs, details::add_tuple_t<Rs, details::refl_impl<false, R>>, MaxSize,
+      MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
-  using add_direct_reflection = basic_facade_builder<Cs, details::add_tuple_t<Rs, details::refl_impl<true, R>>, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+  using add_direct_reflection = basic_facade_builder<
+      Cs, details::add_tuple_t<Rs, details::refl_impl<true, R>>, MaxSize,
+      MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
   using add_reflection = add_indirect_reflection<R>;
   template <facade F, bool WithUpwardConversion = false>
-  using add_facade = basic_facade_builder<details::merge_facade_conv_t<Cs, F, WithUpwardConversion>, details::merge_tuple_t<Rs, typename F::reflection_types>, details::merge_size(MaxSize, F::max_size), details::merge_size(MaxAlign, F::max_align), details::merge_constraint(Copyability, F::copyability), details::merge_constraint(Relocatability, F::relocatability), details::merge_constraint(Destructibility, F::destructibility)>;
-  template <std::size_t PtrSize, std::size_t PtrAlign = details::max_align_of(PtrSize)> requires(std::has_single_bit(PtrAlign) && PtrSize % PtrAlign == 0u)
-  using restrict_layout = basic_facade_builder<Cs, Rs, details::merge_size(MaxSize, PtrSize), details::merge_size(MaxAlign, PtrAlign), Copyability, Relocatability, Destructibility>;
+  using add_facade = basic_facade_builder<
+      details::merge_facade_conv_t<Cs, F, WithUpwardConversion>,
+      details::merge_tuple_t<Rs, typename F::reflection_types>,
+      details::merge_size(MaxSize, F::max_size),
+      details::merge_size(MaxAlign, F::max_align),
+      details::merge_constraint(Copyability, F::copyability),
+      details::merge_constraint(Relocatability, F::relocatability),
+      details::merge_constraint(Destructibility, F::destructibility)>;
+  template <std::size_t PtrSize,
+            std::size_t PtrAlign = details::max_align_of(PtrSize)>
+    requires(std::has_single_bit(PtrAlign) && PtrSize % PtrAlign == 0u)
+  using restrict_layout =
+      basic_facade_builder<Cs, Rs, details::merge_size(MaxSize, PtrSize),
+                           details::merge_size(MaxAlign, PtrAlign), Copyability,
+                           Relocatability, Destructibility>;
   template <constraint_level CL>
-  using support_copy = basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, details::merge_constraint(Copyability, CL), Relocatability, Destructibility>;
+  using support_copy =
+      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign,
+                           details::merge_constraint(Copyability, CL),
+                           Relocatability, Destructibility>;
   template <constraint_level CL>
-  using support_relocation = basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability, details::merge_constraint(Relocatability, CL), Destructibility>;
+  using support_relocation =
+      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability,
+                           details::merge_constraint(Relocatability, CL),
+                           Destructibility>;
   template <constraint_level CL>
-  using support_destruction = basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability, details::merge_constraint(Destructibility, CL)>;
+  using support_destruction =
+      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability,
+                           Relocatability,
+                           details::merge_constraint(Destructibility, CL)>;
   template <template <class> class Skill>
   using support = Skill<basic_facade_builder>;
-  using build = details::facade_impl<Cs, Rs,
-  MaxSize == details::invalid_size ? sizeof(details::ptr_prototype) : MaxSize,
-  MaxAlign == details::invalid_size ? alignof(details::ptr_prototype) : MaxAlign,
-  Copyability == details::invalid_cl ? constraint_level::none : Copyability,
-  Relocatability == details::invalid_cl ? constraint_level::nothrow : Relocatability,
-  Destructibility == details::invalid_cl ? constraint_level::nothrow : Destructibility>;
+  using build = details::facade_impl<
+      Cs, Rs,
+      MaxSize == details::invalid_size ? sizeof(details::ptr_prototype)
+                                       : MaxSize,
+      MaxAlign == details::invalid_size ? alignof(details::ptr_prototype)
+                                        : MaxAlign,
+      Copyability == details::invalid_cl ? constraint_level::none : Copyability,
+      Relocatability == details::invalid_cl ? constraint_level::nothrow
+                                            : Relocatability,
+      Destructibility == details::invalid_cl ? constraint_level::nothrow
+                                             : Destructibility>;
   basic_facade_builder() = delete;
 };
-using facade_builder = basic_facade_builder<std::tuple<>, std::tuple<>, details::invalid_size, details::invalid_size, details::invalid_cl, details::invalid_cl, details::invalid_cl>;
+using facade_builder =
+    basic_facade_builder<std::tuple<>, std::tuple<>, details::invalid_size,
+                         details::invalid_size, details::invalid_cl,
+                         details::invalid_cl, details::invalid_cl>;
 
 namespace details {
 
