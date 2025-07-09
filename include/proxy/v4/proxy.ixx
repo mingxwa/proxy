@@ -26,7 +26,6 @@ using v4::not_implemented;
 using v4::observer_facade;
 using v4::operator_dispatch;
 using v4::proxiable;
-using v4::proxiable_ptr_constraints;
 using v4::proxiable_target;
 using v4::proxy;
 using v4::proxy_indirect_accessor;
