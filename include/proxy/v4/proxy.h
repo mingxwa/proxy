@@ -69,16 +69,15 @@ template <class Expr>
 consteval bool is_consteval(Expr) {
   return requires { typename std::bool_constant<(Expr{}(), false)>; };
 }
+template <class T, class U>
+concept static_val = std::is_same_v<T, const U&>;
 
 template <class T, std::size_t I>
 concept has_tuple_element = requires { typename std::tuple_element_t<I, T>; };
 template <class T>
 consteval bool is_tuple_like_well_formed() {
   if constexpr (requires {
-                  {
-                    std::tuple_size<T>::value
-                  } -> std::same_as<const std::size_t&>;
-                }) {
+                  { std::tuple_size<T>::value } -> static_val<std::size_t>; }) {
     if constexpr (is_consteval([] { return std::tuple_size<T>::value; })) {
       return []<std::size_t... I>(std::index_sequence<I...>) {
         return (has_tuple_element<T, I> && ...);
@@ -404,9 +403,7 @@ using composite_meta =
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
-  if constexpr (requires {
-                  { T::is_direct } -> std::same_as<const bool&>;
-                }) {
+  if constexpr (requires { { T::is_direct } -> static_val<bool>; }) {
     if constexpr (is_consteval([] { return T::is_direct; })) {
       return true;
     }
@@ -639,9 +636,7 @@ consteval bool diagnose_proxiable_insufficient_destructibility() {
 template <class F>
 consteval bool is_facade_constraints_well_formed() {
   if constexpr (requires {
-                  {
-                    F::constraints
-                  } -> std::same_as<const proxiable_ptr_constraints&>;
+                  { F::constraints } -> static_val<proxiable_ptr_constraints>;
                 }) {
     if constexpr (is_consteval([] { return F::constraints; })) {
       return std::has_single_bit(F::constraints.max_align) &&
