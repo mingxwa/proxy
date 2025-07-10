@@ -2529,7 +2529,7 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, Args&&...) {
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, Args&&...) requires(!std::is_invocable_v<D, Args...>) {
     PRO4D_THROW(not_implemented{});
   }
 };
