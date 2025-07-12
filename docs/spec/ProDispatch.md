@@ -12,16 +12,10 @@ A type `D` meets the *ProDispatch* requirements of types `T` and  `O` if `D` is 
 | `R(Args...) && noexcept`      | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, std::move(v), std::forward<Args>(args)...)` | Invokes dispatch type `D` with a rvalue reference of type `T` and `args...`, shall not throw. |
 | `R(Args...) const`            | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, cv, std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const reference of type `T` and `args...`, may throw. |
 | `R(Args...) const noexcept`   | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, cv, std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const reference of type `T` and `args...`, shall not throw. |
-| `R(Args...) cosnt&`           | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, cv, std::forward<Args>(args)...)`, or<br />`d(nullptr, std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const reference of type `T` and `args...`, may throw. |
+| `R(Args...) cosnt&`           | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, cv, std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const reference of type `T` and `args...`, may throw. |
 | `R(Args...) const& noexcept`  | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, cv, std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const reference of type `T` and `args...`, shall not throw. |
 | `R(Args...) const&&`          | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, std::move(cv), std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const rvalue reference of type `T` and `args...`, may throw. |
 | `R(Args...) const&& noexcept` | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, std::move(cv), std::forward<Args>(args)...)` | Invokes dispatch type `D` with a const rvalue reference of type `T` and `args...`, shall not throw. |
-
-Or,
-
-| Definitions of `O`         | Expressions                                                  | Semantics                                                    |
-| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `R(Args...)` *cv ref noex* | [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D{}, nullptr, std::forward<Args>(args)...)` | Invokes the dispatch type `D` with `nullptr` and `args...`, may or may not throw depending on `noex`. |
 
 ## See Also
 

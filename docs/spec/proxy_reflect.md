@@ -32,11 +32,11 @@ public:
   constexpr explicit CopyabilityReflector(std::in_place_type_t<T>)
       : copyable_(std::is_copy_constructible_v<T>) {}
 
-  template <class F, bool IsDirect, class R>
+  template <class P, class R>
   struct accessor {
     bool IsCopyable() const noexcept {
       const CopyabilityReflector& self =
-          pro::proxy_reflect<IsDirect, R>(pro::access_proxy<F>(*this));
+          pro::proxy_reflect<R>(static_cast<const P&>(*this));
       return self.copyable_;
     }
   };

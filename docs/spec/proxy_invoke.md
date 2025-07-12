@@ -61,12 +61,11 @@ int main() {
   int a = 123;
   pro::proxy<Stringable> p = &a;
   std::cout << ToString(*p) << "\n"; // Invokes with accessor, prints: "123"
-  std::cout << pro::proxy_invoke<false, FreeToString, std::string() const>(p)
+  std::cout << pro::proxy_invoke<FreeToString, std::string() const>(*p)
             << "\n"; // Invokes with proxy_invoke, also prints: "123"
 }
 ```
 
 ## See Also
 
-- [function template `access_proxy`](access_proxy.md)
 - [function template `proxy_reflect`](proxy_reflect.md)
