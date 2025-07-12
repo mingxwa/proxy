@@ -6,6 +6,10 @@
 
 #include <proxy/proxy.h>
 
+constexpr int TestDataSize = 1000000;
+constexpr int TypeSeriesCount = 100;
+static_assert(TestDataSize % TypeSeriesCount == 0);
+
 PRO_DEF_MEM_DISPATCH(MemFun, Fun);
 
 struct InvocationTestFacade : pro::facade_builder                   //
