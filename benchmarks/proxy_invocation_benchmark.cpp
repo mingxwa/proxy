@@ -17,7 +17,9 @@ namespace {
 
 template <class T>
 struct InvocationTestCrtpBase {
-  FORCE_NOINLINE int Fun() const { return static_cast<const T&>(*this).FunImpl(); }
+  FORCE_NOINLINE int Fun() const {
+    return static_cast<const T&>(*this).FunImpl();
+  }
 };
 template <int TypeSeries>
 class CrtpSmallImplCrtp
