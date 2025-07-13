@@ -40,6 +40,12 @@
 #error Proxy requires C++20 attribute no_unique_address.
 #endif
 
+#if __cpp_trivial_relocatability >= 202502L
+#define PROD_TRIVIALL_RELOCATABLE trivially_relocatable_if_eligible
+#else
+#define PROD_TRIVIALL_RELOCATABLE
+#endif // __cpp_trivial_relocatability >= 202502L
+
 namespace pro::inline v4 {
 
 namespace details {
@@ -138,6 +144,8 @@ using add_qualifier_t = typename add_qualifier_traits<T, Q>::type;
 template <class T, qualifier_type Q>
 using add_qualifier_ptr_t = std::remove_reference_t<add_qualifier_t<T, Q>>*;
 
+template <class T> struct tr_override_traits : inapplicable_traits {};
+
 template <class T>
 consteval bool has_copyability(constraint_level level) {
   switch (level) {
@@ -164,8 +172,15 @@ consteval bool has_relocatability(constraint_level level) {
     return std::is_nothrow_move_constructible_v<T> &&
            std::is_nothrow_destructible_v<T>;
   case constraint_level::trivial:
-    return std::is_trivially_move_constructible_v<T> &&
-           std::is_trivially_destructible_v<T>;
+#if __cpp_lib_trivially_relocatable >= 202502L
+    if constexpr (std::is_trivially_relocatable_v<T>) { return true; }
+#endif // __cpp_lib_trivially_relocatable >= 202502L
+    if constexpr (tr_override_traits<T>::applicable) {
+      return true;
+    } else {
+      return std::is_trivially_move_constructible_v<T> &&
+             std::is_trivially_destructible_v<T>;
+    }
   default:
     return false;
   }
@@ -831,6 +846,8 @@ private:
   [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
   T value_;
 };
+template <class T> requires(has_relocatability<T>(constraint_level::trivial))
+struct tr_override_traits<inplace_ptr<T>> : applicable_traits {};
 
 template <class F, bool IsDirect, class D, class O, class P, class... Args>
 decltype(auto) invoke_impl(P&& p, Args&&... args) {
@@ -945,7 +962,7 @@ public:
             proxy_indirect_accessor<F>>() /* Make GCC happy */ {
     initialize(rhs);
   }
-  proxy(proxy&& rhs) noexcept(F::relocatability == constraint_level::nothrow)
+  proxy(proxy&& rhs) noexcept(F::relocatability >= constraint_level::nothrow)
     requires(F::relocatability >= constraint_level::nontrivial &&
              F::copyability != constraint_level::trivial)
   {
@@ -1451,6 +1468,21 @@ public:
 private:
   strong_weak_compact_ptr_storage<T, Alloc>* ptr_;
 };
+
+template <class T, class D> requires(has_relocatability<D>(constraint_level::trivial))
+struct tr_override_traits<std::unique_ptr<T, D>> : applicable_traits {};
+template <class T>
+struct tr_override_traits<std::shared_ptr<T>> : applicable_traits {};
+template <class T, class Alloc> requires(has_relocatability<Alloc>(constraint_level::trivial))
+struct tr_override_traits<allocated_ptr<T, Alloc>> : applicable_traits {};
+template <class T, class Alloc>
+struct tr_override_traits<compact_ptr<T, Alloc>> : applicable_traits {};
+template <class T, class Alloc>
+struct tr_override_traits<shared_compact_ptr<T, Alloc>> : applicable_traits {};
+template <class T, class Alloc>
+struct tr_override_traits<weak_compact_ptr<T, Alloc>> : applicable_traits {};
+template <class T, class Alloc>
+struct tr_override_traits<strong_compact_ptr<T, Alloc>> : applicable_traits {};
 
 struct weak_conversion_dispatch;
 template <class... Cs>
@@ -2053,7 +2085,7 @@ struct basic_facade_builder {
       MaxAlign == details::invalid_size ? alignof(details::ptr_prototype)
                                         : MaxAlign,
       Copyability == details::invalid_cl ? constraint_level::none : Copyability,
-      Relocatability == details::invalid_cl ? constraint_level::nothrow
+      Relocatability == details::invalid_cl ? constraint_level::trivial
                                             : Relocatability,
       Destructibility == details::invalid_cl ? constraint_level::nothrow
                                              : Destructibility>;
@@ -2577,6 +2609,7 @@ private:
 } // namespace std
 #endif // __STDC_HOSTED__ && __has_include(<format>)
 
+#undef PROD_TRIVIALL_RELOCATABLE
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
 
 #endif // MSFT_PROXY_V4_PROXY_H_
