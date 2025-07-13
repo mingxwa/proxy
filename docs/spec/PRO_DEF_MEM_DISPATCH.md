@@ -29,19 +29,19 @@ struct dispatch_name {
     return std::forward<T>(self).func_name(std::forward<Args>(args)...);
   }
 
-  template <class F, bool IsDirect, class D, class... Os>
+  template <class P, class D, class... Os>
   struct accessor {
     accessor() = delete;
   };
-  template <class F, bool IsDirect, class D, class... Os>
-      requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<F, IsDirect, D, Os>> && ...))
-  struct accessor<F, IsDirect, D, Os...> : accessor<F, IsDirect, D, Os>... {
-    using accessor<F, IsDirect, D, Os>::accessibility_func_name ...;
+  template <class P, class D, class... Os>
+      requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<P, D, Os>> && ...))
+  struct accessor<P, D, Os...> : accessor<P, D, Os>... {
+    using accessor<P, D, Os>::accessibility_func_name ...;
   };
-  template <class F, bool IsDirect, class D, class R, class... Args>
-  struct accessor<F, IsDirect, D, R(Args...) cv ref noex> {
+  template <class P, class D, class R, class... Args>
+  struct accessor<P, D, R(Args...) cv ref noex> {
     R accessibility_func_name(Args... args) cv ref noex {
-      return pro::proxy_invoke<IsDirect, D, R(Args...) cv ref noex>(pro::access_proxy<F>(std::forward<accessor cv ref>(*this)), std::forward<Args>(args)...);
+      return pro::proxy_invoke<D, R(Args...) cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this), std::forward<Args>(args)...);
     }
   };
 }
