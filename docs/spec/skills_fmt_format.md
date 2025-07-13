@@ -13,7 +13,7 @@ template <class FB>
 using fmt_wformat = /* see below */;
 ```
 
-The alias templates `fmt_format` and `fmt_wformat` modify a specialization of [`basic_facade_builder`](basic_facade_builder/README.md) to allow formatting via [the {fmt} library](https://github.com/fmtlib/fmt). Specializations of `fmt::formatter<proxy_indirect_accessor<F>, char>` and `fmt::formatter<proxy_indirect_accessor<F>, wchar_t>` will be enabled for the 2 skills, respectively, where `F` is a built [facade](facade.md) type.
+The alias templates `fmt_format` and `fmt_wformat` modify a specialization of [`basic_facade_builder`](basic_facade_builder/README.md) to allow formatting via [the {fmt} library](https://github.com/fmtlib/fmt). Specializations of `fmt::formatter<proxy_indirect_accessor<F>, char>` and `fmt::formatter<proxy_indirect_accessor<F>, wchar_t>` will be enabled for the 2 skills, respectively, where `F` is a built [facade](facade.md) type. The behavior is undefined when invoking the formatting functions with a value of `proxy<F>` that does not contain a value.
 
 `fmt_format` and `fmt_wformat` also add constraints to a built facade type `F`, requiring a contained value of `proxy<F>` be *formattable*. Formally, let `p` be a contained value of `proxy<F>`, `CharT` be `char` (for `format`) or `wchar_t` (for `wformat`), `T` be `std::decay_t<decltype(*std::as_const(p))>`, `fmt::formatter<T, CharT>` shall be an enabled specialization of `fmt::formatter`.
 
