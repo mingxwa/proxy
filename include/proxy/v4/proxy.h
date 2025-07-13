@@ -144,7 +144,8 @@ using add_qualifier_t = typename add_qualifier_traits<T, Q>::type;
 template <class T, qualifier_type Q>
 using add_qualifier_ptr_t = std::remove_reference_t<add_qualifier_t<T, Q>>*;
 
-template <class T> struct tr_override_traits : inapplicable_traits {};
+template <class T>
+struct tr_override_traits : inapplicable_traits {};
 
 template <class T>
 consteval bool has_copyability(constraint_level level) {
@@ -173,7 +174,9 @@ consteval bool has_relocatability(constraint_level level) {
            std::is_nothrow_destructible_v<T>;
   case constraint_level::trivial:
 #if __cpp_lib_trivially_relocatable >= 202502L
-    if constexpr (std::is_trivially_relocatable_v<T>) { return true; }
+    if constexpr (std::is_trivially_relocatable_v<T>) {
+      return true;
+    }
 #endif // __cpp_lib_trivially_relocatable >= 202502L
     if constexpr (tr_override_traits<T>::applicable) {
       return true;
@@ -846,7 +849,8 @@ private:
   [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
   T value_;
 };
-template <class T> requires(has_relocatability<T>(constraint_level::trivial))
+template <class T>
+  requires(has_relocatability<T>(constraint_level::trivial))
 struct tr_override_traits<inplace_ptr<T>> : applicable_traits {};
 
 template <class F, bool IsDirect, class D, class O, class P, class... Args>
@@ -1469,11 +1473,13 @@ private:
   strong_weak_compact_ptr_storage<T, Alloc>* ptr_;
 };
 
-template <class T, class D> requires(has_relocatability<D>(constraint_level::trivial))
+template <class T, class D>
+  requires(has_relocatability<D>(constraint_level::trivial))
 struct tr_override_traits<std::unique_ptr<T, D>> : applicable_traits {};
 template <class T>
 struct tr_override_traits<std::shared_ptr<T>> : applicable_traits {};
-template <class T, class Alloc> requires(has_relocatability<Alloc>(constraint_level::trivial))
+template <class T, class Alloc>
+  requires(has_relocatability<Alloc>(constraint_level::trivial))
 struct tr_override_traits<allocated_ptr<T, Alloc>> : applicable_traits {};
 template <class T, class Alloc>
 struct tr_override_traits<compact_ptr<T, Alloc>> : applicable_traits {};

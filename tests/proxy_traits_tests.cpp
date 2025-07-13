@@ -169,7 +169,8 @@ static_assert(std::is_nothrow_constructible_v<pro::proxy<CopyableFacade>,
                                               MockFunctionPtr>);
 static_assert(
     std::is_nothrow_assignable_v<pro::proxy<CopyableFacade>, MockFunctionPtr>);
-static_assert(sizeof(pro::proxy<CopyableFacade>) == 4 * sizeof(void*)); // VTABLE should be embeded
+static_assert(sizeof(pro::proxy<CopyableFacade>) ==
+              4 * sizeof(void*)); // VTABLE should be embeded
 
 struct CopyableSmallFacade
     : pro::facade_builder                               //
@@ -201,7 +202,8 @@ static_assert(
     std::is_constructible_v<pro::proxy<CopyableSmallFacade>, MockFunctionPtr>);
 static_assert(
     std::is_assignable_v<pro::proxy<CopyableSmallFacade>, MockFunctionPtr>);
-static_assert(sizeof(pro::proxy<CopyableSmallFacade>) == 3 * sizeof(void*)); // VTABLE should be embeded
+static_assert(sizeof(pro::proxy<CopyableSmallFacade>) ==
+              3 * sizeof(void*)); // VTABLE should be embeded
 
 struct TrivialFacade : pro::facade_builder                                   //
                        ::restrict_layout<sizeof(void*), alignof(void*)>      //
