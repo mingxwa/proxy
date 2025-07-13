@@ -1478,6 +1478,8 @@ template <class T, class D>
 struct tr_override_traits<std::unique_ptr<T, D>> : applicable_traits {};
 template <class T>
 struct tr_override_traits<std::shared_ptr<T>> : applicable_traits {};
+template <class T>
+struct tr_override_traits<std::weak_ptr<T>> : applicable_traits {};
 template <class T, class Alloc>
   requires(has_relocatability<Alloc>(constraint_level::trivial))
 struct tr_override_traits<allocated_ptr<T, Alloc>> : applicable_traits {};
