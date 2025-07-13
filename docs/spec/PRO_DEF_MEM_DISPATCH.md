@@ -16,7 +16,7 @@ PRO_DEF_MEM_DISPATCH(dispatch_name, func_name);
 PRO_DEF_MEM_DISPATCH(dispatch_name, func_name, accessibility_func_name);
 ```
 
-`(1)` Equivalent to `PRO_DEF_MEM_DISPATCH(dispatch_name, func_name, func_name);`
+`(1)` Equivalent to `PRO_DEF_MEM_DISPATCH(dispatch_name, func_name, func_name)`.
 
 `(2)` Defines a class named `dispatch_name` of member function call expressions of `func_name` with accessibility via member function overloads named `accessibility_func_name`. Effectively equivalent to:
 
