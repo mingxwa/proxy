@@ -2361,8 +2361,8 @@ using rtti = indirect_rtti<FB>;
 #endif // __cpp_rtti >= 199711L
 
 template <class FB>
-using slim = typename FB::template restrict_layout<
-    sizeof(void*), alignof(void*)>;
+using slim =
+    typename FB::template restrict_layout<sizeof(void*), alignof(void*)>;
 
 template <class FB>
 using as_view = typename FB::template add_direct_convention<
