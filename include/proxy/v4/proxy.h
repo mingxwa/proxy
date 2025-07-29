@@ -2101,7 +2101,7 @@ struct basic_facade_builder {
                            Relocatability,
                            details::merge_constraint(Destructibility, CL)>;
   template <template <class> class Skill>
-  using support = Skill<basic_facade_builder>;
+  using add_skill = Skill<basic_facade_builder>;
   using build = details::facade_impl<
       Cs, Rs,
       MaxSize == details::invalid_size ? sizeof(details::ptr_prototype)
