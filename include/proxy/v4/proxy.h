@@ -211,13 +211,9 @@ struct proxy_helper {
   template <class P>
   struct resetting_guard {
     explicit resetting_guard(proxy<F>& p) noexcept : p_(p) {}
-    ~resetting_guard() noexcept(false) {
-      if constexpr (std::is_void_v<P>) {
-        p_.reset();
-      } else {
-        std::destroy_at(std::addressof(get_ptr<P, qualifier_type::lv>(p_)));
-        p_.meta_.reset();
-      }
+    ~resetting_guard() noexcept(std::is_nothrow_destructible_v<P>) {
+      std::destroy_at(std::addressof(get_ptr<P, qualifier_type::lv>(p_)));
+      p_.meta_.reset();
     }
 
   private:
@@ -319,17 +315,10 @@ template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
           class... Args>
 R invoke_dispatch_default(add_qualifier_t<proxy<F>, Q> self,
                           Args... args) noexcept(NE) {
-  if constexpr (Q == qualifier_type::rv) {
-    typename proxy_helper<F>::template resetting_guard<void> guard{self};
-    return invoke_dispatch_impl<D, R>(proxy_arg,
-                                      get_operand<IsDirect>(std::move(self)),
-                                      std::forward<Args>(args)...);
-  } else {
-    return invoke_dispatch_impl<D, R>(
-        proxy_arg,
-        get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
-        std::forward<Args>(args)...);
-  }
+  return invoke_dispatch_impl<D, R>(
+      proxy_arg,
+      get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
+      std::forward<Args>(args)...);
 }
 
 template <class O>
