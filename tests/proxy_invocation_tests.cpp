@@ -106,18 +106,17 @@ struct Weak : pro::facade_builder                               //
               ::add_convention<FreeLock<F>, pro::proxy<F>()>    //
               ::build {};
 
+template <class F, class T>
+pro::proxy<Weak<F>> GetWeakImpl(const std::shared_ptr<T>& p) {
+  return pro::make_proxy<Weak<F>, std::weak_ptr<T>>(p);
+}
 template <class F>
-struct GetWeakHelper {
-  template <class T>
-  pro::proxy<Weak<F>> operator()(const std::shared_ptr<T>& p) {
-    return pro::make_proxy<Weak<F>, std::weak_ptr<T>>(p);
-  }
-  pro::proxy<Weak<F>> operator()(pro::proxy_arg_t, const pro::proxy<F>&) {
-    return nullptr;
-  }
-};
+pro::proxy<Weak<F>> GetWeakImpl(auto&&, auto&&) {
+  return nullptr;
+}
+
 template <class F>
-PRO_DEF_FREE_DISPATCH(FreeGetWeak, GetWeakHelper<F>{}, GetWeak);
+PRO_DEF_FREE_DISPATCH(FreeGetWeak, GetWeakImpl<F>, GetWeak);
 
 template <class F>
 using FreeGetWeakOverload = pro::proxy<Weak<F>>() const&;
