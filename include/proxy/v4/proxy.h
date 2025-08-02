@@ -116,7 +116,9 @@ struct facade_aware_overload_t {
   facade_aware_overload_t() = delete;
 };
 
-struct proxy_arg_t { explicit proxy_arg_t() = default; };
+struct proxy_arg_t {
+  explicit proxy_arg_t() = default;
+};
 constexpr proxy_arg_t proxy_arg;
 
 template <class F>
@@ -262,12 +264,20 @@ concept invocable_dispatch_ptr =
 template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
           class... Args>
 concept invocable_dispatch_default =
-    ((NE && std::is_nothrow_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
-     (!NE && std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>)) &&
-    (Q != qualifier_type::rv || (NE && F::destructibility >= constraint_level::nothrow) ||
+    ((NE &&
+      std::is_nothrow_invocable_r_v<
+          R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+     (!NE &&
+      std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>,
+                            Args...>)) &&
+    (Q != qualifier_type::rv ||
+     (NE && F::destructibility >= constraint_level::nothrow) ||
      (!NE && F::destructibility >= constraint_level::nontrivial));
-template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R, class... Args>
-concept invocable_dispatch = invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> || invocable_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
+template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
+          class R, class... Args>
+concept invocable_dispatch =
+    invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
+    invocable_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
 
 template <class D, class R, class... Args>
 R invoke_dispatch_impl(Args&&... args) {
@@ -291,7 +301,7 @@ decltype(auto) get_operand(P&& ptr) {
 template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
 R invoke_dispatch_ptr(add_qualifier_t<proxy<F>, Q> self,
-                  Args... args) noexcept(NE) {
+                      Args... args) noexcept(NE) {
   if constexpr (Q == qualifier_type::rv) {
     typename proxy_helper<F>::template resetting_guard<P> guard{self};
     return invoke_dispatch_impl<D, R>(
@@ -305,17 +315,18 @@ R invoke_dispatch_ptr(add_qualifier_t<proxy<F>, Q> self,
         std::forward<Args>(args)...);
   }
 }
-template <class F, bool IsDirect, class D, qualifier_type Q, bool NE,
-          class R, class... Args>
+template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
+          class... Args>
 R invoke_dispatch_default(add_qualifier_t<proxy<F>, Q> self,
-                  Args... args) noexcept(NE) {
+                          Args... args) noexcept(NE) {
   if constexpr (Q == qualifier_type::rv) {
     typename proxy_helper<F>::template resetting_guard<void> guard{self};
     return invoke_dispatch_impl<D, R>(proxy_arg,
-        get_operand<IsDirect>(std::move(self)),
-        std::forward<Args>(args)...);
+                                      get_operand<IsDirect>(std::move(self)),
+                                      std::forward<Args>(args)...);
   } else {
-    return invoke_dispatch_impl<D, R>(proxy_arg,
+    return invoke_dispatch_impl<D, R>(
+        proxy_arg,
         get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
         std::forward<Args>(args)...);
   }
@@ -414,8 +425,8 @@ struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
   constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(overload_traits<O>::template get_dispatcher<P, F, IsDirect, D>()) {
-  }
+      : dispatcher(
+            overload_traits<O>::template get_dispatcher<P, F, IsDirect, D>()) {}
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
 };
@@ -2637,7 +2648,9 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, proxy_arg_t, Args&&...) { PRO4D_THROW(not_implemented{}); }
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, proxy_arg_t, Args&&...) {
+    PRO4D_THROW(not_implemented{});
+  }
 };
 
 } // namespace pro::inline v4
