@@ -151,35 +151,55 @@ template <class T, constraint_level CL>
 struct copyability_traits : inapplicable_traits {};
 template <class T>
 struct copyability_traits<T, constraint_level::none> : applicable_traits {};
-template <class T> requires(std::is_copy_constructible_v<T>)
-struct copyability_traits<T, constraint_level::nontrivial> : applicable_traits {};
-template <class T> requires(std::is_nothrow_copy_constructible_v<T>)
+template <class T>
+  requires(std::is_copy_constructible_v<T>)
+struct copyability_traits<T, constraint_level::nontrivial> : applicable_traits {
+};
+template <class T>
+  requires(std::is_nothrow_copy_constructible_v<T>)
 struct copyability_traits<T, constraint_level::nothrow> : applicable_traits {};
-template <class T> requires(std::is_trivially_copy_constructible_v<T>)
+template <class T>
+  requires(std::is_trivially_copy_constructible_v<T>)
 struct copyability_traits<T, constraint_level::trivial> : applicable_traits {};
 
 template <class T, constraint_level CL>
 struct relocatability_traits : inapplicable_traits {};
 template <class T>
 struct relocatability_traits<T, constraint_level::none> : applicable_traits {};
-template <class T> requires((std::is_move_constructible_v<T> && std::is_destructible_v<T>) || relocatability_traits<T, constraint_level::trivial>::value)
-struct relocatability_traits<T, constraint_level::nontrivial> : applicable_traits {};
-template <class T> requires((std::is_nothrow_move_constructible_v<T> && std::is_nothrow_destructible_v<T>) || relocatability_traits<T, constraint_level::trivial>::value)
-struct relocatability_traits<T, constraint_level::nothrow> : applicable_traits {};
-template <class T> requires((std::is_trivially_move_constructible_v<T> &&
-        std::is_trivially_destructible_v<T>) || is_bitwise_trivially_relocatable_override<T>::value)
-struct relocatability_traits<T, constraint_level::trivial> : applicable_traits {};
+template <class T>
+  requires((std::is_move_constructible_v<T> && std::is_destructible_v<T>) ||
+           relocatability_traits<T, constraint_level::trivial>::value)
+struct relocatability_traits<T, constraint_level::nontrivial>
+    : applicable_traits {};
+template <class T>
+  requires((std::is_nothrow_move_constructible_v<T> &&
+            std::is_nothrow_destructible_v<T>) ||
+           relocatability_traits<T, constraint_level::trivial>::value)
+struct relocatability_traits<T, constraint_level::nothrow> : applicable_traits {
+};
+template <class T>
+  requires((std::is_trivially_move_constructible_v<T> &&
+            std::is_trivially_destructible_v<T>) ||
+           is_bitwise_trivially_relocatable_override<T>::value)
+struct relocatability_traits<T, constraint_level::trivial> : applicable_traits {
+};
 
 template <class T, constraint_level CL>
 struct destructibility_traits : inapplicable_traits {};
 template <class T>
 struct destructibility_traits<T, constraint_level::none> : applicable_traits {};
-template <class T> requires(std::is_destructible_v<T>)
-struct destructibility_traits<T, constraint_level::nontrivial> : applicable_traits {};
-template <class T> requires(std::is_nothrow_destructible_v<T>)
-struct destructibility_traits<T, constraint_level::nothrow> : applicable_traits {};
-template <class T> requires(std::is_trivially_destructible_v<T>)
-struct destructibility_traits<T, constraint_level::trivial> : applicable_traits {};
+template <class T>
+  requires(std::is_destructible_v<T>)
+struct destructibility_traits<T, constraint_level::nontrivial>
+    : applicable_traits {};
+template <class T>
+  requires(std::is_nothrow_destructible_v<T>)
+struct destructibility_traits<T, constraint_level::nothrow>
+    : applicable_traits {};
+template <class T>
+  requires(std::is_trivially_destructible_v<T>)
+struct destructibility_traits<T, constraint_level::trivial>
+    : applicable_traits {};
 
 template <class F>
 struct proxy_helper {
@@ -618,19 +638,22 @@ consteval bool diagnose_proxiable_align_too_large() {
 }
 template <class P, class F, constraint_level RequiredCopyability>
 consteval bool diagnose_proxiable_insufficient_copyability() {
-  constexpr bool verdict = copyability_traits<P, RequiredCopyability>::applicable;
+  constexpr bool verdict =
+      copyability_traits<P, RequiredCopyability>::applicable;
   static_assert(verdict, "not proxiable due to insufficient copyability");
   return verdict;
 }
 template <class P, class F, constraint_level RequiredRelocatability>
 consteval bool diagnose_proxiable_insufficient_relocatability() {
-  constexpr bool verdict = relocatability_traits<P, RequiredRelocatability>::applicable;
+  constexpr bool verdict =
+      relocatability_traits<P, RequiredRelocatability>::applicable;
   static_assert(verdict, "not proxiable due to insufficient relocatability");
   return verdict;
 }
 template <class P, class F, constraint_level RequiredDestructibility>
 consteval bool diagnose_proxiable_insufficient_destructibility() {
-  constexpr bool verdict = destructibility_traits<P, RequiredDestructibility>::applicable;
+  constexpr bool verdict =
+      destructibility_traits<P, RequiredDestructibility>::applicable;
   static_assert(verdict, "not proxiable due to insufficient destructibility");
   return verdict;
 }
@@ -1519,23 +1542,34 @@ constexpr proxy<F> make_proxy_shared_impl(Args&&... args) {
 } // namespace details
 
 template <class T, class D>
-  requires(details::relocatability_traits<D, constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<std::unique_ptr<T, D>> : std::true_type {};
+  requires(
+      details::relocatability_traits<D, constraint_level::trivial>::applicable)
+struct is_bitwise_trivially_relocatable_override<std::unique_ptr<T, D>>
+    : std::true_type {};
 template <class T>
-struct is_bitwise_trivially_relocatable_override<std::shared_ptr<T>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<std::shared_ptr<T>>
+    : std::true_type {};
 template <class T>
-struct is_bitwise_trivially_relocatable_override<std::weak_ptr<T>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<std::weak_ptr<T>>
+    : std::true_type {};
 template <class T, class Alloc>
-  requires(details::relocatability_traits<Alloc, constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<details::allocated_ptr<T, Alloc>> : std::true_type {};
+  requires(
+      details::relocatability_traits<Alloc,
+                                     constraint_level::trivial>::applicable)
+struct is_bitwise_trivially_relocatable_override<
+    details::allocated_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::compact_ptr<T, Alloc>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<details::compact_ptr<T, Alloc>>
+    : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::shared_compact_ptr<T, Alloc>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<
+    details::shared_compact_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::strong_compact_ptr<T, Alloc>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<
+    details::strong_compact_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::weak_compact_ptr<T, Alloc>> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<
+    details::weak_compact_ptr<T, Alloc>> : std::true_type {};
 
 template <facade F>
 struct observer_facade;

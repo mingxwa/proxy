@@ -20,7 +20,8 @@ struct SmallObject3;
 namespace pro {
 
 template <>
-struct is_bitwise_trivially_relocatable_override<SmallObject3> : std::true_type {};
+struct is_bitwise_trivially_relocatable_override<SmallObject3>
+    : std::true_type {};
 
 } // namespace pro
 
