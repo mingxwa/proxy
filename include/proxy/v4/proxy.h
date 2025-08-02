@@ -224,7 +224,7 @@ struct proxy_helper {
     proxy<F>& p_;
   };
 
-  static inline void bitwise_copy(proxy<F>& from, proxy<F>& to) noexcept {
+  static inline void bitwise_copy(const proxy<F>& from, proxy<F>& to) noexcept {
     std::ranges::uninitialized_copy(from.ptr_, to.ptr_);
     to.meta_ = from.meta_;
   }
@@ -570,12 +570,26 @@ struct refl_traits {
 
 struct copy_dispatch {
   template <class T, class F>
-  PRO4D_STATIC_CALL(void, T&& self, proxy<F>& rhs) noexcept(
-      std::is_nothrow_constructible_v<std::decay_t<T>, T>)
-    requires(std::is_constructible_v<std::decay_t<T>, T>)
+  PRO4D_STATIC_CALL(void, const T& self, proxy<F>& rhs) noexcept(
+      std::is_nothrow_copy_constructible_v<T>)
+    requires(!std::is_trivially_copy_constructible_v<T>)
   {
-    std::construct_at(std::addressof(rhs), std::forward<T>(self));
+    std::construct_at(std::addressof(rhs), self);
   }
+  template <class F>
+  PRO4D_STATIC_CALL(void, proxy_arg_t, const proxy<F>& self, proxy<F>& rhs) noexcept { proxy_helper<F>::bitwise_copy(self, rhs); }
+};
+struct relocate_dispatch {
+  template <class T, class F>
+  PRO4D_STATIC_CALL(void, T&& self, proxy<F>& rhs) noexcept(
+      relocatability_traits<T, constraint_level::nothrow>::applicable)
+    requires(!relocatability_traits<T, constraint_level::trivial>::applicable)
+  {
+    std::construct_at(std::addressof(rhs), std::move(self));
+  }
+  template <class F>
+  PRO4D_STATIC_CALL(void, proxy_arg_t, proxy<F>&& self, proxy<F>& rhs) noexcept
+      { proxy_helper<F>::bitwise_relocate(self, rhs); }
 };
 struct destroy_dispatch {
   template <class T>
@@ -797,7 +811,7 @@ struct facade_traits<F>
   using meta = composite_meta<
       lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept,
                       void(proxy<F>&) const, F::copyability>,
-      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) && noexcept,
+      lifetime_meta_t<F, relocate_dispatch, void(proxy<F>&) && noexcept,
                       void(proxy<F>&) &&, F::relocatability>,
       lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(),
                       F::destructibility>,
@@ -1216,7 +1230,7 @@ private:
       if constexpr (F::relocatability == constraint_level::trivial) {
         details::proxy_helper<F>::bitwise_relocate(rhs, *this);
       } else {
-        proxy_invoke<details::copy_dispatch,
+        proxy_invoke<details::relocate_dispatch,
                      void(proxy&) && noexcept(F::relocatability ==
                                               constraint_level::nothrow)>(
             std::move(rhs), *this);
