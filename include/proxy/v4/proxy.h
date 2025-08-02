@@ -257,23 +257,12 @@ concept invocable_dispatch_ptr =
       std::is_invocable_r_v<R, D, operand_t<P, IsDirect, Q>, Args...>)) &&
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
-template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
-          class... Args>
-concept invocable_dispatch_default =
-    ((NE &&
-      std::is_nothrow_invocable_r_v<
-          R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
-     (!NE &&
-      std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>,
-                            Args...>)) &&
-    (Q != qualifier_type::rv ||
-     (NE && F::destructibility >= constraint_level::nothrow) ||
-     (!NE && F::destructibility >= constraint_level::nontrivial));
 template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
 concept invocable_dispatch =
     invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
-    invocable_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
+    (NE && std::is_nothrow_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+    (!NE && std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>);
 
 template <class D, class R, class... Args>
 R invoke_dispatch_impl(Args&&... args) {
