@@ -116,6 +116,9 @@ struct facade_aware_overload_t {
   facade_aware_overload_t() = delete;
 };
 
+struct proxy_arg_t { explicit proxy_arg_t() = default; };
+constexpr proxy_arg_t proxy_arg;
+
 template <class F>
 concept facade = details::basic_facade_traits<F>::applicable;
 
