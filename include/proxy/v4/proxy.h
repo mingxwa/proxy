@@ -1541,36 +1541,6 @@ constexpr proxy<F> make_proxy_shared_impl(Args&&... args) {
 
 } // namespace details
 
-template <class T, class D>
-  requires(
-      details::relocatability_traits<D, constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<std::unique_ptr<T, D>>
-    : std::true_type {};
-template <class T>
-struct is_bitwise_trivially_relocatable_override<std::shared_ptr<T>>
-    : std::true_type {};
-template <class T>
-struct is_bitwise_trivially_relocatable_override<std::weak_ptr<T>>
-    : std::true_type {};
-template <class T, class Alloc>
-  requires(
-      details::relocatability_traits<Alloc,
-                                     constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<
-    details::allocated_ptr<T, Alloc>> : std::true_type {};
-template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::compact_ptr<T, Alloc>>
-    : std::true_type {};
-template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
-    details::shared_compact_ptr<T, Alloc>> : std::true_type {};
-template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
-    details::strong_compact_ptr<T, Alloc>> : std::true_type {};
-template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
-    details::weak_compact_ptr<T, Alloc>> : std::true_type {};
-
 template <facade F>
 struct observer_facade;
 template <facade F>
@@ -1588,6 +1558,12 @@ template <class T, class F>
 concept proxiable_target =
     proxiable<details::observer_ptr<T&, const T&, T&&, const T&&>,
               observer_facade<F>>;
+
+template <class T>
+  requires(
+      details::relocatability_traits<T, constraint_level::trivial>::applicable)
+struct is_bitwise_trivially_relocatable_override<details::inplace_ptr<T>>
+    : std::true_type {};
 
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_inplace(Args&&... args) noexcept(
@@ -1622,6 +1598,36 @@ constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
 }
 
 #if __STDC_HOSTED__
+template <class T, class D>
+  requires(
+      details::relocatability_traits<D, constraint_level::trivial>::applicable)
+struct is_bitwise_trivially_relocatable_override<std::unique_ptr<T, D>>
+    : std::true_type {};
+template <class T>
+struct is_bitwise_trivially_relocatable_override<std::shared_ptr<T>>
+    : std::true_type {};
+template <class T>
+struct is_bitwise_trivially_relocatable_override<std::weak_ptr<T>>
+    : std::true_type {};
+template <class T, class Alloc>
+  requires(
+      details::relocatability_traits<Alloc,
+                                     constraint_level::trivial>::applicable)
+struct is_bitwise_trivially_relocatable_override<
+    details::allocated_ptr<T, Alloc>> : std::true_type {};
+template <class T, class Alloc>
+struct is_bitwise_trivially_relocatable_override<details::compact_ptr<T, Alloc>>
+    : std::true_type {};
+template <class T, class Alloc>
+struct is_bitwise_trivially_relocatable_override<
+    details::shared_compact_ptr<T, Alloc>> : std::true_type {};
+template <class T, class Alloc>
+struct is_bitwise_trivially_relocatable_override<
+    details::strong_compact_ptr<T, Alloc>> : std::true_type {};
+template <class T, class Alloc>
+struct is_bitwise_trivially_relocatable_override<
+    details::weak_compact_ptr<T, Alloc>> : std::true_type {};
+
 template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
