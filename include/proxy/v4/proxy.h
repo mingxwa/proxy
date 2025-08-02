@@ -209,15 +209,27 @@ struct proxy_helper {
   template <class P>
   struct resetting_guard {
     explicit resetting_guard(proxy<F>& p) noexcept : p_(p) {}
-    ~resetting_guard() noexcept(std::is_nothrow_destructible_v<P>) {
-      std::destroy_at(std::addressof(get_ptr<P, qualifier_type::lv>(p_)));
-      p_.meta_.reset();
+    ~resetting_guard() noexcept(false) {
+      if constexpr (std::is_void_v<P>) {
+        p_.reset();
+      } else {
+        std::destroy_at(std::addressof(get_ptr<P, qualifier_type::lv>(p_)));
+        p_.meta_.reset();
+      }
     }
 
   private:
     proxy<F>& p_;
   };
 
+  static inline void bitwise_copy(proxy<F>& from, proxy<F>& to) noexcept {
+    std::ranges::uninitialized_copy(from.ptr_, to.ptr_);
+    to.meta_ = from.meta_;
+  }
+  static inline void bitwise_relocate(proxy<F>& from, proxy<F>& to) noexcept {
+    bitwise_copy(from, to);
+    from.meta_.reset();
+  }
   static inline const auto& get_meta(const proxy<F>& p) noexcept {
     assert(p.has_value());
     return *p.meta_.operator->();
@@ -229,24 +241,33 @@ struct proxy_helper {
   }
 };
 
-template <bool IsDirect, class P, qualifier_type Q>
+template <class P, bool IsDirect, qualifier_type Q>
 struct operand_traits : add_qualifier_traits<P, Q> {};
 template <class P, qualifier_type Q>
-struct operand_traits<false, P, Q>
+struct operand_traits<P, false, Q>
     : std::type_identity<decltype(*std::declval<add_qualifier_t<P, Q>>())> {};
-template <bool IsDirect, class P, qualifier_type Q>
-using operand_t = typename operand_traits<IsDirect, P, Q>::type;
-template <bool IsDirect, class D, class P, qualifier_type Q, bool NE, class R,
+template <class P, bool IsDirect, qualifier_type Q>
+using operand_t = typename operand_traits<P, IsDirect, Q>::type;
+template <class P, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
           class... Args>
-concept invocable_dispatch =
+concept invocable_dispatch_ptr =
     (IsDirect || (requires { *std::declval<add_qualifier_t<P, Q>>(); } &&
                   (!NE || noexcept(*std::declval<add_qualifier_t<P, Q>>())))) &&
-    ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<IsDirect, P, Q>,
+    ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<P, IsDirect, Q>,
                                           Args...>) ||
      (!NE &&
-      std::is_invocable_r_v<R, D, operand_t<IsDirect, P, Q>, Args...>)) &&
+      std::is_invocable_r_v<R, D, operand_t<P, IsDirect, Q>, Args...>)) &&
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
+template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
+          class... Args>
+concept invocable_dispatch_default =
+    ((NE && std::is_nothrow_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+     (!NE && std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>)) &&
+    (Q != qualifier_type::rv || (NE && F::destructibility >= constraint_level::nothrow) ||
+     (!NE && F::destructibility >= constraint_level::nontrivial));
+template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R, class... Args>
+concept invocable_dispatch = invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> || invocable_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
 
 template <class D, class R, class... Args>
 R invoke_dispatch_impl(Args&&... args) {
@@ -267,9 +288,9 @@ decltype(auto) get_operand(P&& ptr) {
     return *std::forward<P>(ptr);
   }
 }
-template <class F, bool IsDirect, class D, class P, qualifier_type Q, bool NE,
+template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
-R invoke_dispatch(add_qualifier_t<proxy<F>, Q> self,
+R invoke_dispatch_ptr(add_qualifier_t<proxy<F>, Q> self,
                   Args... args) noexcept(NE) {
   if constexpr (Q == qualifier_type::rv) {
     typename proxy_helper<F>::template resetting_guard<P> guard{self};
@@ -284,6 +305,21 @@ R invoke_dispatch(add_qualifier_t<proxy<F>, Q> self,
         std::forward<Args>(args)...);
   }
 }
+template <class F, bool IsDirect, class D, qualifier_type Q, bool NE,
+          class R, class... Args>
+R invoke_dispatch_default(add_qualifier_t<proxy<F>, Q> self,
+                  Args... args) noexcept(NE) {
+  if constexpr (Q == qualifier_type::rv) {
+    typename proxy_helper<F>::template resetting_guard<void> guard{self};
+    return invoke_dispatch_impl<D, R>(proxy_arg,
+        get_operand<IsDirect>(std::move(self)),
+        std::forward<Args>(args)...);
+  } else {
+    return invoke_dispatch_impl<D, R>(proxy_arg,
+        get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
+        std::forward<Args>(args)...);
+  }
+}
 
 template <class O>
 struct overload_traits : inapplicable_traits {};
@@ -294,12 +330,18 @@ struct overload_traits_impl : applicable_traits {
   using dispatcher_type = R (*)(add_qualifier_t<proxy<F>, Q>,
                                 Args...) noexcept(NE);
 
-  template <bool IsDirect, class D, class P>
+  template <class P, class F, bool IsDirect, class D>
+  static consteval auto get_dispatcher() {
+    if constexpr (invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...>) {
+      return &invoke_dispatch_ptr<P, F, IsDirect, D, Q, NE, R, Args...>;
+    } else {
+      return &invoke_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
+    }
+  }
+
+  template <class P, class F, bool IsDirect, class D>
   static constexpr bool applicable_ptr =
-      invocable_dispatch<IsDirect, D, P, Q, NE, R, Args...>;
-  template <class F, bool IsDirect, class D, class P>
-  static constexpr auto dispatcher =
-      &invoke_dispatch<F, IsDirect, D, P, Q, NE, R, Args...>;
+      invocable_dispatch<P, F, IsDirect, D, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -361,7 +403,7 @@ consteval bool diagnose_proxiable_required_convention_not_implemented() {
   constexpr bool verdict =
       overload_traits<substituted_overload_t<O, F>>::applicable &&
       overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<
-          IsDirect, D, P>;
+          P, F, IsDirect, D>;
   static_assert(verdict,
                 "not proxiable due to a required convention not implemented");
   return verdict;
@@ -372,7 +414,7 @@ struct invocation_meta {
   constexpr invocation_meta() = default;
   template <class P>
   constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(overload_traits<O>::template dispatcher<F, IsDirect, D, P>) {
+      : dispatcher(overload_traits<O>::template get_dispatcher<P, F, IsDirect, D>()) {
   }
 
   typename overload_traits<O>::template dispatcher_type<F> dispatcher;
@@ -448,7 +490,7 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
   template <class P>
   static constexpr bool applicable_ptr =
       (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
-           C::is_direct, typename C::dispatch_type, P> &&
+           P, F, C::is_direct, typename C::dispatch_type> &&
        ...);
 };
 template <class C, class F>
@@ -1144,8 +1186,7 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
       if constexpr (F::copyability == constraint_level::trivial) {
-        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
-        meta_ = rhs.meta_;
+        details::proxy_helper<F>::bitwise_copy(rhs, *this);
       } else {
         proxy_invoke<details::copy_dispatch,
                      void(proxy&) const noexcept(
@@ -1162,9 +1203,7 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
       if constexpr (F::relocatability == constraint_level::trivial) {
-        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
-        meta_ = rhs.meta_;
-        rhs.meta_.reset();
+        details::proxy_helper<F>::bitwise_relocate(rhs, *this);
       } else {
         proxy_invoke<details::copy_dispatch,
                      void(proxy&) && noexcept(F::relocatability ==
@@ -2598,11 +2637,7 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, Args&&...)
-    requires(!std::is_invocable_v<D, Args...>)
-  {
-    PRO4D_THROW(not_implemented{});
-  }
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, proxy_arg_t, Args&&...) { PRO4D_THROW(not_implemented{}); }
 };
 
 } // namespace pro::inline v4
