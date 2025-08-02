@@ -261,8 +261,10 @@ template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
 concept invocable_dispatch =
     invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
-    (NE && std::is_nothrow_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
-    (!NE && std::is_invocable_r_v<R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>);
+    (NE && std::is_nothrow_invocable_r_v<
+               R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+    (!NE && std::is_invocable_r_v<R, D, proxy_arg_t,
+                                  operand_t<proxy<F>, IsDirect, Q>, Args...>);
 
 template <class D, class R, class... Args>
 R invoke_dispatch_impl(Args&&... args) {
