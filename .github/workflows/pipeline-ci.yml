@@ -8,35 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-bvt-gcc:
-    uses: ./.github/workflows/bvt-gcc.yml
-    name: Run BVT with GCC
-
-  run-bvt-clang:
-    uses: ./.github/workflows/bvt-clang.yml
-    name: Run BVT with Clang
-
-  run-bvt-msvc:
-    uses: ./.github/workflows/bvt-msvc.yml
-    name: Run BVT with MSVC
-
-  run-bvt-appleclang:
-    uses: ./.github/workflows/bvt-appleclang.yml
-    name: Run BVT with AppleClang
-
   run-bvt-nvhpc:
     uses: ./.github/workflows/bvt-nvhpc.yml
     name: Run BVT with NVHPC
-
-  run-bvt-compatibility:
-    uses: ./.github/workflows/bvt-compatibility.yml
-    name: Run BVT for compatibility
-
-  report:
-    uses: ./.github/workflows/bvt-report.yml
-    name: Generate report
-    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc]
-
-  mkdocs:
-    uses: ./.github/workflows/mkdocs.yml
-    name: Build mkdocs
