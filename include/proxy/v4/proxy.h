@@ -118,7 +118,6 @@ struct facade_aware_overload_t {
 
 struct proxy_arg_t {
   explicit proxy_arg_t() = default;
-  proxy_arg_t(const proxy_arg_t&) = default;
 };
 constexpr proxy_arg_t proxy_arg;
 
