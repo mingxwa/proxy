@@ -577,7 +577,10 @@ struct copy_dispatch {
     std::construct_at(std::addressof(rhs), self);
   }
   template <class F>
-  PRO4D_STATIC_CALL(void, proxy_arg_t, const proxy<F>& self, proxy<F>& rhs) noexcept { proxy_helper<F>::bitwise_copy(self, rhs); }
+  PRO4D_STATIC_CALL(void, proxy_arg_t, const proxy<F>& self,
+                    proxy<F>& rhs) noexcept {
+    proxy_helper<F>::bitwise_copy(self, rhs);
+  }
 };
 struct relocate_dispatch {
   template <class T, class F>
@@ -588,8 +591,10 @@ struct relocate_dispatch {
     std::construct_at(std::addressof(rhs), std::move(self));
   }
   template <class F>
-  PRO4D_STATIC_CALL(void, proxy_arg_t, proxy<F>&& self, proxy<F>& rhs) noexcept
-      { proxy_helper<F>::bitwise_relocate(self, rhs); }
+  PRO4D_STATIC_CALL(void, proxy_arg_t, proxy<F>&& self,
+                    proxy<F>& rhs) noexcept {
+    proxy_helper<F>::bitwise_relocate(self, rhs);
+  }
 };
 struct destroy_dispatch {
   template <class T>
