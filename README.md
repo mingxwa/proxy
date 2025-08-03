@@ -239,7 +239,7 @@ The "Proxy" library is a self-contained solution for runtime polymorphism in C++
 | GCC        | 13.1            | -std=c++20     |
 | Clang      | 16.0.0          | -std=c++20     |
 | MSVC       | 19.31           | /std:c++20     |
-| NVIDIA HPC | 24.1            | -std=c++20     |
+| NVIDIA HPC | 24.11           | -std=c++20     |
 
 ## Build and Run Tests with CMake
 
