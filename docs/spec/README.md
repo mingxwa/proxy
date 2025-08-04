@@ -22,9 +22,11 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`bad_proxy_cast`](bad_proxy_cast.md)                        | Exception thrown by the value-returning forms of `proxy_cast` on a type mismatch |
 | [`basic_facade_builder`<br />`facade_builder`](basic_facade_builder/README.md) | Provides capability to build a facade type at compile-time   |
 | [`constraint_level`](constraint_level.md)                    | Defines the 4 constraint levels of a special member function |
+| [`dispatch_default_t`](dispatch_default_t.md)                | A tag used to specify the default function of a dispatch     |
 | [`explicit_conversion_dispatch`<br />`conversion_dispatch`](explicit_conversion_dispatch/README.md) | Dispatch type for explicit conversion expressions with accessibility |
 | [`facade_aware_overload_t`](facade_aware_overload_t.md)      | Specifies a facade-aware overload template                   |
 | [`implicit_conversion_dispatch`](implicit_conversion_dispatch/README.md) | Dispatch type for implicit conversion expressions with accessibility |
+| [`is_bitwise_trivially_relocatable_override`](is_bitwise_trivially_relocatable_override.md) | Specifies whether a type is bitwise trivially relocatable    |
 | [`not_implemented` ](not_implemented.md)                     | Exception thrown by `weak_dispatch` for the default implementation |
 | [`operator_dispatch`](operator_dispatch/README.md)           | Dispatch type for operator expressions with accessibility    |
 | [`proxy_indirect_accessor`](proxy_indirect_accessor.md)      | Provides indirection accessibility for `proxy`               |

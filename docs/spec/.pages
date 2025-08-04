@@ -9,9 +9,11 @@ nav:
     - bad_proxy_cast: bad_proxy_cast.md
     - basic_facade_builder<br />facade_builder: basic_facade_builder
     - constraint_level: constraint_level.md
+    - dispatch_default_t: dispatch_default_t.md
     - explicit_conversion_dispatch<br />conversion_dispatch: explicit_conversion_dispatch
     - facade_aware_overload_t: facade_aware_overload_t.md
     - implicit_conversion_dispatch: implicit_conversion_dispatch
+    - is_bitwise_trivially_relocatable_override: is_bitwise_trivially_relocatable_override.md
     - not_implemented: not_implemented.md
     - operator_dispatch: operator_dispatch
     - proxy_indirect_accessor: proxy_indirect_accessor.md

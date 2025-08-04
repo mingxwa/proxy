@@ -116,10 +116,9 @@ struct facade_aware_overload_t {
   facade_aware_overload_t() = delete;
 };
 
-struct proxy_arg_t {
-  explicit proxy_arg_t() = default;
+struct dispatch_default_t {
+  explicit dispatch_default_t() = default;
 };
-inline constexpr proxy_arg_t proxy_arg;
 
 template <class F>
 concept facade = details::basic_facade_traits<F>::applicable;
@@ -262,8 +261,8 @@ template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
 concept invocable_dispatch =
     invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
     (NE && std::is_nothrow_invocable_r_v<
-               R, D, proxy_arg_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
-    (!NE && std::is_invocable_r_v<R, D, proxy_arg_t,
+               R, D, dispatch_default_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+    (!NE && std::is_invocable_r_v<R, D, dispatch_default_t,
                                   operand_t<proxy<F>, IsDirect, Q>, Args...>);
 
 template <class D, class R, class... Args>
@@ -307,7 +306,7 @@ template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
 R invoke_dispatch_default(add_qualifier_t<proxy<F>, Q> self,
                           Args... args) noexcept(NE) {
   return invoke_dispatch_impl<D, R>(
-      proxy_arg,
+      dispatch_default_t{},
       get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
       std::forward<Args>(args)...);
 }
@@ -557,7 +556,7 @@ struct copy_dispatch {
     std::construct_at(std::addressof(rhs), self);
   }
   template <class F>
-  PRO4D_STATIC_CALL(void, proxy_arg_t, const proxy<F>& self,
+  PRO4D_STATIC_CALL(void, dispatch_default_t, const proxy<F>& self,
                     proxy<F>& rhs) noexcept {
     proxy_helper<F>::bitwise_copy(self, rhs);
   }
@@ -571,7 +570,7 @@ struct relocate_dispatch {
     std::construct_at(std::addressof(rhs), std::move(self));
   }
   template <class F>
-  PRO4D_STATIC_CALL(void, proxy_arg_t, proxy<F>&& self,
+  PRO4D_STATIC_CALL(void, dispatch_default_t, proxy<F>&& self,
                     proxy<F>& rhs) noexcept {
     proxy_helper<F>::bitwise_relocate(self, rhs);
   }
@@ -2652,7 +2651,7 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, proxy_arg_t, Args&&...) {
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, dispatch_default_t, Args&&...) {
     PRO4D_THROW(not_implemented{});
   }
 };

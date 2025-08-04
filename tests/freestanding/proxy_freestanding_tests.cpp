@@ -14,7 +14,7 @@ unsigned GetHashImpl(const char* v) {
   }
   return result;
 }
-unsigned GetHashImpl(pro::proxy_arg_t, auto&&) { return DefaultHash; }
+unsigned GetHashImpl(pro::dispatch_default_t, auto&&) { return DefaultHash; }
 PRO_DEF_FREE_DISPATCH(FreeGetHash, GetHashImpl, GetHash);
 
 struct Hashable : pro::facade_builder                       //
