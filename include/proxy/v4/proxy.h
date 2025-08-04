@@ -260,8 +260,9 @@ template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
 concept invocable_dispatch =
     invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
-    (NE && std::is_nothrow_invocable_r_v<
-               R, D, dispatch_default_t, operand_t<proxy<F>, IsDirect, Q>, Args...>) ||
+    (NE && std::is_nothrow_invocable_r_v<R, D, dispatch_default_t,
+                                         operand_t<proxy<F>, IsDirect, Q>,
+                                         Args...>) ||
     (!NE && std::is_invocable_r_v<R, D, dispatch_default_t,
                                   operand_t<proxy<F>, IsDirect, Q>, Args...>);
 
@@ -2651,7 +2652,8 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, dispatch_default_t, Args&&...) {
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, dispatch_default_t,
+                                 Args&&...) {
     PRO4D_THROW(not_implemented{});
   }
 };
