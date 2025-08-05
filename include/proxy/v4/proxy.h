@@ -104,8 +104,9 @@ template <template <class...> class T, class TL, class... Args>
 using instantiated_t = typename instantiated_traits<
     T, TL, std::make_index_sequence<std::tuple_size_v<TL>>, Args...>::type;
 
-template <class F>
-struct basic_facade_traits;
+template <class O> struct overload_traits;
+template <class F> struct basic_facade_traits;
+template <class F> struct facade_traits;
 
 } // namespace details
 
@@ -114,10 +115,6 @@ enum class constraint_level { none, nontrivial, nothrow, trivial };
 template <template <class> class O>
 struct facade_aware_overload_t {
   facade_aware_overload_t() = delete;
-};
-
-struct dispatch_default_t {
-  explicit dispatch_default_t() = default;
 };
 
 template <class F>
@@ -129,7 +126,9 @@ template <facade F>
 class PRO4D_ENFORCE_EBO proxy;
 
 template <class T>
-struct is_bitwise_trivially_relocatable_override : std::false_type {};
+struct is_bitwise_trivially_relocatable : std::bool_constant<std::is_trivially_move_constructible_v<T> && std::is_trivially_destructible_v<T>> {};
+template <class T>
+constexpr bool is_bitwise_trivially_relocatable_v = is_bitwise_trivially_relocatable<T>::value;
 
 namespace details {
 
@@ -172,19 +171,17 @@ template <class T>
 struct relocatability_traits<T, constraint_level::none> : applicable_traits {};
 template <class T>
   requires((std::is_move_constructible_v<T> && std::is_destructible_v<T>) ||
-           relocatability_traits<T, constraint_level::trivial>::value)
+           is_bitwise_trivially_relocatable_v<T>)
 struct relocatability_traits<T, constraint_level::nontrivial>
     : applicable_traits {};
 template <class T>
   requires((std::is_nothrow_move_constructible_v<T> &&
             std::is_nothrow_destructible_v<T>) ||
-           relocatability_traits<T, constraint_level::trivial>::value)
+           is_bitwise_trivially_relocatable_v<T>)
 struct relocatability_traits<T, constraint_level::nothrow> : applicable_traits {
 };
 template <class T>
-  requires((std::is_trivially_move_constructible_v<T> &&
-            std::is_trivially_destructible_v<T>) ||
-           is_bitwise_trivially_relocatable_override<T>::value)
+  requires(is_bitwise_trivially_relocatable_v<T>)
 struct relocatability_traits<T, constraint_level::trivial> : applicable_traits {
 };
 
@@ -205,13 +202,85 @@ template <class T>
 struct destructibility_traits<T, constraint_level::trivial>
     : applicable_traits {};
 
-template <class F>
-struct proxy_helper {
+template <class F, bool IsDirect, class D, class O>
+struct invocation_meta {
+  constexpr invocation_meta() = default;
   template <class P>
+  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
+      : dispatcher(overload_traits<O>::template dispatcher<P, F, IsDirect, D>) {}
+
+  typename overload_traits<O>::template dispatcher_type<F> dispatcher;
+};
+
+template <class... Ms>
+struct composite_meta_impl : Ms... {
+  constexpr composite_meta_impl() noexcept = default;
+  template <class P>
+  constexpr explicit composite_meta_impl(std::in_place_type_t<P>) noexcept
+      : Ms(std::in_place_type<P>)... {}
+};
+template <class O, class I>
+struct meta_reduction : std::type_identity<O> {};
+template <class... Ms, class I>
+  requires(!std::is_void_v<I>)
+struct meta_reduction<composite_meta_impl<Ms...>, I>
+    : std::type_identity<composite_meta_impl<Ms..., I>> {};
+template <class... Ms1, class... Ms2>
+struct meta_reduction<composite_meta_impl<Ms1...>, composite_meta_impl<Ms2...>>
+    : std::type_identity<composite_meta_impl<Ms1..., Ms2...>> {};
+template <class... Ms>
+using composite_meta =
+    recursive_reduction_t<reduction_traits<meta_reduction>::template type,
+                          composite_meta_impl<>, Ms...>;
+
+using ptr_prototype = void* [2];
+template <class M>
+struct meta_ptr_indirect_impl {
+  constexpr meta_ptr_indirect_impl() = default;
+  template <class P>
+  constexpr explicit meta_ptr_indirect_impl(std::in_place_type_t<P>) noexcept
+      : ptr_(&storage<P>) {}
+  bool has_value() const noexcept { return ptr_ != nullptr; }
+  void reset() noexcept { ptr_ = nullptr; }
+  const M* operator->() const noexcept { return ptr_; }
+
+private:
+  const M* ptr_;
+  template <class P>
+  static constexpr M storage{std::in_place_type<P>};
+};
+template <class M, class DM>
+struct meta_ptr_direct_impl : private M {
+  using M::M;
+  bool has_value() const noexcept { return this->DM::dispatcher != nullptr; }
+  void reset() noexcept { this->DM::dispatcher = nullptr; }
+  const M* operator->() const noexcept { return this; }
+};
+template <class M>
+struct meta_ptr_traits_impl : std::type_identity<meta_ptr_indirect_impl<M>> {};
+template <class F, bool IsDirect, class D, class O, class... Ms>
+struct meta_ptr_traits_impl<
+    composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>>
+    : std::type_identity<meta_ptr_direct_impl<
+          composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>,
+          invocation_meta<F, IsDirect, D, O>>> {};
+template <class M>
+struct meta_ptr_traits : std::type_identity<meta_ptr_indirect_impl<M>> {};
+template <class M>
+  requires(sizeof(M) <= sizeof(ptr_prototype) &&
+           alignof(M) <= alignof(ptr_prototype) &&
+           std::is_nothrow_default_constructible_v<M> &&
+           std::is_trivially_copyable_v<M>)
+struct meta_ptr_traits<M> : meta_ptr_traits_impl<M> {};
+template <class M>
+using meta_ptr = typename meta_ptr_traits<M>::type;
+
+struct proxy_helper {
+  template <class P, class F>
   struct resetting_guard {
     explicit resetting_guard(proxy<F>& p) noexcept : p_(p) {}
     ~resetting_guard() noexcept(std::is_nothrow_destructible_v<P>) {
-      std::destroy_at(std::addressof(get_ptr<P, qualifier_type::lv>(p_)));
+      std::destroy_at(std::addressof(get_ptr<P, F, qualifier_type::lv>(p_)));
       p_.meta_.reset();
     }
 
@@ -219,24 +288,25 @@ struct proxy_helper {
     proxy<F>& p_;
   };
 
-  static inline void bitwise_copy(const proxy<F>& from, proxy<F>& to) noexcept {
-    std::ranges::uninitialized_copy(from.ptr_, to.ptr_);
-    to.meta_ = from.meta_;
-  }
-  static inline void bitwise_relocate(proxy<F>& from, proxy<F>& to) noexcept {
-    bitwise_copy(from, to);
-    from.meta_.reset();
-  }
-  static inline const auto& get_meta(const proxy<F>& p) noexcept {
+  template <class F>
+  static const auto& get_meta(const proxy<F>& p) noexcept {
     assert(p.has_value());
     return *p.meta_.operator->();
   }
-  template <class P, qualifier_type Q>
+  template <class P, class F, qualifier_type Q>
   static add_qualifier_t<P, Q> get_ptr(add_qualifier_t<proxy<F>, Q> p) {
     return static_cast<add_qualifier_t<P, Q>>(
         *std::launder(reinterpret_cast<add_qualifier_ptr_t<P, Q>>(p.ptr_)));
   }
+  template <class P, class F1, class F2>
+  static void trivially_relocate(proxy<F1>& from, proxy<F2>& to) noexcept {
+    std::ranges::uninitialized_copy_n(&from.ptr_, sizeof(P), &to.ptr_);
+    to.meta_ = meta_ptr<typename facade_traits<F2>::meta>{std::in_place_type<P>};
+    from.meta_.reset();
+  }
 };
+
+template <class D> struct reloc_dispatch_traits : inapplicable_traits {};
 
 template <class P, bool IsDirect, qualifier_type Q>
 struct operand_traits : add_qualifier_traits<P, Q> {};
@@ -247,7 +317,7 @@ template <class P, bool IsDirect, qualifier_type Q>
 using operand_t = typename operand_traits<P, IsDirect, Q>::type;
 template <class P, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
           class... Args>
-concept invocable_dispatch_ptr =
+concept invocable_dispatch =
     (IsDirect || (requires { *std::declval<add_qualifier_t<P, Q>>(); } &&
                   (!NE || noexcept(*std::declval<add_qualifier_t<P, Q>>())))) &&
     ((NE && std::is_nothrow_invocable_r_v<R, D, operand_t<P, IsDirect, Q>,
@@ -256,15 +326,6 @@ concept invocable_dispatch_ptr =
       std::is_invocable_r_v<R, D, operand_t<P, IsDirect, Q>, Args...>)) &&
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
-template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
-          class R, class... Args>
-concept invocable_dispatch =
-    invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...> ||
-    (NE && std::is_nothrow_invocable_r_v<R, D, dispatch_default_t,
-                                         operand_t<proxy<F>, IsDirect, Q>,
-                                         Args...>) ||
-    (!NE && std::is_invocable_r_v<R, D, dispatch_default_t,
-                                  operand_t<proxy<F>, IsDirect, Q>, Args...>);
 
 template <class D, class R, class... Args>
 R invoke_dispatch_impl(Args&&... args) {
@@ -287,29 +348,21 @@ decltype(auto) get_operand(P&& ptr) {
 }
 template <class P, class F, bool IsDirect, class D, qualifier_type Q, bool NE,
           class R, class... Args>
-R invoke_dispatch_ptr(add_qualifier_t<proxy<F>, Q> self,
-                      Args... args) noexcept(NE) {
-  if constexpr (Q == qualifier_type::rv) {
-    typename proxy_helper<F>::template resetting_guard<P> guard{self};
+R invoke_dispatch(add_qualifier_t<proxy<F>, Q> self, Args... args) noexcept(NE) {
+  if constexpr (reloc_dispatch_traits<D>::applicable) {
+    static_assert(IsDirect);
+    return D{}(std::in_place_type<P>, std::forward<add_qualifier_t<proxy<F>, Q>>(self), std::forward<Args>(args)...);
+  } else if constexpr (Q == qualifier_type::rv) {
+    proxy_helper::resetting_guard<P, F> guard{self};
     return invoke_dispatch_impl<D, R>(
-        get_operand<IsDirect>(
-            proxy_helper<F>::template get_ptr<P, Q>(std::move(self))),
+        get_operand<IsDirect>(proxy_helper::get_ptr<P, F, Q>(std::move(self))),
         std::forward<Args>(args)...);
   } else {
     return invoke_dispatch_impl<D, R>(
-        get_operand<IsDirect>(proxy_helper<F>::template get_ptr<P, Q>(
+        get_operand<IsDirect>(proxy_helper::get_ptr<P, F, Q>(
             std::forward<add_qualifier_t<proxy<F>, Q>>(self))),
         std::forward<Args>(args)...);
   }
-}
-template <class F, bool IsDirect, class D, qualifier_type Q, bool NE, class R,
-          class... Args>
-R invoke_dispatch_default(add_qualifier_t<proxy<F>, Q> self,
-                          Args... args) noexcept(NE) {
-  return invoke_dispatch_impl<D, R>(
-      dispatch_default_t{},
-      get_operand<IsDirect>(std::forward<add_qualifier_t<proxy<F>, Q>>(self)),
-      std::forward<Args>(args)...);
 }
 
 template <class O>
@@ -322,17 +375,10 @@ struct overload_traits_impl : applicable_traits {
                                 Args...) noexcept(NE);
 
   template <class P, class F, bool IsDirect, class D>
-  static consteval auto get_dispatcher() {
-    if constexpr (invocable_dispatch_ptr<P, IsDirect, D, Q, NE, R, Args...>) {
-      return &invoke_dispatch_ptr<P, F, IsDirect, D, Q, NE, R, Args...>;
-    } else {
-      return &invoke_dispatch_default<F, IsDirect, D, Q, NE, R, Args...>;
-    }
-  }
+  static constexpr auto dispatcher = &invoke_dispatch<P, F, IsDirect, D, Q, NE, R, Args...>;
 
-  template <class P, class F, bool IsDirect, class D>
-  static constexpr bool applicable_ptr =
-      invocable_dispatch<P, F, IsDirect, D, Q, NE, R, Args...>;
+  template <class P, bool IsDirect, class D>
+  static constexpr bool applicable_ptr = reloc_dispatch_traits<D>::applicable || invocable_dispatch<P, IsDirect, D, Q, NE, R, Args...>;
   static constexpr qualifier_type qualifier = Q;
 };
 template <class R, class... Args>
@@ -391,46 +437,11 @@ concept extended_overload = overload_traits<O>::applicable ||
                             overload_substitution_traits<O>::applicable;
 template <class P, class F, bool IsDirect, class D, class O>
 consteval bool diagnose_proxiable_required_convention_not_implemented() {
-  constexpr bool verdict =
-      overload_traits<substituted_overload_t<O, F>>::applicable &&
-      overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<
-          P, F, IsDirect, D>;
+  constexpr bool verdict = overload_traits<O>::applicable && overload_traits<O>::template applicable_ptr<P, IsDirect, D>;
   static_assert(verdict,
                 "not proxiable due to a required convention not implemented");
   return verdict;
 }
-
-template <class F, bool IsDirect, class D, class O>
-struct invocation_meta {
-  constexpr invocation_meta() = default;
-  template <class P>
-  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(
-            overload_traits<O>::template get_dispatcher<P, F, IsDirect, D>()) {}
-
-  typename overload_traits<O>::template dispatcher_type<F> dispatcher;
-};
-
-template <class... Ms>
-struct composite_meta_impl : Ms... {
-  constexpr composite_meta_impl() noexcept = default;
-  template <class P>
-  constexpr explicit composite_meta_impl(std::in_place_type_t<P>) noexcept
-      : Ms(std::in_place_type<P>)... {}
-};
-template <class O, class I>
-struct meta_reduction : std::type_identity<O> {};
-template <class... Ms, class I>
-  requires(!std::is_void_v<I>)
-struct meta_reduction<composite_meta_impl<Ms...>, I>
-    : std::type_identity<composite_meta_impl<Ms..., I>> {};
-template <class... Ms1, class... Ms2>
-struct meta_reduction<composite_meta_impl<Ms1...>, composite_meta_impl<Ms2...>>
-    : std::type_identity<composite_meta_impl<Ms1..., Ms2...>> {};
-template <class... Ms>
-using composite_meta =
-    recursive_reduction_t<reduction_traits<meta_reduction>::template type,
-                          composite_meta_impl<>, Ms...>;
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
@@ -473,16 +484,13 @@ struct conv_traits_impl<C, F, Os...> : applicable_traits {
   static consteval bool diagnose_proxiable() {
     bool verdict = true;
     ((verdict &= diagnose_proxiable_required_convention_not_implemented<
-          P, F, C::is_direct, typename C::dispatch_type, Os>()),
+          P, F, C::is_direct, typename C::dispatch_type, substituted_overload_t<Os, F>>()),
      ...);
     return verdict;
   }
 
   template <class P>
-  static constexpr bool applicable_ptr =
-      (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
-           P, F, C::is_direct, typename C::dispatch_type> &&
-       ...);
+  static constexpr bool applicable_ptr = (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<P, C::is_direct, typename C::dispatch_type> && ...);
 };
 template <class C, class F>
 struct conv_traits
@@ -550,32 +558,24 @@ struct refl_traits {
 
 struct copy_dispatch {
   template <class T, class F>
-  PRO4D_STATIC_CALL(void, const T& self, proxy<F>& rhs) noexcept(
-      std::is_nothrow_copy_constructible_v<T>)
-    requires(!std::is_trivially_copy_constructible_v<T>)
-  {
+  PRO4D_STATIC_CALL(void, const T& self, proxy<F>& rhs)
+      noexcept(std::is_nothrow_copy_constructible_v<T>) {
     std::construct_at(std::addressof(rhs), self);
-  }
-  template <class F>
-  PRO4D_STATIC_CALL(void, dispatch_default_t, const proxy<F>& self,
-                    proxy<F>& rhs) noexcept {
-    proxy_helper<F>::bitwise_copy(self, rhs);
   }
 };
 struct relocate_dispatch {
-  template <class T, class F>
-  PRO4D_STATIC_CALL(void, T&& self, proxy<F>& rhs) noexcept(
-      relocatability_traits<T, constraint_level::nothrow>::applicable)
-    requires(!relocatability_traits<T, constraint_level::trivial>::applicable)
-  {
-    std::construct_at(std::addressof(rhs), std::move(self));
-  }
-  template <class F>
-  PRO4D_STATIC_CALL(void, dispatch_default_t, proxy<F>&& self,
-                    proxy<F>& rhs) noexcept {
-    proxy_helper<F>::bitwise_relocate(self, rhs);
+  template <class P, class F>
+  PRO4D_STATIC_CALL(void, std::in_place_type_t<P>, proxy<F>&& self, proxy<F>& rhs) noexcept(
+      relocatability_traits<P, constraint_level::nothrow>::applicable) {
+    if constexpr (is_bitwise_trivially_relocatable_v<P>) {
+      proxy_helper::trivially_relocate<P>(self, rhs);
+    } else {
+      proxy_helper::resetting_guard<P, F> guard{self};
+      std::construct_at(std::addressof(rhs), proxy_helper::get_ptr<P, F, qualifier_type::rv>(std::move(self)));
+    }
   }
 };
+template <> struct reloc_dispatch_traits<relocate_dispatch> : applicable_traits {};
 struct destroy_dispatch {
   template <class T>
   PRO4D_STATIC_CALL(void, T& self) noexcept(std::is_nothrow_destructible_v<T>)
@@ -841,49 +841,6 @@ struct facade_traits<F>
       facade_traits::template refl_applicable_ptr<P>;
 };
 
-using ptr_prototype = void* [2];
-
-template <class M>
-struct meta_ptr_indirect_impl {
-  constexpr meta_ptr_indirect_impl() = default;
-  template <class P>
-  constexpr explicit meta_ptr_indirect_impl(std::in_place_type_t<P>) noexcept
-      : ptr_(&storage<P>) {}
-  bool has_value() const noexcept { return ptr_ != nullptr; }
-  void reset() noexcept { ptr_ = nullptr; }
-  const M* operator->() const noexcept { return ptr_; }
-
-private:
-  const M* ptr_;
-  template <class P>
-  static constexpr M storage{std::in_place_type<P>};
-};
-template <class M, class DM>
-struct meta_ptr_direct_impl : private M {
-  using M::M;
-  bool has_value() const noexcept { return this->DM::dispatcher != nullptr; }
-  void reset() noexcept { this->DM::dispatcher = nullptr; }
-  const M* operator->() const noexcept { return this; }
-};
-template <class M>
-struct meta_ptr_traits_impl : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class F, bool IsDirect, class D, class O, class... Ms>
-struct meta_ptr_traits_impl<
-    composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>>
-    : std::type_identity<meta_ptr_direct_impl<
-          composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>,
-          invocation_meta<F, IsDirect, D, O>>> {};
-template <class M>
-struct meta_ptr_traits : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class M>
-  requires(sizeof(M) <= sizeof(ptr_prototype) &&
-           alignof(M) <= alignof(ptr_prototype) &&
-           std::is_nothrow_default_constructible_v<M> &&
-           std::is_trivially_copyable_v<M>)
-struct meta_ptr_traits<M> : meta_ptr_traits_impl<M> {};
-template <class M>
-using meta_ptr = typename meta_ptr_traits<M>::type;
-
 template <class T>
 class inplace_ptr {
 public:
@@ -910,9 +867,7 @@ private:
 
 template <class F, bool IsDirect, class D, class O, class P, class... Args>
 decltype(auto) invoke_impl(P&& p, Args&&... args) {
-  auto dispatcher =
-      proxy_helper<F>::get_meta(p)
-          .template invocation_meta<F, IsDirect, D, O>::dispatcher;
+  auto dispatcher = proxy_helper::get_meta(p).template invocation_meta<F, IsDirect, D, O>::dispatcher;
   return dispatcher(std::forward<P>(p), std::forward<Args>(args)...);
 }
 template <class F, qualifier_type Q>
@@ -989,14 +944,13 @@ auto proxy_invoke(const proxy<F>&& p, Args&&... args) ->
 template <class R, facade F>
 const R& proxy_reflect(const proxy_indirect_accessor<F>& p) noexcept {
   return static_cast<const details::refl_meta<false, R>&>(
-             details::proxy_helper<F>::get_meta(
-                 details::as_proxy<F, details::qualifier_type::const_lv>(p)))
+             details::proxy_helper::get_meta(details::as_proxy<F, details::qualifier_type::const_lv>(p)))
       .reflector;
 }
 template <class R, facade F>
 const R& proxy_reflect(const proxy<F>& p) noexcept {
   return static_cast<const details::refl_meta<true, R>&>(
-             details::proxy_helper<F>::get_meta(p))
+             details::proxy_helper::get_meta(p))
       .reflector;
 }
 
@@ -1004,7 +958,7 @@ template <facade F>
 class proxy PROD_TR_IF_ELIGIBLE
     : public details::facade_traits<F>::direct_accessor,
       public details::inplace_ptr<proxy_indirect_accessor<F>> {
-  friend struct details::proxy_helper<F>;
+  friend struct details::proxy_helper;
   static_assert(details::facade_traits<F>::applicable);
 
 public:
@@ -1196,7 +1150,8 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
       if constexpr (F::copyability == constraint_level::trivial) {
-        details::proxy_helper<F>::bitwise_copy(rhs, *this);
+        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
+        meta_ = rhs.meta_;
       } else {
         proxy_invoke<details::copy_dispatch,
                      void(proxy&) const noexcept(
@@ -1213,7 +1168,9 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     if (rhs.meta_.has_value()) {
       if constexpr (F::relocatability == constraint_level::trivial) {
-        details::proxy_helper<F>::bitwise_relocate(rhs, *this);
+        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
+        meta_ = rhs.meta_;
+        rhs.meta_.reset();
       } else {
         proxy_invoke<details::relocate_dispatch,
                      void(proxy&) && noexcept(F::relocatability ==
@@ -1312,8 +1269,6 @@ template <class T>
 class indirect_ptr {
 public:
   explicit indirect_ptr(T* ptr) noexcept : ptr_(ptr) {}
-
-  explicit operator bool() const noexcept { return ptr_ != nullptr; }
   auto operator->() noexcept { return std::addressof(**ptr_); }
   auto operator->() const noexcept { return std::addressof(**ptr_); }
   decltype(auto) operator*() & noexcept { return **ptr_; }
@@ -1340,19 +1295,10 @@ public:
   allocated_ptr(const allocated_ptr& rhs)
     requires(std::is_copy_constructible_v<T>)
       : alloc_aware<Alloc>(rhs),
-        indirect_ptr<inplace_ptr<T>>(
-            rhs.ptr_ == nullptr
-                ? nullptr
-                : allocate<inplace_ptr<T>>(this->alloc, std::in_place, *rhs)) {}
-  allocated_ptr(allocated_ptr&& rhs) noexcept(
-      std::is_nothrow_move_constructible_v<Alloc>)
-      : alloc_aware<Alloc>(rhs),
-        indirect_ptr<inplace_ptr<T>>(std::exchange(rhs.ptr_, nullptr)) {}
-  ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    if (this->ptr_ != nullptr) {
-      deallocate(this->alloc, this->ptr_);
-    }
-  }
+        indirect_ptr<inplace_ptr<T>>(allocate<inplace_ptr<T>>(this->alloc, std::in_place, *rhs)) {}
+  allocated_ptr(allocated_ptr&& rhs) = delete;
+  ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>)
+      { deallocate(this->alloc, this->ptr_); }
 };
 
 template <class T, class Alloc>
@@ -1375,17 +1321,10 @@ public:
             allocate<Storage>(alloc, alloc, std::forward<Args>(args)...)) {}
   compact_ptr(const compact_ptr& rhs)
     requires(std::is_copy_constructible_v<T>)
-      : indirect_ptr<Storage>(
-            rhs.ptr_ == nullptr
-                ? nullptr
-                : allocate<Storage>(rhs.ptr_->alloc, rhs.ptr_->alloc, *rhs)) {}
-  compact_ptr(compact_ptr&& rhs) noexcept
-      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
-  ~compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    if (this->ptr_ != nullptr) {
-      deallocate(this->ptr_->alloc, this->ptr_);
-    }
-  }
+      : indirect_ptr<Storage>(allocate<Storage>(rhs.ptr_->alloc, rhs.ptr_->alloc, *rhs)) {}
+  compact_ptr(compact_ptr&& rhs) = delete;
+  ~compact_ptr() noexcept(std::is_nothrow_destructible_v<T>)
+      { deallocate(this->ptr_->alloc, this->ptr_); }
 };
 
 struct shared_compact_ptr_storage_base {
@@ -1413,15 +1352,11 @@ public:
             allocate<Storage>(alloc, alloc, std::forward<Args>(args)...)) {}
   shared_compact_ptr(const shared_compact_ptr& rhs) noexcept
       : indirect_ptr<Storage>(rhs.ptr_) {
-    if (this->ptr_ != nullptr) {
-      this->ptr_->ref_count.fetch_add(1, std::memory_order::relaxed);
-    }
+    this->ptr_->ref_count.fetch_add(1, std::memory_order::relaxed);
   }
-  shared_compact_ptr(shared_compact_ptr&& rhs) noexcept
-      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
+  shared_compact_ptr(shared_compact_ptr&& rhs) = delete;
   ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    if (this->ptr_ != nullptr &&
-        this->ptr_->ref_count.fetch_sub(1, std::memory_order::acq_rel) == 1) {
+    if (this->ptr_->ref_count.fetch_sub(1, std::memory_order::acq_rel) == 1) {
       deallocate(this->ptr_->alloc, this->ptr_);
     }
   }
@@ -1451,31 +1386,29 @@ class strong_compact_ptr PROD_TR_IF_ELIGIBLE
   using Storage = strong_weak_compact_ptr_storage<T, Alloc>;
 
 public:
-  using weak_type = weak_compact_ptr<T, Alloc>;
-
+  explicit strong_compact_ptr(Storage* ptr) noexcept
+      : indirect_ptr<Storage>(ptr) {}
   template <class... Args>
   strong_compact_ptr(const Alloc& alloc, Args&&... args)
       : indirect_ptr<Storage>(
             allocate<Storage>(alloc, alloc, std::forward<Args>(args)...)) {}
   strong_compact_ptr(const strong_compact_ptr& rhs) noexcept
       : indirect_ptr<Storage>(rhs.ptr_) {
-    if (this->ptr_ != nullptr) {
-      this->ptr_->strong_count.fetch_add(1, std::memory_order::relaxed);
-    }
+    this->ptr_->strong_count.fetch_add(1, std::memory_order::relaxed);
   }
-  strong_compact_ptr(strong_compact_ptr&& rhs) noexcept
-      : indirect_ptr<Storage>(std::exchange(rhs.ptr_, nullptr)) {}
+  strong_compact_ptr(strong_compact_ptr&& rhs) = delete;
   ~strong_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    if (this->ptr_ != nullptr && this->ptr_->strong_count.fetch_sub(
-                                     1, std::memory_order::acq_rel) == 1) {
+    if (this->ptr_->strong_count.fetch_sub(1, std::memory_order::acq_rel) == 1) {
       std::destroy_at(operator->());
-      if (this->ptr_->weak_count.fetch_sub(1u, std::memory_order::release) ==
-          1) {
+      if (this->ptr_->weak_count.fetch_sub(1u, std::memory_order::release) == 1) {
         deallocate(this->ptr_->alloc, this->ptr_);
       }
     }
   }
-  explicit operator bool() const noexcept { return this->ptr_ != nullptr; }
+  strong_weak_compact_ptr_storage<T, Alloc>* make_weak() const noexcept {
+    this->ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
+    return this->ptr_;
+  }
   T* operator->() noexcept {
     return std::launder(reinterpret_cast<T*>(&this->ptr_->value));
   }
@@ -1486,42 +1419,33 @@ public:
   const T& operator*() const& noexcept { return *operator->(); }
   T&& operator*() && noexcept { return std::move(*operator->()); }
   const T&& operator*() const&& noexcept { return std::move(*operator->()); }
-
-private:
-  explicit strong_compact_ptr(Storage* ptr) noexcept
-      : indirect_ptr<Storage>(ptr) {}
 };
 template <class T, class Alloc>
 class weak_compact_ptr PROD_TR_IF_ELIGIBLE {
 public:
+  explicit weak_compact_ptr(strong_weak_compact_ptr_storage<T, Alloc>* ptr) noexcept : ptr_(ptr) {}
   weak_compact_ptr(const strong_compact_ptr<T, Alloc>& rhs) noexcept
       : ptr_(rhs.ptr_) {
-    if (ptr_ != nullptr) {
-      ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
-    }
+    ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
   }
   weak_compact_ptr(const weak_compact_ptr& rhs) noexcept : ptr_(rhs.ptr_) {
-    if (ptr_ != nullptr) {
-      ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
-    }
+    ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
   }
-  weak_compact_ptr(weak_compact_ptr&& rhs) noexcept
-      : ptr_(std::exchange(rhs.ptr_, nullptr)) {}
+  weak_compact_ptr(weak_compact_ptr&& rhs) = delete;
   ~weak_compact_ptr() noexcept {
-    if (ptr_ != nullptr &&
-        ptr_->weak_count.fetch_sub(1u, std::memory_order::acq_rel) == 1) {
+    if (ptr_->weak_count.fetch_sub(1u, std::memory_order::acq_rel) == 1) {
       deallocate(ptr_->alloc, ptr_);
     }
   }
-  strong_compact_ptr<T, Alloc> lock() const noexcept {
+  strong_weak_compact_ptr_storage<T, Alloc>* lock() const noexcept {
     long ref_count = ptr_->strong_count.load(std::memory_order::relaxed);
     do {
       if (ref_count == 0) {
-        return strong_compact_ptr<T, Alloc>{nullptr};
+        return nullptr;
       }
     } while (!ptr_->strong_count.compare_exchange_weak(
         ref_count, ref_count + 1, std::memory_order::relaxed));
-    return strong_compact_ptr<T, Alloc>{ptr_};
+    return ptr_;
   }
 
 private:
@@ -1599,11 +1523,8 @@ concept proxiable_target =
     proxiable<details::observer_ptr<T&, const T&, T&&, const T&&>,
               observer_facade<F>>;
 
-template <class T>
-  requires(
-      details::relocatability_traits<T, constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<details::inplace_ptr<T>>
-    : std::true_type {};
+template <class T> requires(is_bitwise_trivially_relocatable_v<T>)
+struct is_bitwise_trivially_relocatable<details::inplace_ptr<T>> : std::true_type {};
 
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_inplace(Args&&... args) noexcept(
@@ -1639,33 +1560,24 @@ constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
 
 #if __STDC_HOSTED__
 template <class T, class D>
-  requires(
-      details::relocatability_traits<D, constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<std::unique_ptr<T, D>>
-    : std::true_type {};
+  requires(is_bitwise_trivially_relocatable_v<D>)
+struct is_bitwise_trivially_relocatable<std::unique_ptr<T, D>> : std::true_type {};
 template <class T>
-struct is_bitwise_trivially_relocatable_override<std::shared_ptr<T>>
-    : std::true_type {};
+struct is_bitwise_trivially_relocatable<std::shared_ptr<T>> : std::true_type {};
 template <class T>
-struct is_bitwise_trivially_relocatable_override<std::weak_ptr<T>>
-    : std::true_type {};
+struct is_bitwise_trivially_relocatable<std::weak_ptr<T>> : std::true_type {};
 template <class T, class Alloc>
-  requires(
-      details::relocatability_traits<Alloc,
-                                     constraint_level::trivial>::applicable)
-struct is_bitwise_trivially_relocatable_override<
-    details::allocated_ptr<T, Alloc>> : std::true_type {};
+  requires(is_bitwise_trivially_relocatable_v<Alloc>)
+struct is_bitwise_trivially_relocatable<details::allocated_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<details::compact_ptr<T, Alloc>>
-    : std::true_type {};
+struct is_bitwise_trivially_relocatable<details::compact_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
-    details::shared_compact_ptr<T, Alloc>> : std::true_type {};
+struct is_bitwise_trivially_relocatable<details::shared_compact_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
+struct is_bitwise_trivially_relocatable<
     details::strong_compact_ptr<T, Alloc>> : std::true_type {};
 template <class T, class Alloc>
-struct is_bitwise_trivially_relocatable_override<
+struct is_bitwise_trivially_relocatable<
     details::weak_compact_ptr<T, Alloc>> : std::true_type {};
 
 template <facade F, class T, class Alloc, class... Args>
@@ -1785,12 +1697,37 @@ struct cast_dispatch_base {
 };
 #undef PROD_DEF_CAST_ACCESSOR
 
+template <class P, class F1>
+struct upward_reloc_conversion_adapter {
+  explicit upward_reloc_conversion_adapter(proxy<F1>& self) noexcept : self_(self) {}
+  upward_reloc_conversion_adapter(const upward_reloc_conversion_adapter&) = delete;
+
+  template <class F2>
+  operator proxy<F2>() const noexcept(relocatability_traits<P, constraint_level::nothrow>::applicable) {
+    proxy<F2> ret;
+    if constexpr (is_bitwise_trivially_relocatable_v<P>) {
+      proxy_helper::trivially_relocate<P>(self_, ret);
+    } else {
+      proxy_helper::resetting_guard<P, F1> guard{self_};
+      std::construct_at(std::addressof(ret), proxy_helper::get_ptr<P, F1, qualifier_type::rv>(std::move(self_)));
+    }
+    return ret;
+  }
+
+private:
+  proxy<F1>& self_;
+};
 struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
-  template <class T>
-  PRO4D_STATIC_CALL(T&&, T&& self) noexcept {
-    return std::forward<T>(self);
+  template <class P, class F>
+  PRO4D_STATIC_CALL(auto, std::in_place_type_t<P>, proxy<F>&& self) noexcept {
+    return upward_reloc_conversion_adapter<P, F>{self};
+  }
+  template <class P, class F>
+  PRO4D_STATIC_CALL(decltype(auto), std::in_place_type_t<P>, const proxy<F>& self) noexcept {
+    return proxy_helper::get_ptr<P, F, qualifier_type::const_lv>(self);
   }
 };
+template <> struct reloc_dispatch_traits<upward_conversion_dispatch> : applicable_traits {};
 
 template <class T>
 struct explicit_conversion_adapter {
@@ -2011,28 +1948,31 @@ struct observer_facade_refl_impl {
       Rs...>;
 };
 
-template <class P>
-class nullable_ptr_adapter {
+template <class G>
+class nullable_proxy_adapter { // TODO: Reuse for get_weak
 public:
-  explicit nullable_ptr_adapter(P&& ptr) : ptr_(std::move(ptr)) {}
-  nullable_ptr_adapter(const nullable_ptr_adapter&) = delete;
+  explicit nullable_proxy_adapter(G gen) : gen_(std::move(gen)) {}
+  nullable_proxy_adapter(const nullable_proxy_adapter&) = delete;
   template <class F>
-  operator proxy<F>() noexcept {
-    if (static_cast<bool>(ptr_)) {
-      return std::move(ptr_);
-    } else {
-      return nullptr;
-    }
-  }
+  operator proxy<F>() noexcept { return gen_(std::in_place_type<F>); }
 
 private:
-  P ptr_;
+  G gen_;
 };
 template <class P>
 auto weak_lock_impl(const P& self) noexcept
   requires(requires { static_cast<bool>(self.lock()); })
 {
-  return nullable_ptr_adapter{self.lock()};
+  return nullable_proxy_adapter{[strong = self.lock()]<class F>(std::in_place_type_t<F>) mutable -> proxy<F> {
+    return strong ? proxy<F>{std::move(strong)} : proxy<F>{nullptr}; // TODO: simplify!!!
+  }};
+}
+template <class T, class Alloc>
+auto weak_lock_impl(const weak_compact_ptr<T, Alloc>& self) noexcept
+{
+  return nullable_proxy_adapter{[storage = self.lock_storage()]<class F>(std::in_place_type_t<F>) -> proxy<F> {
+    return storage ? proxy<F>{strong_compact_ptr<T, Alloc>{storage}} : proxy<F>{nullptr};
+  }};
 }
 PRO4_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
@@ -2202,6 +2142,10 @@ struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
     } && std::is_convertible_v<const P&, typename P::weak_type>)
   {
     return typename P::weak_type{self};
+  }
+  template <class T, class Alloc>
+  PRO4D_STATIC_CALL(auto, const strong_compact_ptr<T, Alloc>& self) noexcept {
+    return weak_compact_ptr{self}; // TODO: get weak storage and use an adapter
   }
 };
 template <class F>
@@ -2652,8 +2596,9 @@ template <class D>
 struct weak_dispatch : D {
   using D::operator();
   template <class... Args>
-  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, dispatch_default_t,
-                                 Args&&...) {
+  [[noreturn]] PRO4D_STATIC_CALL(details::wildcard, Args&&...)
+    requires(!std::is_invocable_v<D, Args...>)
+  {
     PRO4D_THROW(not_implemented{});
   }
 };

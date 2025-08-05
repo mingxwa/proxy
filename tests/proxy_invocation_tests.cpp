@@ -110,8 +110,8 @@ template <class F, class T>
 pro::proxy<Weak<F>> GetWeakImpl(const std::shared_ptr<T>& p) {
   return pro::make_proxy<Weak<F>, std::weak_ptr<T>>(p);
 }
-template <class F>
-pro::proxy<Weak<F>> GetWeakImpl(pro::dispatch_default_t, const pro::proxy<F>&) {
+template <class F, class T>
+pro::proxy<Weak<F>> GetWeakImpl(const T&) {
   return nullptr;
 }
 

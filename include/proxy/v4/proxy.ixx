@@ -12,7 +12,6 @@ using v4::bad_proxy_cast;
 using v4::basic_facade_builder;
 using v4::constraint_level;
 using v4::conversion_dispatch;
-using v4::dispatch_default_t;
 using v4::explicit_conversion_dispatch;
 using v4::facade;
 using v4::facade_aware_overload_t;
