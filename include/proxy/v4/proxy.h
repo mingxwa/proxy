@@ -1254,9 +1254,7 @@ public:
   converter(const converter&) = delete;
   template <class T>
   operator T() && noexcept(
-      std::is_nothrow_invocable_r_v<T, F, std::in_place_type_t<T>>)
-    requires(std::is_invocable_r_v<T, F, std::in_place_type_t<T>>)
-  {
+      std::is_nothrow_invocable_r_v<T, F, std::in_place_type_t<T>>) {
     return std::move(f_)(std::in_place_type<T>);
   }
 
@@ -1454,8 +1452,7 @@ public:
     }
   }
   auto get_weak() const noexcept {
-    return converter{[ptr = this->ptr_]<class F>(
-                         std::in_place_type_t<proxy<F>>) noexcept -> proxy<F> {
+    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
       ptr->weak_count.fetch_add(1, std::memory_order::relaxed);
       return proxy<F>{std::in_place_type<weak_compact_ptr<T, Alloc>>, ptr};
     }};
@@ -1491,8 +1488,7 @@ public:
     }
   }
   auto lock() const noexcept {
-    return converter{[ptr = this->ptr_]<class F>(
-                         std::in_place_type_t<proxy<F>>) noexcept -> proxy<F> {
+    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
       long ref_count = ptr->strong_count.load(std::memory_order::relaxed);
       do {
         if (ref_count == 0) {
