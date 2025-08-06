@@ -1255,7 +1255,7 @@ struct converter {
   operator T() && noexcept(
       std::is_nothrow_invocable_r_v<T, F, std::in_place_type_t<T>>)
     requires(std::is_invocable_r_v<T, F, std::in_place_type_t<T>>)
-  { {
+  {
     return std::move(f_)(std::in_place_type<T>);
   }
 
@@ -1453,7 +1453,6 @@ public:
     }
   }
   auto get_weak() const noexcept {
-    return converter{
     return converter{[ptr = this->ptr_]<class F>(
                          std::in_place_type_t<proxy<F>>) noexcept -> proxy<F> {
           ptr->weak_count.fetch_add(1, std::memory_order::relaxed);
