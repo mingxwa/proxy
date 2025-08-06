@@ -2001,10 +2001,13 @@ auto weak_lock_impl(const P& self) noexcept
     return strong ? proxy<F>{std::move(strong)} : proxy<F>{};
   }};
 }
+
+#if __STDC_HOSTED__
 template <class T, class Alloc>
 auto weak_lock_impl(const weak_compact_ptr<T, Alloc>& self) noexcept {
   return self.lock();
 }
+#endif // __STDC_HOSTED__
 PRO4_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
 template <class O>
@@ -2174,10 +2177,12 @@ struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
   {
     return typename P::weak_type{self};
   }
+#if __STDC_HOSTED__
   template <class T, class Alloc>
   PRO4D_STATIC_CALL(auto, const strong_compact_ptr<T, Alloc>& self) noexcept {
     return self.get_weak();
   }
+#endif // __STDC_HOSTED__
 };
 template <class F>
 using weak_conversion_overload = weak_proxy<F>() const noexcept;
