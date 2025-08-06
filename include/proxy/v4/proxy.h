@@ -1768,16 +1768,15 @@ struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
     return converter{
         [&self]<class F2>(std::in_place_type_t<proxy<F2>>) noexcept(
             relocatability_traits<P, constraint_level::nothrow>::applicable) {
-          proxy<F2> ret;
           if constexpr (is_bitwise_trivially_relocatable_v<P>) {
+            proxy<F2> ret;
             proxy_helper::trivially_relocate<P>(self, ret);
+            return ret;
           } else {
             proxy_helper::resetting_guard<P, F> guard{self};
-            std::construct_at(std::addressof(ret),
-                              proxy_helper::get_ptr<P, F, qualifier_type::rv>(
-                                  std::move(self)));
+            return proxy<F2>{proxy_helper::get_ptr<P, F, qualifier_type::rv>(
+                                  std::move(self))};
           }
-          return ret;
         }};
   }
   template <class P, class F>
