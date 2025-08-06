@@ -1256,11 +1256,11 @@ class converter {
 public:
   explicit converter(F f) noexcept : f_(std::move(f)) {}
   converter(const converter&) = delete;
-template <class T>
-    operator T() &&
-    PRO4D_DIRECT_FUNC_IMPL(std::move(this->f_)(std::in_place_type<T>))
-
-        private : F f_;
+  template <class T>
+  operator T() && noexcept(std::is_nothrow_invocable_r_v<T, F, std::in_place_type_t<T>>) requires(std::is_invocable_r_v<T, F, std::in_place_type_t<T>>)
+  {return std::move(this->f_)(std::in_place_type<T>);}
+private:
+  F f_;
 };
 
 template <class LR, class CLR, class RR, class CRR>
