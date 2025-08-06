@@ -104,12 +104,8 @@ template <template <class...> class T, class TL, class... Args>
 using instantiated_t = typename instantiated_traits<
     T, TL, std::make_index_sequence<std::tuple_size_v<TL>>, Args...>::type;
 
-template <class O>
-struct overload_traits;
 template <class F>
 struct basic_facade_traits;
-template <class F>
-struct facade_traits;
 
 } // namespace details
 
@@ -208,80 +204,6 @@ template <class T>
 struct destructibility_traits<T, constraint_level::trivial>
     : applicable_traits {};
 
-template <class F, bool IsDirect, class D, class O>
-struct invocation_meta {
-  constexpr invocation_meta() = default;
-  template <class P>
-  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
-      : dispatcher(overload_traits<O>::template dispatcher<P, F, IsDirect, D>) {
-  }
-
-  typename overload_traits<O>::template dispatcher_type<F> dispatcher;
-};
-
-template <class... Ms>
-struct composite_meta_impl : Ms... {
-  constexpr composite_meta_impl() noexcept = default;
-  template <class P>
-  constexpr explicit composite_meta_impl(std::in_place_type_t<P>) noexcept
-      : Ms(std::in_place_type<P>)... {}
-};
-template <class O, class I>
-struct meta_reduction : std::type_identity<O> {};
-template <class... Ms, class I>
-  requires(!std::is_void_v<I>)
-struct meta_reduction<composite_meta_impl<Ms...>, I>
-    : std::type_identity<composite_meta_impl<Ms..., I>> {};
-template <class... Ms1, class... Ms2>
-struct meta_reduction<composite_meta_impl<Ms1...>, composite_meta_impl<Ms2...>>
-    : std::type_identity<composite_meta_impl<Ms1..., Ms2...>> {};
-template <class... Ms>
-using composite_meta =
-    recursive_reduction_t<reduction_traits<meta_reduction>::template type,
-                          composite_meta_impl<>, Ms...>;
-
-using ptr_prototype = void* [2];
-template <class M>
-struct meta_ptr_indirect_impl {
-  constexpr meta_ptr_indirect_impl() = default;
-  template <class P>
-  constexpr explicit meta_ptr_indirect_impl(std::in_place_type_t<P>) noexcept
-      : ptr_(&storage<P>) {}
-  bool has_value() const noexcept { return ptr_ != nullptr; }
-  void reset() noexcept { ptr_ = nullptr; }
-  const M* operator->() const noexcept { return ptr_; }
-
-private:
-  const M* ptr_;
-  template <class P>
-  static constexpr M storage{std::in_place_type<P>};
-};
-template <class M, class DM>
-struct meta_ptr_direct_impl : private M {
-  using M::M;
-  bool has_value() const noexcept { return this->DM::dispatcher != nullptr; }
-  void reset() noexcept { this->DM::dispatcher = nullptr; }
-  const M* operator->() const noexcept { return this; }
-};
-template <class M>
-struct meta_ptr_traits_impl : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class F, bool IsDirect, class D, class O, class... Ms>
-struct meta_ptr_traits_impl<
-    composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>>
-    : std::type_identity<meta_ptr_direct_impl<
-          composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>,
-          invocation_meta<F, IsDirect, D, O>>> {};
-template <class M>
-struct meta_ptr_traits : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class M>
-  requires(sizeof(M) <= sizeof(ptr_prototype) &&
-           alignof(M) <= alignof(ptr_prototype) &&
-           std::is_nothrow_default_constructible_v<M> &&
-           std::is_trivially_copyable_v<M>)
-struct meta_ptr_traits<M> : meta_ptr_traits_impl<M> {};
-template <class M>
-using meta_ptr = typename meta_ptr_traits<M>::type;
-
 struct proxy_helper {
   template <class P, class F>
   struct resetting_guard {
@@ -308,8 +230,7 @@ struct proxy_helper {
   template <class P, class F1, class F2>
   static void trivially_relocate(proxy<F1>& from, proxy<F2>& to) noexcept {
     std::uninitialized_copy_n(from.ptr_, sizeof(P), to.ptr_);
-    to.meta_ =
-        meta_ptr<typename facade_traits<F2>::meta>{std::in_place_type<P>};
+    to.meta_ = decltype(proxy<F2>::meta_){std::in_place_type<P>};
     from.meta_.reset();
   }
 };
@@ -459,6 +380,38 @@ consteval bool diagnose_proxiable_required_convention_not_implemented() {
                 "not proxiable due to a required convention not implemented");
   return verdict;
 }
+
+template <class F, bool IsDirect, class D, class O>
+struct invocation_meta {
+  constexpr invocation_meta() = default;
+  template <class P>
+  constexpr explicit invocation_meta(std::in_place_type_t<P>) noexcept
+      : dispatcher(overload_traits<O>::template dispatcher<P, F, IsDirect, D>) {
+  }
+
+  typename overload_traits<O>::template dispatcher_type<F> dispatcher;
+};
+
+template <class... Ms>
+struct composite_meta_impl : Ms... {
+  constexpr composite_meta_impl() noexcept = default;
+  template <class P>
+  constexpr explicit composite_meta_impl(std::in_place_type_t<P>) noexcept
+      : Ms(std::in_place_type<P>)... {}
+};
+template <class O, class I>
+struct meta_reduction : std::type_identity<O> {};
+template <class... Ms, class I>
+  requires(!std::is_void_v<I>)
+struct meta_reduction<composite_meta_impl<Ms...>, I>
+    : std::type_identity<composite_meta_impl<Ms..., I>> {};
+template <class... Ms1, class... Ms2>
+struct meta_reduction<composite_meta_impl<Ms1...>, composite_meta_impl<Ms2...>>
+    : std::type_identity<composite_meta_impl<Ms1..., Ms2...>> {};
+template <class... Ms>
+using composite_meta =
+    recursive_reduction_t<reduction_traits<meta_reduction>::template type,
+                          composite_meta_impl<>, Ms...>;
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
@@ -867,6 +820,48 @@ struct facade_traits<F>
       facade_traits::template conv_applicable_ptr<P> &&
       facade_traits::template refl_applicable_ptr<P>;
 };
+
+using ptr_prototype = void* [2];
+template <class M>
+struct meta_ptr_indirect_impl {
+  constexpr meta_ptr_indirect_impl() = default;
+  template <class P>
+  constexpr explicit meta_ptr_indirect_impl(std::in_place_type_t<P>) noexcept
+      : ptr_(&storage<P>) {}
+  bool has_value() const noexcept { return ptr_ != nullptr; }
+  void reset() noexcept { ptr_ = nullptr; }
+  const M* operator->() const noexcept { return ptr_; }
+
+private:
+  const M* ptr_;
+  template <class P>
+  static constexpr M storage{std::in_place_type<P>};
+};
+template <class M, class DM>
+struct meta_ptr_direct_impl : private M {
+  using M::M;
+  bool has_value() const noexcept { return this->DM::dispatcher != nullptr; }
+  void reset() noexcept { this->DM::dispatcher = nullptr; }
+  const M* operator->() const noexcept { return this; }
+};
+template <class M>
+struct meta_ptr_traits_impl : std::type_identity<meta_ptr_indirect_impl<M>> {};
+template <class F, bool IsDirect, class D, class O, class... Ms>
+struct meta_ptr_traits_impl<
+    composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>>
+    : std::type_identity<meta_ptr_direct_impl<
+          composite_meta_impl<invocation_meta<F, IsDirect, D, O>, Ms...>,
+          invocation_meta<F, IsDirect, D, O>>> {};
+template <class M>
+struct meta_ptr_traits : std::type_identity<meta_ptr_indirect_impl<M>> {};
+template <class M>
+  requires(sizeof(M) <= sizeof(ptr_prototype) &&
+           alignof(M) <= alignof(ptr_prototype) &&
+           std::is_nothrow_default_constructible_v<M> &&
+           std::is_trivially_copyable_v<M>)
+struct meta_ptr_traits<M> : meta_ptr_traits_impl<M> {};
+template <class M>
+using meta_ptr = typename meta_ptr_traits<M>::type;
 
 template <class T>
 class inplace_ptr {
