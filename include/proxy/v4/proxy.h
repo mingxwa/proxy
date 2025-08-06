@@ -58,7 +58,7 @@ struct inapplicable_traits {
 };
 
 template <template <class, class> class R, class O, class... Is>
-struct recursive_reduction { using type = O; };
+struct recursive_reduction : std::type_identity<O> {};
 template <template <class, class> class R, class O, class I, class... Is>
 struct recursive_reduction<R, O, I, Is...>
     : recursive_reduction<R, R<O, I>, Is...> {};
