@@ -1452,10 +1452,11 @@ public:
     }
   }
   auto get_weak() const noexcept {
-    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
-      ptr->weak_count.fetch_add(1, std::memory_order::relaxed);
-      return proxy<F>{std::in_place_type<weak_compact_ptr<T, Alloc>>, ptr};
-    }};
+    return converter{
+        [ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
+          ptr->weak_count.fetch_add(1, std::memory_order::relaxed);
+          return proxy<F>{std::in_place_type<weak_compact_ptr<T, Alloc>>, ptr};
+        }};
   }
   T* operator->() noexcept {
     return std::launder(reinterpret_cast<T*>(&this->ptr_->value));
@@ -1488,7 +1489,8 @@ public:
     }
   }
   auto lock() const noexcept {
-    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
+    return converter{[ptr = this->ptr_]<class F>(
+                         std::in_place_type_t<proxy<F>>) noexcept {
       long ref_count = ptr->strong_count.load(std::memory_order::relaxed);
       do {
         if (ref_count == 0) {
