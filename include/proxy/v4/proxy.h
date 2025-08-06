@@ -300,7 +300,7 @@ struct proxy_helper {
   }
   template <class P, class F1, class F2>
   static void trivially_relocate(proxy<F1>& from, proxy<F2>& to) noexcept {
-    std::ranges::uninitialized_copy_n(&from.ptr_, sizeof(P), &to.ptr_);
+    std::uninitialized_copy_n(from.ptr_, sizeof(P), to.ptr_);
     to.meta_ = meta_ptr<typename facade_traits<F2>::meta>{std::in_place_type<P>};
     from.meta_.reset();
   }
@@ -1221,6 +1221,18 @@ private:
 
 namespace details {
 
+template <class F>
+class converter {
+public:
+  explicit converter(F f) noexcept : f_(std::move(f)) {}
+  converter(const converter&) = delete;
+  template <class T>
+  operator T() && PRO4D_DIRECT_FUNC_IMPL(std::move(this->f_)(std::in_place_type<T>))
+
+private:
+  F f_;
+};
+
 template <class LR, class CLR, class RR, class CRR>
 struct observer_ptr {
 public:
@@ -1382,7 +1394,6 @@ class weak_compact_ptr;
 template <class T, class Alloc>
 class strong_compact_ptr PROD_TR_IF_ELIGIBLE
     : public indirect_ptr<strong_weak_compact_ptr_storage<T, Alloc>> {
-  friend class weak_compact_ptr<T, Alloc>;
   using Storage = strong_weak_compact_ptr_storage<T, Alloc>;
 
 public:
@@ -1405,9 +1416,11 @@ public:
       }
     }
   }
-  strong_weak_compact_ptr_storage<T, Alloc>* make_weak() const noexcept {
-    this->ptr_->weak_count.fetch_add(1, std::memory_order::relaxed);
-    return this->ptr_;
+  auto get_weak() const noexcept {
+    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
+      ptr->weak_count.fetch_add(1, std::memory_order::relaxed);
+      return proxy<F>{std::in_place_type<weak_compact_ptr<T, Alloc>>, ptr};
+    }};
   }
   T* operator->() noexcept {
     return std::launder(reinterpret_cast<T*>(&this->ptr_->value));
@@ -1437,15 +1450,16 @@ public:
       deallocate(ptr_->alloc, ptr_);
     }
   }
-  strong_weak_compact_ptr_storage<T, Alloc>* lock() const noexcept {
-    long ref_count = ptr_->strong_count.load(std::memory_order::relaxed);
-    do {
-      if (ref_count == 0) {
-        return nullptr;
-      }
-    } while (!ptr_->strong_count.compare_exchange_weak(
-        ref_count, ref_count + 1, std::memory_order::relaxed));
-    return ptr_;
+  auto lock() const noexcept {
+    return converter{[ptr = this->ptr_]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
+      long ref_count = ptr->strong_count.load(std::memory_order::relaxed);
+      do {
+        if (ref_count == 0) {
+          return proxy<F>{};
+        }
+      } while (!ptr->strong_count.compare_exchange_weak(ref_count, ref_count + 1, std::memory_order::relaxed));
+      return proxy<F>{std::in_place_type<strong_compact_ptr<T, Alloc>>, ptr};
+    }};
   }
 
 private:
@@ -1697,30 +1711,19 @@ struct cast_dispatch_base {
 };
 #undef PROD_DEF_CAST_ACCESSOR
 
-template <class P, class F1>
-struct upward_reloc_conversion_adapter {
-  explicit upward_reloc_conversion_adapter(proxy<F1>& self) noexcept : self_(self) {}
-  upward_reloc_conversion_adapter(const upward_reloc_conversion_adapter&) = delete;
-
-  template <class F2>
-  operator proxy<F2>() const noexcept(relocatability_traits<P, constraint_level::nothrow>::applicable) {
-    proxy<F2> ret;
-    if constexpr (is_bitwise_trivially_relocatable_v<P>) {
-      proxy_helper::trivially_relocate<P>(self_, ret);
-    } else {
-      proxy_helper::resetting_guard<P, F1> guard{self_};
-      std::construct_at(std::addressof(ret), proxy_helper::get_ptr<P, F1, qualifier_type::rv>(std::move(self_)));
-    }
-    return ret;
-  }
-
-private:
-  proxy<F1>& self_;
-};
 struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
   template <class P, class F>
   PRO4D_STATIC_CALL(auto, std::in_place_type_t<P>, proxy<F>&& self) noexcept {
-    return upward_reloc_conversion_adapter<P, F>{self};
+    return converter{[&self]<class F2>(std::in_place_type_t<proxy<F2>>) noexcept(relocatability_traits<P, constraint_level::nothrow>::applicable) {
+      proxy<F2> ret;
+      if constexpr (is_bitwise_trivially_relocatable_v<P>) {
+        proxy_helper::trivially_relocate<P>(self, ret);
+      } else {
+        proxy_helper::resetting_guard<P, F> guard{self};
+        std::construct_at(std::addressof(ret), proxy_helper::get_ptr<P, F, qualifier_type::rv>(std::move(self)));
+      }
+      return ret;
+    }};
   }
   template <class P, class F>
   PRO4D_STATIC_CALL(decltype(auto), std::in_place_type_t<P>, const proxy<F>& self) noexcept {
@@ -1728,23 +1731,6 @@ struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
   }
 };
 template <> struct reloc_dispatch_traits<upward_conversion_dispatch> : applicable_traits {};
-
-template <class T>
-struct explicit_conversion_adapter {
-  explicit explicit_conversion_adapter(T&& value) noexcept
-      : value_(std::forward<T>(value)) {}
-  explicit_conversion_adapter(const explicit_conversion_adapter&) = delete;
-
-  template <class U>
-  operator U() const noexcept(std::is_nothrow_constructible_v<U, T>)
-    requires(std::is_constructible_v<U, T>)
-  {
-    return U{std::forward<T>(value_)};
-  }
-
-private:
-  T&& value_;
-};
 
 inline constexpr std::size_t invalid_size =
     std::numeric_limits<std::size_t>::max();
@@ -1948,31 +1934,18 @@ struct observer_facade_refl_impl {
       Rs...>;
 };
 
-template <class G>
-class nullable_proxy_adapter { // TODO: Reuse for get_weak
-public:
-  explicit nullable_proxy_adapter(G gen) : gen_(std::move(gen)) {}
-  nullable_proxy_adapter(const nullable_proxy_adapter&) = delete;
-  template <class F>
-  operator proxy<F>() noexcept { return gen_(std::in_place_type<F>); }
-
-private:
-  G gen_;
-};
 template <class P>
 auto weak_lock_impl(const P& self) noexcept
   requires(requires { static_cast<bool>(self.lock()); })
 {
-  return nullable_proxy_adapter{[strong = self.lock()]<class F>(std::in_place_type_t<F>) mutable -> proxy<F> {
-    return strong ? proxy<F>{std::move(strong)} : proxy<F>{nullptr}; // TODO: simplify!!!
+  return converter{[&self]<class F>(std::in_place_type_t<proxy<F>>) noexcept {
+    auto strong = self.lock();
+    return strong ? proxy<F>{std::move(strong)} : proxy<F>{};
   }};
 }
 template <class T, class Alloc>
-auto weak_lock_impl(const weak_compact_ptr<T, Alloc>& self) noexcept
-{
-  return nullable_proxy_adapter{[storage = self.lock_storage()]<class F>(std::in_place_type_t<F>) -> proxy<F> {
-    return storage ? proxy<F>{strong_compact_ptr<T, Alloc>{storage}} : proxy<F>{nullptr};
-  }};
+auto weak_lock_impl(const weak_compact_ptr<T, Alloc>& self) noexcept {
+  return self.lock();
 }
 PRO4_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
@@ -2145,7 +2118,7 @@ struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
   }
   template <class T, class Alloc>
   PRO4D_STATIC_CALL(auto, const strong_compact_ptr<T, Alloc>& self) noexcept {
-    return weak_compact_ptr{self}; // TODO: get weak storage and use an adapter
+    return self.get_weak();
   }
 };
 template <class F>
@@ -2580,7 +2553,8 @@ struct implicit_conversion_dispatch
 struct explicit_conversion_dispatch : details::cast_dispatch_base<true, false> {
   template <class T>
   PRO4D_STATIC_CALL(auto, T&& self) noexcept {
-    return details::explicit_conversion_adapter<T>{std::forward<T>(self)};
+    return details::converter{[&self]<class U>(std::in_place_type_t<U>) noexcept(std::is_nothrow_constructible_v<U, T>)
+    requires(std::is_constructible_v<U, T>) { return U{std::forward<T>(self)}; }};
   }
 };
 using conversion_dispatch = explicit_conversion_dispatch;
