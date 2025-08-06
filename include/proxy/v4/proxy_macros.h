@@ -119,9 +119,10 @@
   }
 #define PRO4D_DEF_FREE_DISPATCH_IMPL(name, impl, func)                         \
   struct name {                                                                \
-    template <class... ProArgs>                                                \
-    PRO4D_STATIC_CALL(decltype(auto), ProArgs&&... pro_args)                   \
-    PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProArgs>(pro_args)...))         \
+    template <class ProT, class... ProArgs>                                    \
+    PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
+    PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProT>(pro_self),                \
+                                ::std::forward<ProArgs>(pro_args)...))         \
         PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, func)       \
   }
 #define PRO4D_DEF_FREE_DISPATCH_2(name, impl)                                  \
@@ -133,9 +134,10 @@
 
 #define PRO4D_DEF_FREE_AS_MEM_DISPATCH_IMPL(name, impl, func)                  \
   struct name {                                                                \
-    template <class... ProArgs>                                                \
-    PRO4D_STATIC_CALL(decltype(auto), ProArgs&&... pro_args)                   \
-    PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProArgs>(pro_args)...))         \
+    template <class ProT, class... ProArgs>                                    \
+    PRO4D_STATIC_CALL(decltype(auto), ProT&& pro_self, ProArgs&&... pro_args)  \
+    PRO4D_DIRECT_FUNC_IMPL(impl(::std::forward<ProT>(pro_self),                \
+                                ::std::forward<ProArgs>(pro_args)...))         \
         PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_MEM_ACCESSOR, func)        \
   }
 #define PRO4D_DEF_FREE_AS_MEM_DISPATCH_2(name, impl)                           \

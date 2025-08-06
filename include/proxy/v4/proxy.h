@@ -1261,7 +1261,7 @@ public:
       std::is_nothrow_invocable_r_v<T, F, std::in_place_type_t<T>>)
     requires(std::is_invocable_r_v<T, F, std::in_place_type_t<T>>)
   {
-    return std::move(this->f_)(std::in_place_type<T>);
+    return std::move(f_)(std::in_place_type<T>);
   }
 
 private:
