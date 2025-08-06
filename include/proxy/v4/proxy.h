@@ -822,6 +822,7 @@ struct facade_traits<F>
 };
 
 using ptr_prototype = void* [2];
+
 template <class M>
 struct meta_ptr_indirect_impl {
   constexpr meta_ptr_indirect_impl() = default;
