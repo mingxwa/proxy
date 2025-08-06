@@ -47,9 +47,8 @@ namespace pro {
 
 template <bool kNothrowRelocatable, bool kCopyable, bool kTrivial,
           std::size_t kSize, std::size_t kAlignment>
-struct is_bitwise_trivially_relocatable<
-    proxy_traits_tests_details::MockPtr<kNothrowRelocatable, kCopyable,
-                                        kTrivial, kSize, kAlignment>>
+struct is_bitwise_trivially_relocatable<proxy_traits_tests_details::MockPtr<
+    kNothrowRelocatable, kCopyable, kTrivial, kSize, kAlignment>>
     : std::true_type {};
 
 } // namespace pro
