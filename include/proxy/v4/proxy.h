@@ -1776,7 +1776,7 @@ struct upward_conversion_dispatch : cast_dispatch_base<false, true> {
           } else {
             proxy_helper::resetting_guard<P, F> guard{self};
             return proxy<F2>{proxy_helper::get_ptr<P, F, qualifier_type::rv>(
-                                  std::move(self))};
+                std::move(self))};
           }
         }};
   }
