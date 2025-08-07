@@ -558,9 +558,7 @@ template <>
 struct reloc_dispatch_traits<relocate_dispatch> : applicable_traits {};
 struct destroy_dispatch {
   template <class T>
-  PRO4D_STATIC_CALL(void, T& self) noexcept(std::is_nothrow_destructible_v<T>)
-    requires(std::is_destructible_v<T>)
-  {
+  PRO4D_STATIC_CALL(void, T& self) noexcept(std::is_nothrow_destructible_v<T>) {
     std::destroy_at(&self);
   }
 };
@@ -1264,7 +1262,7 @@ private:
 };
 
 template <class LR, class CLR, class RR, class CRR>
-struct observer_ptr {
+class observer_ptr {
 public:
   explicit observer_ptr(LR lr) : lr_(lr) {}
   observer_ptr(const observer_ptr&) = default;
@@ -1300,7 +1298,6 @@ void deallocate(const Alloc& alloc, T* ptr) {
 }
 template <class Alloc>
 struct alloc_aware {
-public:
   explicit alloc_aware(const Alloc& alloc) noexcept : alloc(alloc) {}
   alloc_aware(const alloc_aware&) noexcept = default;
 
