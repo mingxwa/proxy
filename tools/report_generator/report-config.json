@@ -9,9 +9,14 @@
       "BenchmarkingResultsPath": "artifacts/drop-msvc/benchmarking-results.json"
     },
     {
-      "Description": "GCC on Ubuntu",
-      "InfoPath": "artifacts/drop-gcc/env-info.json",
-      "BenchmarkingResultsPath": "artifacts/drop-gcc/benchmarking-results.json"
+      "Description": "GCC on Ubuntu (x64)",
+      "InfoPath": "artifacts/drop-gcc-x64/env-info.json",
+      "BenchmarkingResultsPath": "artifacts/drop-gcc-x64/benchmarking-results.json"
+    },
+    {
+      "Description": "GCC on Ubuntu (ARM64)",
+      "InfoPath": "artifacts/drop-gcc-ARM64/env-info.json",
+      "BenchmarkingResultsPath": "artifacts/drop-gcc-ARM64/benchmarking-results.json"
     },
     {
       "Description": "Clang on Ubuntu",
