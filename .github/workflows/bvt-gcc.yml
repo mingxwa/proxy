@@ -3,7 +3,15 @@ on:
 
 jobs:
   bvt-gcc:
-    runs-on: ubuntu-24.04
+    name: bvt-gcc-${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            os: ubuntu-24.04
+          - arch: arm64
+            os: ubuntu-latest-arm64
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
 
@@ -31,5 +39,5 @@ jobs:
     - name: archive benchmarking results
       uses: actions/upload-artifact@v4
       with:
-        name: drop-gcc
+        name: drop-gcc-${{ matrix.arch }}
         path: build/drop/
