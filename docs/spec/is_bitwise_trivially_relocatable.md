@@ -36,10 +36,10 @@ In addition to the primary template, the implementation provides (positive) spec
 - `std::unique_ptr<T, D>` when `D` is bitwise trivially relocatable
 - `std::shared_ptr<T>`
 - `std::weak_ptr<T>`
-- *inplace-ptr\<T\>* when `T` is bitwise trivially relocatable (see [function template `make_proxy_inplace`](make_proxy_inplace.md))
-- *allocated-ptr\<T, Alloc\>* (see [function template `allocate_proxy`](allocate_proxy.md))
-- *strong-compact-ptr\<T, Alloc\>* (see [function template `allocate_proxy_shared`](allocate_proxy_shared.md))
-- *weak-compact-ptr\<T, Alloc\>* (see [function template `allocate_proxy_shared`](allocate_proxy_shared.md))
+- *inplace-ptr&lt;T&gt;* when `T` is bitwise trivially relocatable (see [function template `make_proxy_inplace`](make_proxy_inplace.md))
+- *allocated-ptr&lt;T, Alloc&gt;* (see [function template `allocate_proxy`](allocate_proxy.md))
+- *strong-compact-ptr&lt;T, Alloc&gt;* (see [function template `allocate_proxy_shared`](allocate_proxy_shared.md))
+- *weak-compact-ptr&lt;T, Alloc&gt;* (see [function template `allocate_proxy_shared`](allocate_proxy_shared.md))
 
 These specializations reflect empirical knowledge of the representations of common "fancy pointer" types: relocating them with a raw byte copy preserves their invariants, and skipping destructor invocation of the source object has no observable effect beyond finalization already accounted for in the target representation.
 
