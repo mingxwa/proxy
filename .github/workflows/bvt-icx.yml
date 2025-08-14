@@ -9,9 +9,10 @@ jobs:
 
     - name: install intel oneapi
       run: |
-        wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2024.1.0/l_oneapi_cli_2024.1.0.686_linux.sh
-        chmod +x l_oneapi_cli_2024.1.0.686_linux.sh
-        sudo ./l_oneapi_cli_2024.1.0.686_linux.sh --silent --eula accept --components intel.oneapi.lin.dpcpp-compiler
+        sudo wget -qO /etc/apt/trusted.gpg.d/intel-oneapi.asc https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/intel-oneapi.list
+        sudo apt update
+        sudo apt install -y intel-oneapi-compiler-dpcpp-cpp
         source /opt/intel/oneapi/setvars.sh
         echo "PATH=$PATH" >> $GITHUB_ENV
         echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
