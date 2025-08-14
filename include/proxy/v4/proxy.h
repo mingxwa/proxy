@@ -1115,24 +1115,16 @@ public:
     requires(F::relocatability >= constraint_level::nontrivial ||
              F::copyability == constraint_level::trivial)
   {
-    if constexpr (F::relocatability == constraint_level::trivial ||
-                  F::copyability == constraint_level::trivial) {
-      std::swap(meta_, rhs.meta_);
-      for (std::size_t i = 0; i < F::max_size; ++i) {
-        std::swap(ptr_[i], rhs.ptr_[i]);
-      }
-    } else {
-      if (meta_.has_value()) {
-        if (rhs.meta_.has_value()) {
-          proxy temp = std::move(*this);
-          initialize(std::move(rhs));
-          rhs.initialize(std::move(temp));
-        } else {
-          rhs.initialize(std::move(*this));
-        }
-      } else if (rhs.meta_.has_value()) {
+    if (meta_.has_value()) {
+    if (rhs.meta_.has_value()) {
+        proxy temp = std::move(*this);
         initialize(std::move(rhs));
-      }
+        rhs.initialize(std::move(temp));
+    } else {
+        rhs.initialize(std::move(*this));
+    }
+    } else if (rhs.meta_.has_value()) {
+    initialize(std::move(rhs));
     }
   }
   template <class P, class... Args>
