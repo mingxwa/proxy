@@ -1118,7 +1118,7 @@ public:
     if constexpr (F::relocatability == constraint_level::trivial ||
                   F::copyability == constraint_level::trivial) {
       std::swap(meta_, rhs.meta_);
-      std::swap(ptr_, rhs.ptr_);
+      std::swap(*std::launder(&ptr_), *std::launder(&rhs.ptr_));
     } else {
       if (meta_.has_value()) {
         if (rhs.meta_.has_value()) {
