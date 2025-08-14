@@ -7,22 +7,30 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: install libc++
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 20
+        sudo apt-get install -y libc++-20-dev
+
     - name: install intel oneapi
       run: |
         sudo wget -qO /etc/apt/trusted.gpg.d/intel-oneapi.asc https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/intel-oneapi.list
         sudo apt update
         sudo apt install -y intel-oneapi-compiler-dpcpp-cpp
+        source /opt/intel/oneapi/setvars.sh
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: check compiler version
       run: |
-        source /opt/intel/oneapi/setvars.sh
         icx --version
 
     - name: build and run test with icx
       run: |
-        source /opt/intel/oneapi/setvars.sh
-        cmake -B build -GNinja -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=TRUE
+        cmake -B build -GNinja -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=TRUE -DCMAKE_CXX_FLAGS="-stdlib=libc++"
         cmake --build build -j
         ctest --test-dir build -j
         mkdir build/drop
