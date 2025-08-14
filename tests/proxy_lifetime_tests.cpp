@@ -1112,10 +1112,10 @@ TEST(ProxyLifetimeTests, TestSwap_Trivial) {
   pro::proxy<details::TestTrivialFacade> p1 =
       pro::make_proxy<details::TestTrivialFacade>(123);
   pro::proxy<details::TestTrivialFacade> p2 =
-      pro::make_proxy<details::TestTrivialFacade>(456);
+      pro::make_proxy<details::TestTrivialFacade>('A');
   swap(p1, p2);
   ASSERT_TRUE(p1.has_value());
-  ASSERT_EQ(ToString(*p1), "456");
+  ASSERT_EQ(ToString(*p1), "65");
   ASSERT_TRUE(p2.has_value());
   ASSERT_EQ(ToString(*p2), "123");
 }
