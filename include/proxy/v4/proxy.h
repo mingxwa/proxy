@@ -1118,11 +1118,10 @@ public:
     if constexpr (F::relocatability == constraint_level::trivial ||
                   F::copyability == constraint_level::trivial) {
       std::swap(meta_, rhs.meta_);
-      for (std::size_t i = 0; i < F::max_size; ++i) {
-        std::byte b = ptr_[i];
-        ptr_[i] = rhs.ptr_[i];
-        rhs.ptr_[i] = b;
-      }
+      std::byte b[F::max_size];
+      std::ranges::uninitialized_copy(ptr_, b);
+      std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
+      std::ranges::uninitialized_copy(b, rhs.ptr_);
     } else {
       if (meta_.has_value()) {
         if (rhs.meta_.has_value()) {

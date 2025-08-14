@@ -1115,9 +1115,9 @@ TEST(ProxyLifetimeTests, TestSwap_Trivial) {
       pro::make_proxy<details::TestTrivialFacade>(456);
   swap(p1, p2);
   ASSERT_TRUE(p1.has_value());
-  EXPECT_EQ(ToString(*p1), "456");
+  ASSERT_EQ(ToString(*p1), "456");
   ASSERT_TRUE(p2.has_value());
-  EXPECT_EQ(ToString(*p2), "123");
+  ASSERT_EQ(ToString(*p2), "123");
 }
 
 TEST(ProxyLifetimeTests, Test_DirectConvension_Lvalue) {
