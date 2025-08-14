@@ -1,0 +1,40 @@
+on:
+  workflow_call:
+
+jobs:
+  bvt-icx:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: install intel oneapi
+      run: |
+        wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2024.1.0/l_oneapi_cli_2024.1.0.686_linux.sh
+        chmod +x l_oneapi_cli_2024.1.0.686_linux.sh
+        sudo ./l_oneapi_cli_2024.1.0.686_linux.sh --silent --eula accept --components intel.oneapi.lin.dpcpp-compiler
+        source /opt/intel/oneapi/setvars.sh
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+    - name: check compiler version
+      run: |
+        icx --version
+
+    - name: build and run test with icx
+      run: |
+        cmake -B build -GNinja -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=TRUE
+        cmake --build build -j
+        ctest --test-dir build -j
+        mkdir build/drop
+        chmod +x tools/dump_build_env.sh
+        ./tools/dump_build_env.sh icx build/drop/env-info.json
+
+    - name: run benchmarks
+      run: |
+        build/benchmarks/msft_proxy_benchmarks --benchmark_min_warmup_time=0.1 --benchmark_min_time=0.1s --benchmark_repetitions=30 --benchmark_enable_random_interleaving=true --benchmark_report_aggregates_only=true --benchmark_format=json > build/drop/benchmarking-results.json
+
+    - name: archive benchmarking results
+      uses: actions/upload-artifact@v4
+      with:
+        name: drop-icx
+        path: build/drop/
