@@ -3,7 +3,7 @@
 > Header: `proxy.h`  
 > Module: `proxy`  
 > Namespace: `pro::inline v4`  
-> Since: 4.1.0
+> Since: 4.0.1
 
 ```cpp
 class substitution_dispatch;
