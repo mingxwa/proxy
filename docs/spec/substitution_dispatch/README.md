@@ -35,14 +35,13 @@ struct Runnable : pro::facade_builder                                    //
                   ::add_convention<pro::operator_dispatch<"()">, void()> //
                   ::build {};
 
-struct CopyableRunnable
-    : pro::facade_builder                               //
-      ::support_copy<pro::constraint_level::nontrivial> //
-      ::add_facade<Runnable>                            //
-      ::add_direct_convention<pro::substitution_dispatch,
-                              pro::proxy<Runnable>() const&,
-                              pro::proxy<Runnable>() &&> //
-      ::build {};
+struct CopyableRunnable : pro::facade_builder                               //
+                          ::support_copy<pro::constraint_level::nontrivial> //
+                          ::add_facade<Runnable>                            //
+                          ::add_direct_convention<pro::substitution_dispatch,
+                                                  pro::proxy<Runnable>() const&,
+                                                  pro::proxy<Runnable>() &&> //
+                          ::build {};
 
 int main() {
   pro::proxy<CopyableRunnable> p1 = pro::make_proxy<CopyableRunnable>(
