@@ -415,7 +415,7 @@ struct invocation_meta {
 };
 
 template <class... Ms>
-struct composite_meta : Ms... {
+struct PRO4D_ENFORCE_EBO composite_meta : Ms... {
   constexpr composite_meta() noexcept = default;
   template <class P>
   constexpr explicit composite_meta(std::in_place_type_t<P>) noexcept
@@ -500,6 +500,7 @@ struct conv_traits
 
 template <bool IsDirect, class R>
 struct refl_meta {
+  constexpr refl_meta() = default;
   template <class P>
     requires(IsDirect)
   constexpr explicit refl_meta(std::in_place_type_t<P>)
@@ -511,6 +512,7 @@ struct refl_meta {
             std::in_place_type<typename std::pointer_traits<P>::element_type>) {
   }
 
+  [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
   R reflector;
 };
 
@@ -1361,6 +1363,24 @@ template <bool IsDirect, class D, class Os>
 using instantiated_conv_t =
     instantiated_t<conv_instantiation_helper<IsDirect, D>::template type, Os>;
 
+template <class LR, class CLR, class RR, class CRR>
+class observer_ptr {
+public:
+  explicit observer_ptr(LR lr) : lr_(lr) {}
+  observer_ptr(const observer_ptr&) = default;
+  auto operator->() noexcept { return std::addressof(lr_); }
+  auto operator->() const noexcept {
+    return std::addressof(static_cast<CLR>(lr_));
+  }
+  LR operator*() & noexcept { return static_cast<LR>(lr_); }
+  CLR operator*() const& noexcept { return static_cast<CLR>(lr_); }
+  RR operator*() && noexcept { return static_cast<RR>(lr_); }
+  CRR operator*() const&& noexcept { return static_cast<CRR>(lr_); }
+
+private:
+  LR lr_;
+};
+
 template <class O>
 using observer_substitution_overload =
     proxy_view<typename overload_traits<O>::return_type::facade_type>()
@@ -1384,9 +1404,16 @@ struct observer_conv_traits<C> : std::type_identity<C> {};
 template <class... Cs>
 using observer_conv_types =
     composite_t<std::tuple<>, typename observer_conv_traits<Cs>::type...>;
+
+struct observer_only_reflector {
+  constexpr observer_only_reflector() = default;
+  template <class T>
+  constexpr explicit observer_only_reflector(std::in_place_type_t<T*>) {}
+  template <class LR, class CLR, class RR, class CRR>
+  constexpr explicit observer_only_reflector(std::in_place_type_t<observer_ptr<LR, CLR, RR, CRR>>) {}
+};
 template <class... Rs>
-using observer_refl_types =
-    composite_t<std::tuple<>, std::conditional_t<Rs::is_direct, void, Rs>...>;
+using observer_refl_types = composite_t<std::tuple<refl_impl<true, observer_only_reflector>>, std::conditional_t<Rs::is_direct, void, Rs>...>;
 
 template <class P>
 auto weak_lock_impl(const P& self) noexcept
@@ -1487,24 +1514,6 @@ struct weak_facade
 // =============================================================================
 
 namespace details {
-
-template <class LR, class CLR, class RR, class CRR>
-class observer_ptr {
-public:
-  explicit observer_ptr(LR lr) : lr_(lr) {}
-  observer_ptr(const observer_ptr&) = default;
-  auto operator->() noexcept { return std::addressof(lr_); }
-  auto operator->() const noexcept {
-    return std::addressof(static_cast<CLR>(lr_));
-  }
-  LR operator*() & noexcept { return static_cast<LR>(lr_); }
-  CLR operator*() const& noexcept { return static_cast<CLR>(lr_); }
-  RR operator*() && noexcept { return static_cast<RR>(lr_); }
-  CRR operator*() const&& noexcept { return static_cast<CRR>(lr_); }
-
-private:
-  LR lr_;
-};
 
 #if __STDC_HOSTED__
 template <class T, class Alloc, class... Args>
