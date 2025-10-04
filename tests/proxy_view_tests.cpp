@@ -138,11 +138,10 @@ TEST(ProxyViewTests, TestOverloadShadowing) {
 
 TEST(ProxyViewTests, TestSubstitution_FromNull) {
   struct TestFacade1 : pro::facade_builder::build {};
-  struct TestFacade2
-      : pro::facade_builder               //
-        ::add_facade<TestFacade1, true>   // Supports substitution
-        ::add_skill<pro::skills::as_view> //
-        ::build {};
+  struct TestFacade2 : pro::facade_builder             //
+                       ::add_facade<TestFacade1, true> // Supports substitution
+                       ::add_skill<pro::skills::as_view> //
+                       ::build {};
   pro::proxy<TestFacade2> p1;
   pro::proxy_view<TestFacade2> p2 = p1;
   pro::proxy_view<TestFacade1> p3 = p2;
@@ -156,12 +155,11 @@ TEST(ProxyViewTests, TestSubstitution_FromValue) {
       : pro::facade_builder                                              //
         ::add_convention<utils::spec::FreeToString, std::string() const> //
         ::build {};
-  struct TestFacade2
-      : pro::facade_builder                               //
-        ::support_copy<pro::constraint_level::nontrivial> //
-        ::add_facade<TestFacade1, true>   // Supports substitution
-        ::add_skill<pro::skills::as_view> //
-        ::build {};
+  struct TestFacade2 : pro::facade_builder                               //
+                       ::support_copy<pro::constraint_level::nontrivial> //
+                       ::add_facade<TestFacade1, true> // Supports substitution
+                       ::add_skill<pro::skills::as_view> //
+                       ::build {};
   pro::proxy<TestFacade2> p1 = pro::make_proxy<TestFacade2>(123);
   pro::proxy_view<TestFacade2> p2 = p1;
   pro::proxy_view<TestFacade1> p3 = p2;
