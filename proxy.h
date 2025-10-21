@@ -14,6 +14,9 @@
 
 namespace pro {
 
+template <class F>
+class proxy;
+
 enum class constraint_level { none, nontrivial, nothrow, trivial };
 
 struct proxiable_ptr_constraints {
