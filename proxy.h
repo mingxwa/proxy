@@ -14,9 +14,6 @@
 
 namespace pro {
 
-template <class F>
-class proxy;
-
 enum class constraint_level { none, nontrivial, nothrow, trivial };
 
 struct proxiable_ptr_constraints {
@@ -618,7 +615,7 @@ class proxy {
       requires(HasMoveConstructor) {
     if constexpr (F::constraints.relocatability == constraint_level::trivial) {
       std::swap(meta_, rhs.meta_);
-      std::swap(ptr_, rhs.ptr);
+      std::swap(ptr_, rhs.ptr_);
     } else {
       if (meta_.has_value()) {
         if (rhs.meta_.has_value()) {
