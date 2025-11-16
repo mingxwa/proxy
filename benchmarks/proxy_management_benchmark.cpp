@@ -59,8 +59,13 @@ struct PolymorphicObject : PolymorphicObjectBase {
 struct DefaultFacade : pro::facade_builder                               //
                        ::support_copy<pro::constraint_level::nontrivial> //
                        ::build {};
+struct NothrowRelocatableFacade
+    : pro::facade_builder                                  //
+      ::support_copy<pro::constraint_level::nontrivial>    //
+      ::support_relocation<pro::constraint_level::nothrow> //
+      ::build {};
 
-void BM_SmallObjectManagementWithProxy(benchmark::State& state) {
+void BM_SmallObjectCreationWithProxy(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<pro::proxy<DefaultFacade>> data;
     data.reserve(TestManagedObjectCount);
@@ -73,7 +78,7 @@ void BM_SmallObjectManagementWithProxy(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithProxy_Shared(benchmark::State& state) {
+void BM_SmallObjectCreationWithProxy_Shared(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<pro::proxy<DefaultFacade>> data;
     data.reserve(TestManagedObjectCount);
@@ -86,7 +91,7 @@ void BM_SmallObjectManagementWithProxy_Shared(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithProxy_SharedPooled(benchmark::State& state) {
+void BM_SmallObjectCreationWithProxy_SharedPooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
@@ -104,7 +109,7 @@ void BM_SmallObjectManagementWithProxy_SharedPooled(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithUniquePtr(benchmark::State& state) {
+void BM_SmallObjectCreationWithUniquePtr(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::unique_ptr<PolymorphicObjectBase>> data;
     data.reserve(TestManagedObjectCount);
@@ -120,7 +125,7 @@ void BM_SmallObjectManagementWithUniquePtr(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithSharedPtr(benchmark::State& state) {
+void BM_SmallObjectCreationWithSharedPtr(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::shared_ptr<void>> data;
     data.reserve(TestManagedObjectCount);
@@ -133,7 +138,7 @@ void BM_SmallObjectManagementWithSharedPtr(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithSharedPtr_Pooled(benchmark::State& state) {
+void BM_SmallObjectCreationWithSharedPtr_Pooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
@@ -148,7 +153,7 @@ void BM_SmallObjectManagementWithSharedPtr_Pooled(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectManagementWithAny(benchmark::State& state) {
+void BM_SmallObjectCreationWithAny(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::any> data;
     data.reserve(TestManagedObjectCount);
@@ -161,7 +166,24 @@ void BM_SmallObjectManagementWithAny(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithProxy(benchmark::State& state) {
+void BM_SmallObjectRelocationWithAny(benchmark::State& state) {
+  std::vector<std::any> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].emplace_back(SmallObject1{});
+    data[0].emplace_back(SmallObject2{});
+    data[0].emplace_back(SmallObject3{});
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectCreationWithProxy(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<pro::proxy<DefaultFacade>> data;
     data.reserve(TestManagedObjectCount);
@@ -174,7 +196,7 @@ void BM_LargeObjectManagementWithProxy(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithProxy_Pooled(benchmark::State& state) {
+void BM_LargeObjectCreationWithProxy_Pooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
@@ -189,7 +211,7 @@ void BM_LargeObjectManagementWithProxy_Pooled(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithProxy_Shared(benchmark::State& state) {
+void BM_LargeObjectCreationWithProxy_Shared(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<pro::proxy<DefaultFacade>> data;
     data.reserve(TestManagedObjectCount);
@@ -202,7 +224,7 @@ void BM_LargeObjectManagementWithProxy_Shared(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithProxy_SharedPooled(benchmark::State& state) {
+void BM_LargeObjectCreationWithProxy_SharedPooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
@@ -220,7 +242,7 @@ void BM_LargeObjectManagementWithProxy_SharedPooled(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithUniquePtr(benchmark::State& state) {
+void BM_LargeObjectCreationWithUniquePtr(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::unique_ptr<PolymorphicObjectBase>> data;
     data.reserve(TestManagedObjectCount);
@@ -236,7 +258,7 @@ void BM_LargeObjectManagementWithUniquePtr(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithSharedPtr(benchmark::State& state) {
+void BM_LargeObjectCreationWithSharedPtr(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::shared_ptr<void>> data;
     data.reserve(TestManagedObjectCount);
@@ -249,7 +271,7 @@ void BM_LargeObjectManagementWithSharedPtr(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithSharedPtr_Pooled(benchmark::State& state) {
+void BM_LargeObjectCreationWithSharedPtr_Pooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
@@ -264,7 +286,7 @@ void BM_LargeObjectManagementWithSharedPtr_Pooled(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectManagementWithAny(benchmark::State& state) {
+void BM_LargeObjectCreationWithAny(benchmark::State& state) {
   for (auto _ : state) {
     std::vector<std::any> data;
     data.reserve(TestManagedObjectCount);
@@ -277,20 +299,195 @@ void BM_LargeObjectManagementWithAny(benchmark::State& state) {
   }
 }
 
-BENCHMARK(BM_SmallObjectManagementWithProxy);
-BENCHMARK(BM_SmallObjectManagementWithProxy_Shared);
-BENCHMARK(BM_SmallObjectManagementWithProxy_SharedPooled);
-BENCHMARK(BM_SmallObjectManagementWithUniquePtr);
-BENCHMARK(BM_SmallObjectManagementWithSharedPtr);
-BENCHMARK(BM_SmallObjectManagementWithSharedPtr_Pooled);
-BENCHMARK(BM_SmallObjectManagementWithAny);
-BENCHMARK(BM_LargeObjectManagementWithProxy);
-BENCHMARK(BM_LargeObjectManagementWithProxy_Pooled);
-BENCHMARK(BM_LargeObjectManagementWithProxy_Shared);
-BENCHMARK(BM_LargeObjectManagementWithProxy_SharedPooled);
-BENCHMARK(BM_LargeObjectManagementWithUniquePtr);
-BENCHMARK(BM_LargeObjectManagementWithSharedPtr);
-BENCHMARK(BM_LargeObjectManagementWithSharedPtr_Pooled);
-BENCHMARK(BM_LargeObjectManagementWithAny);
+void BM_SmallObjectRelocationWithProxy(benchmark::State& state) {
+  std::vector<pro::proxy<DefaultFacade>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject1>());
+    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject2>());
+    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_SmallObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
+  std::vector<pro::proxy<NothrowRelocatableFacade>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, SmallObject1>());
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, SmallObject2>());
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, SmallObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_SmallObjectRelocationWithUniquePtr(benchmark::State& state) {
+  std::vector<std::unique_ptr<PolymorphicObjectBase>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<SmallObject1>()});
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<SmallObject2>()});
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<SmallObject3>()});
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_SmallObjectRelocationWithSharedPtr(benchmark::State& state) {
+  std::vector<std::shared_ptr<void>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].emplace_back(std::make_shared<SmallObject1>());
+    data[0].emplace_back(std::make_shared<SmallObject2>());
+    data[0].emplace_back(std::make_shared<SmallObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectRelocationWithProxy(benchmark::State& state) {
+  std::vector<pro::proxy<DefaultFacade>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject1>());
+    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject2>());
+    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
+  std::vector<pro::proxy<NothrowRelocatableFacade>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, LargeObject1>());
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, LargeObject2>());
+    data[0].push_back(
+        pro::make_proxy<NothrowRelocatableFacade, LargeObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectRelocationWithUniquePtr(benchmark::State& state) {
+  std::vector<std::unique_ptr<PolymorphicObjectBase>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<LargeObject1>()});
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<LargeObject2>()});
+    data[0].push_back(std::unique_ptr<PolymorphicObjectBase>{
+        new PolymorphicObject<LargeObject3>()});
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectRelocationWithSharedPtr(benchmark::State& state) {
+  std::vector<std::shared_ptr<void>> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].emplace_back(std::make_shared<LargeObject1>());
+    data[0].emplace_back(std::make_shared<LargeObject2>());
+    data[0].emplace_back(std::make_shared<LargeObject3>());
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+void BM_LargeObjectRelocationWithAny(benchmark::State& state) {
+  std::vector<std::any> data[2];
+  for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
+    data[0].emplace_back(LargeObject1{});
+    data[0].emplace_back(LargeObject2{});
+    data[0].emplace_back(LargeObject3{});
+  }
+  data[1].resize(TestManagedObjectCount);
+  for (auto _ : state) {
+    for (int i = 0; i < TestManagedObjectCount; ++i) {
+      data[1][i] = std::move(data[0][i]);
+    }
+    benchmark::DoNotOptimize(data);
+    std::swap(data[0], data[1]);
+  }
+}
+
+BENCHMARK(BM_SmallObjectCreationWithProxy);
+BENCHMARK(BM_SmallObjectCreationWithProxy_Shared);
+BENCHMARK(BM_SmallObjectCreationWithProxy_SharedPooled);
+BENCHMARK(BM_SmallObjectCreationWithUniquePtr);
+BENCHMARK(BM_SmallObjectCreationWithSharedPtr);
+BENCHMARK(BM_SmallObjectCreationWithSharedPtr_Pooled);
+BENCHMARK(BM_SmallObjectCreationWithAny);
+BENCHMARK(BM_LargeObjectCreationWithProxy);
+BENCHMARK(BM_LargeObjectCreationWithProxy_Pooled);
+BENCHMARK(BM_LargeObjectCreationWithProxy_Shared);
+BENCHMARK(BM_LargeObjectCreationWithProxy_SharedPooled);
+BENCHMARK(BM_LargeObjectCreationWithUniquePtr);
+BENCHMARK(BM_LargeObjectCreationWithSharedPtr);
+BENCHMARK(BM_LargeObjectCreationWithSharedPtr_Pooled);
+BENCHMARK(BM_LargeObjectCreationWithAny);
+BENCHMARK(BM_SmallObjectRelocationWithProxy);
+BENCHMARK(BM_SmallObjectRelocationWithProxy_Nothrow);
+BENCHMARK(BM_SmallObjectRelocationWithUniquePtr);
+BENCHMARK(BM_SmallObjectRelocationWithSharedPtr);
+BENCHMARK(BM_SmallObjectRelocationWithAny);
+BENCHMARK(BM_LargeObjectRelocationWithProxy);
+BENCHMARK(BM_LargeObjectRelocationWithProxy_Nothrow);
+BENCHMARK(BM_LargeObjectRelocationWithUniquePtr);
+BENCHMARK(BM_LargeObjectRelocationWithSharedPtr);
+BENCHMARK(BM_LargeObjectRelocationWithAny);
 
 } // namespace
