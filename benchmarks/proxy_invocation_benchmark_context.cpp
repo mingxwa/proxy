@@ -54,6 +54,50 @@ private:
   int seed_;
 };
 
+template <template <int> class T, class U, class Vs>
+struct TestDataUnitObserverImpl;
+template <template <int> class T, class U, int... Vs>
+struct TestDataUnitObserverImpl<T, U, std::integer_sequence<int, Vs...>> {
+  explicit TestDataUnitObserverImpl(int seed_base) noexcept
+      : Value((seed_base + Vs)...) {}
+
+  std::vector<U> ObserveTestData() const { return {&std::get<Vs>(Value)...}; }
+
+  std::tuple<T<Vs>...> Value;
+};
+template <template <int> class T, class U>
+struct TestDataUnitObserver
+    : TestDataUnitObserverImpl<
+          T, U, std::make_integer_sequence<int, TypeSeriesCount>> {
+  explicit TestDataUnitObserver(int seed_base) noexcept
+      : TestDataUnitObserverImpl<
+            T, U, std::make_integer_sequence<int, TypeSeriesCount>>(seed_base) {
+  }
+};
+template <template <int> class T, class U>
+class TestDataObserver {
+public:
+  explicit TestDataObserver() {
+    units_.reserve(TestDataSize / TypeSeriesCount);
+    for (int i = 0; i < TestDataSize; i += TypeSeriesCount) {
+      units_.emplace_back(i);
+    }
+  }
+
+  std::vector<U> ObserveTestData() const {
+    std::vector<U> result;
+    result.reserve(TestDataSize);
+    for (auto& unit : units_) {
+      auto unit_data = unit.ObserveTestData();
+      result.insert(result.end(), unit_data.begin(), unit_data.end());
+    }
+    return result;
+  }
+
+private:
+  std::vector<TestDataUnitObserver<T, U>> units_;
+};
+
 template <int V>
 struct IntConstant {};
 
@@ -84,6 +128,13 @@ std::vector<pro::proxy<InvocationTestFacade>>
                                NonIntrusiveSmallImpl<TypeSeries>>(seed);
       });
 }
+pro::proxy<TestDataObserverFacade<pro::proxy_view<InvocationTestFacade>>>
+    GenerateSmallObjectInvocationProxyTestData_Observer() {
+  return pro::make_proxy<
+      TestDataObserverFacade<pro::proxy_view<InvocationTestFacade>>,
+      TestDataObserver<NonIntrusiveSmallImpl,
+                       pro::proxy_view<InvocationTestFacade>>>();
+}
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateSmallObjectInvocationProxyTestData_Shared() {
   return GenerateTestData(
@@ -99,6 +150,12 @@ std::vector<std::unique_ptr<InvocationTestBase>>
         return std::unique_ptr<InvocationTestBase>{
             new IntrusiveSmallImpl<TypeSeries>(seed)};
       });
+}
+pro::proxy<TestDataObserverFacade<const InvocationTestBase*>>
+    GenerateSmallObjectInvocationVirtualFunctionTestData_Observer() {
+  return pro::make_proxy<
+      TestDataObserverFacade<const InvocationTestBase*>,
+      TestDataObserver<IntrusiveSmallImpl, const InvocationTestBase*>>();
 }
 std::vector<std::shared_ptr<InvocationTestBase>>
     GenerateSmallObjectInvocationVirtualFunctionTestData_Shared() {
@@ -116,6 +173,13 @@ std::vector<pro::proxy<InvocationTestFacade>>
                                NonIntrusiveLargeImpl<TypeSeries>>(seed);
       });
 }
+pro::proxy<TestDataObserverFacade<pro::proxy_view<InvocationTestFacade>>>
+    GenerateLargeObjectInvocationProxyTestData_Observer() {
+  return pro::make_proxy<
+      TestDataObserverFacade<pro::proxy_view<InvocationTestFacade>>,
+      TestDataObserver<NonIntrusiveLargeImpl,
+                       pro::proxy_view<InvocationTestFacade>>>();
+}
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateLargeObjectInvocationProxyTestData_Shared() {
   return GenerateTestData(
@@ -131,6 +195,12 @@ std::vector<std::unique_ptr<InvocationTestBase>>
         return std::unique_ptr<InvocationTestBase>{
             new IntrusiveLargeImpl<TypeSeries>(seed)};
       });
+}
+pro::proxy<TestDataObserverFacade<const InvocationTestBase*>>
+    GenerateLargeObjectInvocationVirtualFunctionTestData_Observer() {
+  return pro::make_proxy<
+      TestDataObserverFacade<const InvocationTestBase*>,
+      TestDataObserver<IntrusiveLargeImpl, const InvocationTestBase*>>();
 }
 std::vector<std::shared_ptr<InvocationTestBase>>
     GenerateLargeObjectInvocationVirtualFunctionTestData_Shared() {
