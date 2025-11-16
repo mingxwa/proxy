@@ -56,20 +56,23 @@ struct PolymorphicObject : PolymorphicObjectBase {
   T Value;
 };
 
-struct DefaultFacade : pro::facade_builder::build {};
+struct RttiFacade : pro::facade_builder            //
+                    ::add_skill<pro::skills::rtti> //
+                    ::build {};
 struct NothrowRelocatableFacade
     : pro::facade_builder                                  //
+      ::add_facade<RttiFacade>                             //
       ::support_relocation<pro::constraint_level::nothrow> //
       ::build {};
 
 void BM_SmallObjectCreationWithProxy(benchmark::State& state) {
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-      data.push_back(pro::make_proxy<DefaultFacade, SmallObject1>());
-      data.push_back(pro::make_proxy<DefaultFacade, SmallObject2>());
-      data.push_back(pro::make_proxy<DefaultFacade, SmallObject3>());
+      data.push_back(pro::make_proxy<RttiFacade, SmallObject1>());
+      data.push_back(pro::make_proxy<RttiFacade, SmallObject2>());
+      data.push_back(pro::make_proxy<RttiFacade, SmallObject3>());
     }
     benchmark::DoNotOptimize(data);
   }
@@ -77,12 +80,12 @@ void BM_SmallObjectCreationWithProxy(benchmark::State& state) {
 
 void BM_SmallObjectCreationWithProxy_Shared(benchmark::State& state) {
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-      data.push_back(pro::make_proxy_shared<DefaultFacade, SmallObject1>());
-      data.push_back(pro::make_proxy_shared<DefaultFacade, SmallObject2>());
-      data.push_back(pro::make_proxy_shared<DefaultFacade, SmallObject3>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, SmallObject1>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, SmallObject2>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, SmallObject3>());
     }
     benchmark::DoNotOptimize(data);
   }
@@ -92,15 +95,15 @@ void BM_SmallObjectCreationWithProxy_SharedPooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, SmallObject1>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, SmallObject1>(alloc));
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, SmallObject2>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, SmallObject2>(alloc));
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, SmallObject3>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, SmallObject3>(alloc));
     }
     benchmark::DoNotOptimize(data);
   }
@@ -182,12 +185,12 @@ void BM_SmallObjectRelocationWithAny(benchmark::State& state) {
 
 void BM_LargeObjectCreationWithProxy(benchmark::State& state) {
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-      data.push_back(pro::make_proxy<DefaultFacade, LargeObject1>());
-      data.push_back(pro::make_proxy<DefaultFacade, LargeObject2>());
-      data.push_back(pro::make_proxy<DefaultFacade, LargeObject3>());
+      data.push_back(pro::make_proxy<RttiFacade, LargeObject1>());
+      data.push_back(pro::make_proxy<RttiFacade, LargeObject2>());
+      data.push_back(pro::make_proxy<RttiFacade, LargeObject3>());
     }
     benchmark::DoNotOptimize(data);
   }
@@ -197,12 +200,12 @@ void BM_LargeObjectCreationWithProxy_Pooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-      data.push_back(pro::allocate_proxy<DefaultFacade, LargeObject1>(alloc));
-      data.push_back(pro::allocate_proxy<DefaultFacade, LargeObject2>(alloc));
-      data.push_back(pro::allocate_proxy<DefaultFacade, LargeObject3>(alloc));
+      data.push_back(pro::allocate_proxy<RttiFacade, LargeObject1>(alloc));
+      data.push_back(pro::allocate_proxy<RttiFacade, LargeObject2>(alloc));
+      data.push_back(pro::allocate_proxy<RttiFacade, LargeObject3>(alloc));
     }
     benchmark::DoNotOptimize(data);
   }
@@ -210,12 +213,12 @@ void BM_LargeObjectCreationWithProxy_Pooled(benchmark::State& state) {
 
 void BM_LargeObjectCreationWithProxy_Shared(benchmark::State& state) {
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-      data.push_back(pro::make_proxy_shared<DefaultFacade, LargeObject1>());
-      data.push_back(pro::make_proxy_shared<DefaultFacade, LargeObject2>());
-      data.push_back(pro::make_proxy_shared<DefaultFacade, LargeObject3>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, LargeObject1>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, LargeObject2>());
+      data.push_back(pro::make_proxy_shared<RttiFacade, LargeObject3>());
     }
     benchmark::DoNotOptimize(data);
   }
@@ -225,15 +228,15 @@ void BM_LargeObjectCreationWithProxy_SharedPooled(benchmark::State& state) {
   static std::pmr::unsynchronized_pool_resource pool;
   std::pmr::polymorphic_allocator<> alloc{&pool};
   for (auto _ : state) {
-    std::vector<pro::proxy<DefaultFacade>> data;
+    std::vector<pro::proxy<RttiFacade>> data;
     data.reserve(TestManagedObjectCount);
     for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, LargeObject1>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, LargeObject1>(alloc));
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, LargeObject2>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, LargeObject2>(alloc));
       data.push_back(
-          pro::allocate_proxy_shared<DefaultFacade, LargeObject3>(alloc));
+          pro::allocate_proxy_shared<RttiFacade, LargeObject3>(alloc));
     }
     benchmark::DoNotOptimize(data);
   }
@@ -297,11 +300,11 @@ void BM_LargeObjectCreationWithAny(benchmark::State& state) {
 }
 
 void BM_SmallObjectRelocationWithProxy(benchmark::State& state) {
-  std::vector<pro::proxy<DefaultFacade>> data[2];
+  std::vector<pro::proxy<RttiFacade>> data[2];
   for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject1>());
-    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject2>());
-    data[0].push_back(pro::make_proxy<DefaultFacade, SmallObject3>());
+    data[0].push_back(pro::make_proxy<RttiFacade, SmallObject1>());
+    data[0].push_back(pro::make_proxy<RttiFacade, SmallObject2>());
+    data[0].push_back(pro::make_proxy<RttiFacade, SmallObject3>());
   }
   data[1].resize(TestManagedObjectCount);
   for (auto _ : state) {
@@ -371,11 +374,11 @@ void BM_SmallObjectRelocationWithSharedPtr(benchmark::State& state) {
 }
 
 void BM_LargeObjectRelocationWithProxy(benchmark::State& state) {
-  std::vector<pro::proxy<DefaultFacade>> data[2];
+  std::vector<pro::proxy<RttiFacade>> data[2];
   for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
-    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject1>());
-    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject2>());
-    data[0].push_back(pro::make_proxy<DefaultFacade, LargeObject3>());
+    data[0].push_back(pro::make_proxy<RttiFacade, LargeObject1>());
+    data[0].push_back(pro::make_proxy<RttiFacade, LargeObject2>());
+    data[0].push_back(pro::make_proxy<RttiFacade, LargeObject3>());
   }
   data[1].resize(TestManagedObjectCount);
   for (auto _ : state) {
