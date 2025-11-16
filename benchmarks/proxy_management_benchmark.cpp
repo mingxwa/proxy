@@ -59,9 +59,9 @@ struct PolymorphicObject : PolymorphicObjectBase {
 struct RttiFacade : pro::facade_builder            //
                     ::add_skill<pro::skills::rtti> //
                     ::build {};
-struct NothrowRelocatableFacade
+struct NothrowRelocatableRttiFacade
     : pro::facade_builder                                  //
-      ::add_facade<RttiFacade>                             //
+      ::add_skill<pro::skills::rtti>                       //
       ::support_relocation<pro::constraint_level::nothrow> //
       ::build {};
 
@@ -317,14 +317,14 @@ void BM_SmallObjectRelocationWithProxy(benchmark::State& state) {
 }
 
 void BM_SmallObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
-  std::vector<pro::proxy<NothrowRelocatableFacade>> data[2];
+  std::vector<pro::proxy<NothrowRelocatableRttiFacade>> data[2];
   for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, SmallObject1>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, SmallObject1>());
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, SmallObject2>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, SmallObject2>());
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, SmallObject3>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, SmallObject3>());
   }
   data[1].resize(TestManagedObjectCount);
   for (auto _ : state) {
@@ -391,14 +391,14 @@ void BM_LargeObjectRelocationWithProxy(benchmark::State& state) {
 }
 
 void BM_LargeObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
-  std::vector<pro::proxy<NothrowRelocatableFacade>> data[2];
+  std::vector<pro::proxy<NothrowRelocatableRttiFacade>> data[2];
   for (int i = 0; i < TestManagedObjectCount; i += TypeSeriesCount) {
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, LargeObject1>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, LargeObject1>());
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, LargeObject2>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, LargeObject2>());
     data[0].push_back(
-        pro::make_proxy<NothrowRelocatableFacade, LargeObject3>());
+        pro::make_proxy<NothrowRelocatableRttiFacade, LargeObject3>());
   }
   data[1].resize(TestManagedObjectCount);
   for (auto _ : state) {
