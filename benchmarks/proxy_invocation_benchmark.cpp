@@ -111,7 +111,7 @@ void BM_LargeObjectInvocationViaVirtualFunction(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectInvocationViaVirtualFunction(benchmark::State& state) {
+void BM_LargeObjectInvocationViaVirtualFunction_Observer(benchmark::State& state) {
   auto observer = GenerateLargeObjectInvocationVirtualFunctionTestData_Observer();
   auto data = observer->ObserveTestData();
   for (auto _ : state) {
@@ -124,7 +124,7 @@ void BM_LargeObjectInvocationViaVirtualFunction(benchmark::State& state) {
 
 void BM_LargeObjectInvocationViaVirtualFunction_Shared(
     benchmark::State& state) {
-  auto data = GenerateLargeObjectInvocationVirtualFunctionTestData();
+  auto data = GenerateLargeObjectInvocationVirtualFunctionTestData_Shared();
   for (auto _ : state) {
     for (auto& p : data) {
       int result = p->Fun();
