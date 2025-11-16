@@ -48,8 +48,10 @@ void BM_SmallObjectInvocationViaVirtualFunction(benchmark::State& state) {
   }
 }
 
-void BM_SmallObjectInvocationViaVirtualFunction_Observer(benchmark::State& state) {
-  auto observer = GenerateSmallObjectInvocationVirtualFunctionTestData_Observer();
+void BM_SmallObjectInvocationViaVirtualFunction_Observer(
+    benchmark::State& state) {
+  auto observer =
+      GenerateSmallObjectInvocationVirtualFunctionTestData_Observer();
   auto data = observer->ObserveTestData();
   for (auto _ : state) {
     for (auto& p : data) {
@@ -111,8 +113,10 @@ void BM_LargeObjectInvocationViaVirtualFunction(benchmark::State& state) {
   }
 }
 
-void BM_LargeObjectInvocationViaVirtualFunction_Observer(benchmark::State& state) {
-  auto observer = GenerateLargeObjectInvocationVirtualFunctionTestData_Observer();
+void BM_LargeObjectInvocationViaVirtualFunction_Observer(
+    benchmark::State& state) {
+  auto observer =
+      GenerateLargeObjectInvocationVirtualFunctionTestData_Observer();
   auto data = observer->ObserveTestData();
   for (auto _ : state) {
     for (auto& p : data) {
