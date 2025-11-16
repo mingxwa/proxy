@@ -311,7 +311,8 @@ void BM_SmallObjectRelocationWithProxy(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -331,7 +332,8 @@ void BM_SmallObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -351,7 +353,8 @@ void BM_SmallObjectRelocationWithUniquePtr(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -368,7 +371,8 @@ void BM_SmallObjectRelocationWithSharedPtr(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -385,7 +389,8 @@ void BM_LargeObjectRelocationWithProxy(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -405,7 +410,8 @@ void BM_LargeObjectRelocationWithProxy_Nothrow(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -425,7 +431,8 @@ void BM_LargeObjectRelocationWithUniquePtr(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -442,7 +449,8 @@ void BM_LargeObjectRelocationWithSharedPtr(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
@@ -459,7 +467,8 @@ void BM_LargeObjectRelocationWithAny(benchmark::State& state) {
     for (int i = 0; i < TestManagedObjectCount; ++i) {
       data[1][i] = std::move(data[0][i]);
     }
-    benchmark::DoNotOptimize(data);
+    benchmark::DoNotOptimize(data[0]);
+    benchmark::DoNotOptimize(data[1]);
     std::swap(data[0], data[1]);
   }
 }
