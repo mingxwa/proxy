@@ -56,12 +56,9 @@ struct PolymorphicObject : PolymorphicObjectBase {
   T Value;
 };
 
-struct DefaultFacade : pro::facade_builder                               //
-                       ::support_copy<pro::constraint_level::nontrivial> //
-                       ::build {};
+struct DefaultFacade : pro::facade_builder::build {};
 struct NothrowRelocatableFacade
     : pro::facade_builder                                  //
-      ::support_copy<pro::constraint_level::nontrivial>    //
       ::support_relocation<pro::constraint_level::nothrow> //
       ::build {};
 
