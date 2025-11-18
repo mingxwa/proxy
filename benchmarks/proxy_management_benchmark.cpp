@@ -30,7 +30,7 @@ constexpr int TestManagedObjectCount = 600000;
 constexpr int TypeSeriesCount = 3;
 
 using SmallObject1 = int;
-using SmallObject2 = std::shared_ptr<int>;
+using SmallObject2 = double;
 struct SmallObject3 {
   SmallObject3() noexcept = default;
   SmallObject3(SmallObject3&&) noexcept = default;
@@ -58,6 +58,7 @@ struct PolymorphicObject : PolymorphicObjectBase {
 
 struct DefaultFacade : pro::facade_builder                               //
                        ::support_copy<pro::constraint_level::nontrivial> //
+                       ::add_skill<pro::skills::slim>                    //
                        ::build {};
 
 void BM_SmallObjectManagementWithProxy(benchmark::State& state) {
