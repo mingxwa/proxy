@@ -151,8 +151,8 @@ void BM_SmallObjectRelocationViaProxy(benchmark::State& state) {
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
@@ -164,8 +164,8 @@ void BM_SmallObjectRelocationViaProxy_NothrowRelocatable(
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
@@ -176,8 +176,8 @@ void BM_SmallObjectRelocationViaUniquePtr(benchmark::State& state) {
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
@@ -188,8 +188,8 @@ void BM_LargeObjectRelocationViaProxy(benchmark::State& state) {
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
@@ -201,8 +201,8 @@ void BM_LargeObjectRelocationViaProxy_NothrowRelocatable(
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
@@ -213,8 +213,8 @@ void BM_LargeObjectRelocationViaUniquePtr(benchmark::State& state) {
   for (auto _ : state) {
     for (std::size_t i = 0; i < data.size(); ++i) {
       buffer[i] = std::move(data[i]);
-      benchmark::DoNotOptimize(buffer[i]);
     }
+    benchmark::DoNotOptimize(buffer);
     std::swap(data, buffer);
   }
 }
