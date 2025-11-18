@@ -13,6 +13,10 @@ struct InvocationTestFacade : pro::facade_builder                   //
                               ::add_skill<pro::skills::as_view>     //
                               ::build {};
 
+struct NothrowRelocatableInvocationTestFacade : InvocationTestFacade {
+  static constexpr auto relocatability = pro::constraint_level::nothrow;
+};
+
 struct InvocationTestBase {
   virtual int Fun() const = 0;
   virtual ~InvocationTestBase() = default;
@@ -20,6 +24,8 @@ struct InvocationTestBase {
 
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateSmallObjectInvocationProxyTestData();
+std::vector<pro::proxy<NothrowRelocatableInvocationTestFacade>>
+    GenerateSmallObjectInvocationProxyTestData_NothrowRelocatable();
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateSmallObjectInvocationProxyTestData_Shared();
 std::vector<std::unique_ptr<InvocationTestBase>>
@@ -28,6 +34,8 @@ std::vector<std::shared_ptr<InvocationTestBase>>
     GenerateSmallObjectInvocationVirtualFunctionTestData_Shared();
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateLargeObjectInvocationProxyTestData();
+std::vector<pro::proxy<NothrowRelocatableInvocationTestFacade>>
+    GenerateLargeObjectInvocationProxyTestData_NothrowRelocatable();
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateLargeObjectInvocationProxyTestData_Shared();
 std::vector<std::unique_ptr<InvocationTestBase>>

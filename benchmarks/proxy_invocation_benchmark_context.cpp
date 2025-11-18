@@ -84,6 +84,14 @@ std::vector<pro::proxy<InvocationTestFacade>>
                                NonIntrusiveSmallImpl<TypeSeries>>(seed);
       });
 }
+std::vector<pro::proxy<NothrowRelocatableInvocationTestFacade>>
+    GenerateSmallObjectInvocationProxyTestData_NothrowRelocatable() {
+  return GenerateTestData(
+      []<int TypeSeries>(IntConstant<TypeSeries>, int seed) {
+        return pro::make_proxy<NothrowRelocatableInvocationTestFacade,
+                               NonIntrusiveSmallImpl<TypeSeries>>(seed);
+      });
+}
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateSmallObjectInvocationProxyTestData_Shared() {
   return GenerateTestData(
@@ -113,6 +121,14 @@ std::vector<pro::proxy<InvocationTestFacade>>
   return GenerateTestData(
       []<int TypeSeries>(IntConstant<TypeSeries>, int seed) {
         return pro::make_proxy<InvocationTestFacade,
+                               NonIntrusiveLargeImpl<TypeSeries>>(seed);
+      });
+}
+std::vector<pro::proxy<NothrowRelocatableInvocationTestFacade>>
+    GenerateLargeObjectInvocationProxyTestData_NothrowRelocatable() {
+  return GenerateTestData(
+      []<int TypeSeries>(IntConstant<TypeSeries>, int seed) {
+        return pro::make_proxy<NothrowRelocatableInvocationTestFacade,
                                NonIntrusiveLargeImpl<TypeSeries>>(seed);
       });
 }

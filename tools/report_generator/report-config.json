@@ -43,7 +43,7 @@
     {
       "Name": "Indirect invocation on small objects via `proxy_view` vs. virtual functions",
       "TargetBenchmarkName": "BM_SmallObjectInvocationViaProxyView",
-      "BaselineBenchmarkName": "BM_SmallObjectInvocationViaVirtualFunction"
+      "BaselineBenchmarkName": "BM_SmallObjectInvocationViaVirtualFunction_RawPtr"
     },
     {
       "Name": "Indirect invocation on small objects via `proxy` vs. virtual functions (shared ownership)",
@@ -58,12 +58,32 @@
     {
       "Name": "Indirect invocation on large objects via `proxy_view` vs. virtual functions",
       "TargetBenchmarkName": "BM_LargeObjectInvocationViaProxyView",
-      "BaselineBenchmarkName": "BM_LargeObjectInvocationViaVirtualFunction"
+      "BaselineBenchmarkName": "BM_LargeObjectInvocationViaVirtualFunction_RawPtr"
     },
     {
       "Name": "Indirect invocation on large objects via `proxy` vs. virtual functions (shared ownership)",
       "TargetBenchmarkName": "BM_LargeObjectInvocationViaProxy_Shared",
       "BaselineBenchmarkName": "BM_LargeObjectInvocationViaVirtualFunction_Shared"
+    },
+    {
+      "Name": "Relocation on small objects via `proxy` (trivially-relocatable by default) vs. `proxy` (nothrow-relocatable)",
+      "TargetBenchmarkName": "BM_SmallObjectRelocationViaProxy",
+      "BaselineBenchmarkName": "BM_SmallObjectRelocationViaProxy_NothrowRelocatable"
+    },
+    {
+      "Name": "Relocation on small objects via `proxy` vs. `std::unique_ptr`",
+      "TargetBenchmarkName": "BM_SmallObjectRelocationViaProxy",
+      "BaselineBenchmarkName": "BM_SmallObjectRelocationViaUniquePtr"
+    },
+    {
+      "Name": "Relocation on large objects via `proxy` (trivially-relocatable by default) vs. `proxy` (nothrow-relocatable)",
+      "TargetBenchmarkName": "BM_LargeObjectRelocationViaProxy",
+      "BaselineBenchmarkName": "BM_LargeObjectRelocationViaProxy_NothrowRelocatable"
+    },
+    {
+      "Name": "Relocation on large objects via `proxy` vs. `std::unique_ptr`",
+      "TargetBenchmarkName": "BM_LargeObjectRelocationViaProxy",
+      "BaselineBenchmarkName": "BM_LargeObjectRelocationViaUniquePtr"
     },
     {
       "Name": "Basic lifetime management for small objects with `proxy` vs. `std::unique_ptr`",
