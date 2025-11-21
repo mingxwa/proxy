@@ -20,8 +20,8 @@ struct NothrowRelocatableInvocationTestFacade : InvocationTestFacade {
 };
 
 struct InvocationTestBase {
-  virtual int Fun() const = 0;
   virtual ~InvocationTestBase() = default;
+  virtual int Fun() const = 0;
 };
 
 std::vector<pro::proxy<InvocationTestFacade>>
