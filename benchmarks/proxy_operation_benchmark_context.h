@@ -17,6 +17,7 @@ struct InvocationTestFacade : pro::facade_builder                   //
 
 struct NothrowRelocatableInvocationTestFacade : InvocationTestFacade {
   static constexpr auto relocatability = pro::constraint_level::nothrow;
+  static constexpr size_t max_size = 2 * sizeof(void*);
 };
 
 struct InvocationTestBase {
