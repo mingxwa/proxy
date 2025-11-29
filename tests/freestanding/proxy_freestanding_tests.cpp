@@ -21,7 +21,7 @@ struct Hashable : pro::facade_builder                       //
                   ::add_convention<FreeGetHash, unsigned()> //
                   ::build {};
 
-extern "C" int main() {
+int main() {
   int i = 123;
   double d = 3.14159;
   const char* s = "lalala";
