@@ -5,6 +5,7 @@
 #ifndef MSFT_PROXY_V4_PROXY_FMT_H_
 #define MSFT_PROXY_V4_PROXY_FMT_H_
 
+#include <string_view>
 #include <type_traits>
 
 #ifndef __msft_lib_proxy4
@@ -29,7 +30,7 @@ using fmt_buffered_context = fmt::buffer_context<CharT>;
 
 struct fmt_format_dispatch {
   template <class T, class CharT>
-  PRO4D_STATIC_CALL(auto, const T& self, fmt::basic_string_view<CharT> spec,
+  PRO4D_STATIC_CALL(auto, const T& self, std::basic_string_view<CharT> spec,
                     fmt_buffered_context<CharT>& fc)
     requires(std::is_default_constructible_v<fmt::formatter<T, CharT>>)
   {
@@ -44,7 +45,7 @@ struct fmt_format_dispatch {
 
 template <class CharT>
 struct fmt_format_traits
-    : format_traits<fmt_format_dispatch, fmt::basic_string_view<CharT>,
+    : format_traits<fmt_format_dispatch, std::basic_string_view<CharT>,
                     fmt::basic_format_parse_context<CharT>,
                     fmt_buffered_context<CharT>> {};
 
