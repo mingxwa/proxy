@@ -2156,8 +2156,8 @@ struct format_traits {
     constexpr auto parse(ParseContext& pc) {
       for (auto it = pc.begin(); it != pc.end(); ++it) {
         if (*it == '}') {
-          spec_ = StringView{&*pc.begin(),
-                             static_cast<std::size_t>(it - pc.begin()) + 1u};
+          spec_ = StringView{std::to_address(pc.begin()),
+                             static_cast<std::size_t>(it - pc.begin() + 1)};
           return it;
         }
       }
