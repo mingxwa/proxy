@@ -2163,9 +2163,9 @@ struct format_traits {
       return pc.end();
     }
 
-    template <class P>
-    auto format(const P& p, FormatContext& fc) const ->
-        typename FormatContext::iterator {
+    template <class P, class CompatibleFormatContext>
+    auto format(const P& p, CompatibleFormatContext& fc) const ->
+        typename CompatibleFormatContext::iterator {
       return proxy_invoke<D, overload>(p, spec_, fc);
     }
 
