@@ -14,6 +14,7 @@ add_executable(msft_proxy_tests
   proxy_creation_tests.cpp
   proxy_details_tests.cpp
   proxy_dispatch_tests.cpp
+  proxy_fmt_format_no_wchar_tests.cpp
   proxy_fmt_format_tests.cpp
   proxy_format_tests.cpp
   proxy_integration_tests.cpp

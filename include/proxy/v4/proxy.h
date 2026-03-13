@@ -2146,21 +2146,41 @@ struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
 template <class F>
 using weak_conversion_overload = weak_proxy<F>() const noexcept;
 
-#ifdef PRO4D_HAS_FORMAT
-template <class CharT>
-struct format_overload_traits;
-template <>
-struct format_overload_traits<char>
-    : std::type_identity<std::format_context::iterator(
-          std::string_view spec, std::format_context& fc) const> {};
-template <>
-struct format_overload_traits<wchar_t>
-    : std::type_identity<std::wformat_context::iterator(
-          std::wstring_view spec, std::wformat_context& fc) const> {};
-template <class CharT>
-using format_overload_t = typename format_overload_traits<CharT>::type;
+template <class D, class StringView, class ParseContext, class FormatContext>
+struct format_traits {
+  using overload = typename FormatContext::iterator(StringView spec,
+                                                    FormatContext& fc) const;
 
-struct format_dispatch {
+  template <class F>
+  struct formatter {
+    constexpr auto parse(ParseContext& pc) {
+      for (auto it = pc.begin(); it != pc.end(); ++it) {
+        if (*it == '}') {
+          spec_ = StringView{&*pc.begin(),
+                             static_cast<std::size_t>(it - pc.begin() + 1)};
+          return it;
+        }
+      }
+      return pc.end();
+    }
+
+    template <class P>
+    auto format(const P& p, FormatContext& fc) const ->
+        typename FormatContext::iterator {
+      return proxy_invoke<D, overload>(p, spec_, fc);
+    }
+
+  private:
+    StringView spec_;
+  };
+
+  template <class F>
+  static constexpr bool applicable =
+      facade_traits<F>::template is_invocable<false, D, overload>;
+};
+
+#ifdef PRO4D_HAS_FORMAT
+struct std_format_dispatch {
   // Note: This function requires std::formatter<T, CharT> to be well-formed.
   // However, the standard did not provide such facility before C++23. In the
   // "required" clause of this function, std::formattable (C++23) is preferred
@@ -2187,6 +2207,17 @@ struct format_dispatch {
     return impl.format(self, fc);
   }
 };
+
+template <class CharT>
+struct std_format_traits;
+template <>
+struct std_format_traits<char>
+    : format_traits<std_format_dispatch, std::string_view,
+                    std::format_parse_context, std::format_context> {};
+template <>
+struct std_format_traits<wchar_t>
+    : format_traits<std_format_dispatch, std::wstring_view,
+                    std::wformat_parse_context, std::wformat_context> {};
 #endif // PRO4D_HAS_FORMAT
 
 #if __cpp_rtti >= 199711L
@@ -2296,14 +2327,13 @@ namespace skills {
 
 #ifdef PRO4D_HAS_FORMAT
 template <class FB>
-using format =
-    typename FB::template add_convention<details::format_dispatch,
-                                         details::format_overload_t<char>>;
+using format = typename FB::template add_convention<
+    details::std_format_dispatch, details::std_format_traits<char>::overload>;
 
 template <class FB>
-using wformat =
-    typename FB::template add_convention<details::format_dispatch,
-                                         details::format_overload_t<wchar_t>>;
+using wformat = typename FB::template add_convention<
+    details::std_format_dispatch,
+    details::std_format_traits<wchar_t>::overload>;
 #endif // PRO4D_HAS_FORMAT
 
 #if __cpp_rtti >= 199711L
@@ -2644,31 +2674,9 @@ struct weak_dispatch : D {
 namespace std {
 
 template <pro::v4::facade F, class CharT>
-  requires(pro::v4::details::facade_traits<F>::template is_invocable<
-           false, pro::v4::details::format_dispatch,
-           pro::v4::details::format_overload_t<CharT>>)
-struct formatter<pro::v4::proxy_indirect_accessor<F>, CharT> {
-  constexpr auto parse(basic_format_parse_context<CharT>& pc) {
-    for (auto it = pc.begin(); it != pc.end(); ++it) {
-      if (*it == '}') {
-        spec_ = basic_string_view<CharT>{pc.begin(), it + 1};
-        return it;
-      }
-    }
-    return pc.end();
-  }
-
-  template <class OutIt>
-  OutIt format(const pro::v4::proxy_indirect_accessor<F>& p,
-               basic_format_context<OutIt, CharT>& fc) const {
-    return pro::v4::proxy_invoke<pro::v4::details::format_dispatch,
-                                 pro::v4::details::format_overload_t<CharT>>(
-        p, spec_, fc);
-  }
-
-private:
-  basic_string_view<CharT> spec_;
-};
+  requires(pro::v4::details::std_format_traits<CharT>::template applicable<F>)
+struct formatter<pro::v4::proxy_indirect_accessor<F>, CharT>
+    : pro::v4::details::std_format_traits<CharT>::template formatter<F> {};
 
 } // namespace std
 #endif // PRO4D_HAS_FORMAT
