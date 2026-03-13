@@ -2157,7 +2157,7 @@ struct format_traits {
       for (auto it = pc.begin(); it != pc.end(); ++it) {
         if (*it == '}') {
           spec_ = StringView{&*pc.begin(),
-                             static_cast<std::size_t>(it - pc.begin() + 1)};
+                             static_cast<std::size_t>(it - pc.begin()) + 1u};
           return it;
         }
       }
