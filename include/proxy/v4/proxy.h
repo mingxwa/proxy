@@ -1543,11 +1543,17 @@ void deallocate(const Alloc& alloc, T* ptr) {
 }
 template <class Alloc>
 struct alloc_aware {
-  explicit alloc_aware(const Alloc& alloc) noexcept : alloc(alloc) {}
-  alloc_aware(const alloc_aware&) noexcept = default;
+  using allocator_type = Alloc;
 
+  constexpr alloc_aware() noexcept = default;
+  constexpr explicit alloc_aware(const Alloc& alloc) noexcept : alloc_(alloc) {}
+  constexpr alloc_aware(const alloc_aware&) noexcept = default;
+  constexpr alloc_aware& operator=(const alloc_aware&) noexcept = default;
+  constexpr Alloc get_allocator() const noexcept { return alloc_; }
+
+private:
   [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  Alloc alloc;
+  Alloc alloc_;
 };
 template <class T>
 class indirect_ptr {
@@ -1574,15 +1580,15 @@ public:
   allocated_ptr(const Alloc& alloc, Args&&... args)
       : alloc_aware<Alloc>(alloc),
         indirect_ptr<inplace_ptr<T>>(allocate<inplace_ptr<T>>(
-            this->alloc, std::in_place, std::forward<Args>(args)...)) {}
+            alloc, std::in_place, std::forward<Args>(args)...)) {}
   allocated_ptr(const allocated_ptr& rhs)
     requires(std::is_copy_constructible_v<T>)
       : alloc_aware<Alloc>(rhs),
-        indirect_ptr<inplace_ptr<T>>(
-            allocate<inplace_ptr<T>>(this->alloc, std::in_place, *rhs)) {}
+        indirect_ptr<inplace_ptr<T>>(allocate<inplace_ptr<T>>(
+            this->get_allocator(), std::in_place, *rhs)) {}
   allocated_ptr(allocated_ptr&& rhs) = delete;
   ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    deallocate(this->alloc, this->ptr_);
+    deallocate(this->get_allocator(), this->ptr_);
   }
 };
 
@@ -1605,11 +1611,11 @@ public:
             allocate<Storage>(alloc, alloc, std::forward<Args>(args)...)) {}
   compact_ptr(const compact_ptr& rhs)
     requires(std::is_copy_constructible_v<T>)
-      : indirect_ptr<Storage>(
-            allocate<Storage>(rhs.ptr_->alloc, rhs.ptr_->alloc, *rhs)) {}
+      : indirect_ptr<Storage>(allocate<Storage>(
+            rhs.ptr_->get_allocator(), rhs.ptr_->get_allocator(), *rhs)) {}
   compact_ptr(compact_ptr&& rhs) = delete;
   ~compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
-    deallocate(this->ptr_->alloc, this->ptr_);
+    deallocate(this->ptr_->get_allocator(), this->ptr_);
   }
 };
 
@@ -1643,7 +1649,7 @@ public:
   shared_compact_ptr(shared_compact_ptr&& rhs) = delete;
   ~shared_compact_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
     if (this->ptr_->ref_count.fetch_sub(1, std::memory_order::acq_rel) == 1) {
-      deallocate(this->ptr_->alloc, this->ptr_);
+      deallocate(this->ptr_->get_allocator(), this->ptr_);
     }
   }
 };
@@ -1685,7 +1691,7 @@ public:
     if (ptr_->strong_count.fetch_sub(1, std::memory_order::acq_rel) == 1) {
       std::destroy_at(operator->());
       if (ptr_->weak_count.fetch_sub(1u, std::memory_order::release) == 1) {
-        deallocate(ptr_->alloc, ptr_);
+        deallocate(ptr_->get_allocator(), ptr_);
       }
     }
   }
@@ -1718,7 +1724,7 @@ public:
   weak_compact_ptr(weak_compact_ptr&& rhs) = delete;
   ~weak_compact_ptr() noexcept {
     if (ptr_->weak_count.fetch_sub(1u, std::memory_order::acq_rel) == 1) {
-      deallocate(ptr_->alloc, ptr_);
+      deallocate(ptr_->get_allocator(), ptr_);
     }
   }
   auto lock() const noexcept {
