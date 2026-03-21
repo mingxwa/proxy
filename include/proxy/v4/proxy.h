@@ -1506,6 +1506,63 @@ struct weak_facade
 
 namespace details {
 
+template <class Alloc>
+struct alloc_aware {
+  using allocator_type = Alloc;
+
+  constexpr alloc_aware() noexcept = default;
+  constexpr explicit alloc_aware(const Alloc& alloc) noexcept : alloc_(alloc) {}
+  constexpr alloc_aware(const alloc_aware&) noexcept = default;
+  constexpr alloc_aware& operator=(const alloc_aware&) noexcept = default;
+  constexpr Alloc get_allocator() const noexcept { return alloc_; }
+
+private:
+  [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
+  Alloc alloc_;
+};
+
+} // namespace details
+
+namespace ownership {
+
+struct observed_policy {
+  constexpr explicit observed_policy() noexcept = default;
+};
+inline constexpr observed_policy observed{};
+
+struct inplace_policy {
+  constexpr explicit inplace_policy() noexcept = default;
+};
+inline constexpr inplace_policy inplace{};
+
+#if __STDC_HOSTED__
+template <class Alloc = std::allocator<void>>
+struct owned_policy : details::alloc_aware<Alloc> {
+  constexpr explicit owned_policy() noexcept = default;
+  constexpr owned_policy(const owned_policy&) noexcept = default;
+  constexpr explicit owned_policy(const Alloc& alloc) noexcept
+      : details::alloc_aware<Alloc>(alloc) {}
+  constexpr owned_policy&
+      operator=(const owned_policy& other) noexcept = default;
+};
+inline constexpr owned_policy<> owned{};
+
+template <class Alloc = std::allocator<void>>
+struct shared_policy : details::alloc_aware<Alloc> {
+  constexpr explicit shared_policy() noexcept = default;
+  constexpr shared_policy(const shared_policy&) noexcept = default;
+  constexpr explicit shared_policy(const Alloc& alloc) noexcept
+      : details::alloc_aware<Alloc>(alloc) {}
+  constexpr shared_policy&
+      operator=(const shared_policy& other) noexcept = default;
+};
+inline constexpr shared_policy<> shared{};
+#endif // __STDC_HOSTED__
+
+} // namespace ownership
+
+namespace details {
+
 template <class LR, class CLR, class RR, class CRR>
 class observer_ptr {
 public:
@@ -1541,20 +1598,6 @@ void deallocate(const Alloc& alloc, T* ptr) {
   std::destroy_at(ptr);
   al.deallocate(ptr, 1);
 }
-template <class Alloc>
-struct alloc_aware {
-  using allocator_type = Alloc;
-
-  constexpr alloc_aware() noexcept = default;
-  constexpr explicit alloc_aware(const Alloc& alloc) noexcept : alloc_(alloc) {}
-  constexpr alloc_aware(const alloc_aware&) noexcept = default;
-  constexpr alloc_aware& operator=(const alloc_aware&) noexcept = default;
-  constexpr Alloc get_allocator() const noexcept { return alloc_; }
-
-private:
-  [[PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE]]
-  Alloc alloc_;
-};
 template <class T>
 class indirect_ptr {
 public:
@@ -1747,39 +1790,94 @@ private:
 
 template <class F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
-  if constexpr (proxiable<allocated_ptr<T, Alloc>, F>) {
-    return proxy<F>{std::in_place_type<allocated_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  } else {
-    return proxy<F>{std::in_place_type<compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  }
+  using Ptr =
+      std::conditional_t<proxiable<allocated_ptr<T, Alloc>, F>,
+                         allocated_ptr<T, Alloc>, compact_ptr<T, Alloc>>;
+  return proxy<F>{std::in_place_type<Ptr>, alloc, std::forward<Args>(args)...};
+}
+#endif // __STDC_HOSTED__
+
+template <bool Ref, bool UsesAllocator>
+struct ownership_traits_impl : applicable_traits {
+  template <class T>
+  using target_type = std::conditional_t<Ref, T&, T>;
+
+  static constexpr bool uses_allocator = UsesAllocator;
+};
+template <class OP>
+struct ownership_traits : inapplicable_traits {};
+template <>
+struct ownership_traits<ownership::observed_policy>
+    : ownership_traits_impl<true, false> {};
+template <>
+struct ownership_traits<ownership::inplace_policy>
+    : ownership_traits_impl<false, false> {};
+#if __STDC_HOSTED__
+template <class Alloc>
+struct ownership_traits<ownership::owned_policy<Alloc>>
+    : ownership_traits_impl<false, true> {};
+template <class Alloc>
+struct ownership_traits<ownership::shared_policy<Alloc>>
+    : ownership_traits_impl<false, true> {};
+#endif // __STDC_HOSTED__
+
+template <class F>
+struct default_policy_traits
+#if __STDC_HOSTED__
+    : std::type_identity<ownership::owned_policy<>> {
+};
+template <class F>
+  requires(std::is_convertible_v<proxy<F>, weak_proxy<F>>)
+struct default_policy_traits<F>
+    : std::type_identity<ownership::shared_policy<>> {}
+#endif // __STDC_HOSTED__
+      ;
+template <class F>
+struct default_policy_traits<observer_facade<F>>
+    : std::type_identity<ownership::observed_policy> {};
+template <class F>
+using default_policy_t = typename default_policy_traits<F>::type;
+
+template <class T, class OP, class... Args>
+concept constructible_under_policy = std::is_constructible_v<
+    typename ownership_traits<OP>::template target_type<T>, Args...>;
+template <class T, class OP, class... Args>
+concept nothrow_constructible_under_policy =
+    !ownership_traits<OP>::uses_allocator &&
+    std::is_nothrow_constructible_v<
+        typename ownership_traits<OP>::template target_type<T>, Args...>;
+
+template <class F, class T, class U>
+constexpr proxy<F> make_proxy_impl(const ownership::observed_policy&,
+                                   U& value) {
+  return proxy<F>{observer_ptr<T&, const T&, T&&, const T&&>{value}};
 }
 template <class F, class T, class... Args>
-constexpr proxy<F> make_proxy_impl(Args&&... args) {
+constexpr proxy<F> make_proxy_impl(const ownership::inplace_policy&,
+                                   Args&&... args) {
+  return proxy<F>{std::in_place_type<inplace_ptr<T>>, std::in_place,
+                  std::forward<Args>(args)...};
+}
+#if __STDC_HOSTED__
+template <class F, class T, class Alloc, class... Args>
+constexpr proxy<F> make_proxy_impl(const ownership::owned_policy<Alloc>& op,
+                                   Args&&... args) {
   if constexpr (proxiable<inplace_ptr<T>, F>) {
     return proxy<F>{std::in_place_type<inplace_ptr<T>>, std::in_place,
                     std::forward<Args>(args)...};
   } else {
-    return allocate_proxy_impl<F, T>(std::allocator<void>{},
+    return allocate_proxy_impl<F, T>(op.get_allocator(),
                                      std::forward<Args>(args)...);
   }
 }
 template <class F, class T, class Alloc, class... Args>
-constexpr proxy<F> allocate_proxy_shared_impl(const Alloc& alloc,
-                                              Args&&... args) {
-  if constexpr (std::is_convertible_v<proxy<F>, weak_proxy<F>>) {
-    return proxy<F>{std::in_place_type<strong_compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  } else {
-    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  }
-}
-template <class F, class T, class... Args>
-constexpr proxy<F> make_proxy_shared_impl(Args&&... args) {
-  return allocate_proxy_shared_impl<F, T>(std::allocator<void>{},
-                                          std::forward<Args>(args)...);
+constexpr proxy<F> make_proxy_impl(const ownership::shared_policy<Alloc>& op,
+                                   Args&&... args) {
+  using Ptr = std::conditional_t<std::is_convertible_v<proxy<F>, weak_proxy<F>>,
+                                 strong_compact_ptr<T, Alloc>,
+                                 shared_compact_ptr<T, Alloc>>;
+  return proxy<F>{std::in_place_type<Ptr>, op.get_allocator(),
+                  std::forward<Args>(args)...};
 }
 #endif // __STDC_HOSTED__
 
@@ -1798,13 +1896,86 @@ template <class T>
 struct is_bitwise_trivially_relocatable<details::inplace_ptr<T>>
     : std::true_type {};
 
+// NEW APIs:
+
+template <facade F, class T, class... Args>
+constexpr proxy<F> make_proxy(Args&&... args) noexcept(
+    details::nothrow_constructible_under_policy<T, details::default_policy_t<F>,
+                                                Args...>)
+  requires(details::constructible_under_policy<T, details::default_policy_t<F>,
+                                               Args...>)
+{
+  return details::make_proxy_impl<F, T>(details::default_policy_t<F>{},
+                                        std::forward<Args>(args)...);
+}
+template <facade F, class T, class U, class... Args>
+constexpr proxy<F>
+    make_proxy(std::initializer_list<U> il, Args&&... args) noexcept(
+        details::nothrow_constructible_under_policy<
+            T, details::default_policy_t<F>, std::initializer_list<U>&,
+            Args...>)
+  requires(details::constructible_under_policy<
+           T, details::default_policy_t<F>, std::initializer_list<U>&, Args...>)
+{
+  return details::make_proxy_impl<F, T>(details::default_policy_t<F>{}, il,
+                                        std::forward<Args>(args)...);
+}
+template <facade F, class T>
+constexpr proxy<F> make_proxy(T&& value) noexcept(
+    details::nothrow_constructible_under_policy<
+        std::decay_t<T>, details::default_policy_t<F>, T>)
+  requires(details::constructible_under_policy<std::decay_t<T>,
+                                               details::default_policy_t<F>, T>)
+{
+  return details::make_proxy_impl<F, std::decay_t<T>>(
+      details::default_policy_t<F>{}, std::forward<T>(value));
+}
+template <facade F, class T, class OP, class... Args>
+constexpr proxy<F> make_proxy(OP&& op, Args&&... args) noexcept(
+    details::nothrow_constructible_under_policy<T, std::remove_cvref_t<OP>,
+                                                Args...>)
+  requires(
+      details::constructible_under_policy<T, std::remove_cvref_t<OP>, Args...>)
+{
+  return details::make_proxy_impl<F, T>(std::forward<OP>(op),
+                                        std::forward<Args>(args)...);
+}
+template <facade F, class T, class OP, class U, class... Args>
+constexpr proxy<F>
+    make_proxy(OP&& op, std::initializer_list<U> il, Args&&... args) noexcept(
+        details::nothrow_constructible_under_policy<
+            T, std::remove_cvref_t<OP>, std::initializer_list<U>&, Args...>)
+  requires(details::constructible_under_policy<
+           T, std::remove_cvref_t<OP>, std::initializer_list<U>&, Args...>)
+{
+  return details::make_proxy_impl<F, T>(std::forward<OP>(op), il,
+                                        std::forward<Args>(args)...);
+}
+template <facade F, class OP, class T>
+constexpr proxy<F> make_proxy(OP&& op, T&& value) noexcept(
+    details::nothrow_constructible_under_policy<std::decay_t<T>,
+                                                std::remove_cvref_t<OP>, T>)
+  requires(details::constructible_under_policy<std::decay_t<T>,
+                                               std::remove_cvref_t<OP>, T>)
+{
+  return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<OP>(op),
+                                                      std::forward<T>(value));
+}
+
+// OLD APIs:
+
+template <facade F, class T>
+constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
+  return make_proxy<observer_facade<F>>(value);
+}
+
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_inplace(Args&&... args) noexcept(
     std::is_nothrow_constructible_v<T, Args...>)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
-                  std::forward<Args>(args)...};
+  return details::make_proxy_impl<F, T>(ownership::inplace,
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class T, class U, class... Args>
 constexpr proxy<F>
@@ -1812,22 +1983,16 @@ constexpr proxy<F>
         std::is_nothrow_constructible_v<T, std::initializer_list<U>&, Args...>)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return proxy<F>{std::in_place_type<details::inplace_ptr<T>>, std::in_place,
-                  il, std::forward<Args>(args)...};
+  return details::make_proxy_impl<F, T>(ownership::inplace, il,
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class T>
 constexpr proxy<F> make_proxy_inplace(T&& value) noexcept(
     std::is_nothrow_constructible_v<std::decay_t<T>, T>)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return proxy<F>{std::in_place_type<details::inplace_ptr<std::decay_t<T>>>,
-                  std::in_place, std::forward<T>(value)};
-}
-
-template <facade F, class T>
-constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
-  return proxy_view<F>{
-      details::observer_ptr<T&, const T&, T&&, const T&&>{value}};
+  return details::make_proxy_impl<F, std::decay_t<T>>(ownership::inplace,
+                                                      std::forward<T>(value));
 }
 
 #if __STDC_HOSTED__
@@ -1877,31 +2042,13 @@ constexpr proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
   return details::allocate_proxy_impl<F, std::decay_t<T>>(
       alloc, std::forward<T>(value));
 }
-template <facade F, class T, class... Args>
-constexpr proxy<F> make_proxy(Args&&... args)
-  requires(std::is_constructible_v<T, Args...>)
-{
-  return details::make_proxy_impl<F, T>(std::forward<Args>(args)...);
-}
-template <facade F, class T, class U, class... Args>
-constexpr proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
-  requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
-{
-  return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...);
-}
-template <facade F, class T>
-constexpr proxy<F> make_proxy(T&& value)
-  requires(std::is_constructible_v<std::decay_t<T>, T>)
-{
-  return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
-}
 
 template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::allocate_proxy_shared_impl<F, T>(alloc,
-                                                   std::forward<Args>(args)...);
+  return details::make_proxy_impl<F, T>(ownership::shared_policy{alloc},
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
@@ -1909,35 +2056,37 @@ constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
                                          Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::allocate_proxy_shared_impl<F, T>(alloc, il,
-                                                   std::forward<Args>(args)...);
+  return details::make_proxy_impl<F, T>(ownership::shared_policy{alloc}, il,
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class Alloc, class T>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::allocate_proxy_shared_impl<F, std::decay_t<T>>(
-      alloc, std::forward<T>(value));
+  return details::make_proxy_impl<F, std::decay_t<T>>(
+      ownership::shared_policy{alloc}, std::forward<T>(value));
 }
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_shared(Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::make_proxy_shared_impl<F, T>(std::forward<Args>(args)...);
+  return details::make_proxy_impl<F, T>(ownership::shared,
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy_shared(std::initializer_list<U> il,
                                      Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::make_proxy_shared_impl<F, T>(il, std::forward<Args>(args)...);
+  return details::make_proxy_impl<F, T>(ownership::shared, il,
+                                        std::forward<Args>(args)...);
 }
 template <facade F, class T>
 constexpr proxy<F> make_proxy_shared(T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::make_proxy_shared_impl<F, std::decay_t<T>>(
-      std::forward<T>(value));
+  return details::make_proxy_impl<F, std::decay_t<T>>(ownership::shared,
+                                                      std::forward<T>(value));
 }
 #endif // __STDC_HOSTED__
 
