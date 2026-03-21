@@ -1896,8 +1896,6 @@ template <class T>
 struct is_bitwise_trivially_relocatable<details::inplace_ptr<T>>
     : std::true_type {};
 
-// NEW APIs:
-
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy(Args&&... args) noexcept(
     details::nothrow_constructible_under_policy<T, details::default_policy_t<F>,
@@ -1962,8 +1960,6 @@ constexpr proxy<F> make_proxy(OP&& op, T&& value) noexcept(
                                                       std::forward<T>(value));
 }
 
-// OLD APIs:
-
 template <facade F, class T>
 constexpr proxy_view<F> make_proxy_view(T& value) noexcept {
   return make_proxy<observer_facade<F>>(value);
@@ -1974,8 +1970,7 @@ constexpr proxy<F> make_proxy_inplace(Args&&... args) noexcept(
     std::is_nothrow_constructible_v<T, Args...>)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::inplace,
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::inplace, std::forward<Args>(args)...);
 }
 template <facade F, class T, class U, class... Args>
 constexpr proxy<F>
@@ -1983,16 +1978,14 @@ constexpr proxy<F>
         std::is_nothrow_constructible_v<T, std::initializer_list<U>&, Args...>)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::inplace, il,
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::inplace, il, std::forward<Args>(args)...);
 }
 template <facade F, class T>
 constexpr proxy<F> make_proxy_inplace(T&& value) noexcept(
     std::is_nothrow_constructible_v<std::decay_t<T>, T>)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::make_proxy_impl<F, std::decay_t<T>>(ownership::inplace,
-                                                      std::forward<T>(value));
+  return make_proxy<F>(ownership::inplace, std::forward<T>(value));
 }
 
 #if __STDC_HOSTED__
@@ -2047,8 +2040,8 @@ template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::shared_policy{alloc},
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::shared_policy{alloc},
+                          std::forward<Args>(args)...);
 }
 template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
@@ -2056,37 +2049,33 @@ constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
                                          Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::shared_policy{alloc}, il,
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::shared_policy{alloc}, il,
+                          std::forward<Args>(args)...);
 }
 template <facade F, class Alloc, class T>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::make_proxy_impl<F, std::decay_t<T>>(
-      ownership::shared_policy{alloc}, std::forward<T>(value));
+  return make_proxy<F>(ownership::shared_policy{alloc}, std::forward<T>(value));
 }
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_shared(Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::shared,
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::shared, std::forward<Args>(args)...);
 }
 template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy_shared(std::initializer_list<U> il,
                                      Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::make_proxy_impl<F, T>(ownership::shared, il,
-                                        std::forward<Args>(args)...);
+  return make_proxy<F, T>(ownership::shared, il, std::forward<Args>(args)...);
 }
 template <facade F, class T>
 constexpr proxy<F> make_proxy_shared(T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::make_proxy_impl<F, std::decay_t<T>>(ownership::shared,
-                                                      std::forward<T>(value));
+  return make_proxy<F>(ownership::shared, std::forward<T>(value));
 }
 #endif // __STDC_HOSTED__
 
