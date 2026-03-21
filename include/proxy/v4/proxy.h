@@ -1521,6 +1521,9 @@ private:
   Alloc alloc_;
 };
 
+template <class OP>
+struct ownership_traits;
+
 } // namespace details
 
 namespace ownership {
@@ -1558,6 +1561,9 @@ struct shared_policy : details::alloc_aware<Alloc> {
 };
 inline constexpr shared_policy<> shared{};
 #endif // __STDC_HOSTED__
+
+template <class OP>
+concept policy = details::ownership_traits<OP>::applicable;
 
 } // namespace ownership
 
@@ -1933,6 +1939,7 @@ constexpr proxy<F> make_proxy(OP&& op, Args&&... args) noexcept(
     details::nothrow_constructible_under_policy<T, std::remove_cvref_t<OP>,
                                                 Args...>)
   requires(
+      ownership::policy<std::remove_cvref_t<OP>> &&
       details::constructible_under_policy<T, std::remove_cvref_t<OP>, Args...>)
 {
   return details::make_proxy_impl<F, T>(std::forward<OP>(op),
@@ -1943,8 +1950,9 @@ constexpr proxy<F>
     make_proxy(OP&& op, std::initializer_list<U> il, Args&&... args) noexcept(
         details::nothrow_constructible_under_policy<
             T, std::remove_cvref_t<OP>, std::initializer_list<U>&, Args...>)
-  requires(details::constructible_under_policy<
-           T, std::remove_cvref_t<OP>, std::initializer_list<U>&, Args...>)
+  requires(ownership::policy<std::remove_cvref_t<OP>> &&
+           details::constructible_under_policy<
+               T, std::remove_cvref_t<OP>, std::initializer_list<U>&, Args...>)
 {
   return details::make_proxy_impl<F, T>(std::forward<OP>(op), il,
                                         std::forward<Args>(args)...);
@@ -1953,7 +1961,8 @@ template <facade F, class OP, class T>
 constexpr proxy<F> make_proxy(OP&& op, T&& value) noexcept(
     details::nothrow_constructible_under_policy<std::decay_t<T>,
                                                 std::remove_cvref_t<OP>, T>)
-  requires(details::constructible_under_policy<std::decay_t<T>,
+  requires(ownership::policy<std::remove_cvref_t<OP>> &&
+           details::constructible_under_policy<std::decay_t<T>,
                                                std::remove_cvref_t<OP>, T>)
 {
   return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<OP>(op),
