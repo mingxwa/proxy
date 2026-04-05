@@ -195,10 +195,10 @@ pro::proxy<ValueStorageFacade<std::string>>
   return pro::make_proxy<ValueStorageFacade<std::string>,
                          SimpleValueStorage<std::string>>();
 }
-pro::proxy<ValueStorageFacade<std::stop_token>>
-    GenerateParameterPassingTestProxy_StopToken_ByValue() {
-  return pro::make_proxy<ValueStorageFacade<std::stop_token>,
-                         SimpleValueStorage<std::stop_token>>();
+pro::proxy<ValueStorageFacade<std::vector<int>>>
+    GenerateParameterPassingTestProxy_Vector_ByValue() {
+  return pro::make_proxy<ValueStorageFacade<std::vector<int>>,
+                         SimpleValueStorage<std::vector<int>>>();
 }
 
 pro::proxy<ValueStorageFacade<std::unique_ptr<int>&&>>
@@ -216,8 +216,8 @@ pro::proxy<ValueStorageFacade<std::string&&>>
   return pro::make_proxy<ValueStorageFacade<std::string&&>,
                          SimpleValueStorage<std::string>>();
 }
-pro::proxy<ValueStorageFacade<std::stop_token&&>>
-    GenerateParameterPassingTestProxy_StopToken_ByReference() {
-  return pro::make_proxy<ValueStorageFacade<std::stop_token&&>,
-                         SimpleValueStorage<std::stop_token>>();
+pro::proxy<ValueStorageFacade<std::vector<int>&&>>
+    GenerateParameterPassingTestProxy_Vector_ByReference() {
+  return pro::make_proxy<ValueStorageFacade<std::vector<int>&&>,
+                         SimpleValueStorage<std::vector<int>>>();
 }
