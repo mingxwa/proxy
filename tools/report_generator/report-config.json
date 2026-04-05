@@ -180,6 +180,26 @@
           "Name": "Relocation on large objects via `proxy` vs. `std::any`",
           "TargetBenchmarkName": "BM_LargeObjectRelocationViaProxy",
           "BaselineBenchmarkName": "BM_LargeObjectRelocationViaAny"
+        },
+        {
+          "Name": "Passing `std::unique_ptr` by value (existing `proxy` behavior) vs. by reference",
+          "TargetBenchmarkName": "BM_AdHoc_ParameterPassing_UniquePtr_ByValue",
+          "BaselineBenchmarkName": "BM_AdHoc_ParameterPassing_UniquePtr_ByReference"
+        },
+        {
+          "Name": "Passing `std::shared_ptr` by value (existing `proxy` behavior) vs. by reference",
+          "TargetBenchmarkName": "BM_AdHoc_ParameterPassing_SharedPtr_ByValue",
+          "BaselineBenchmarkName": "BM_AdHoc_ParameterPassing_SharedPtr_ByReference"
+        },
+        {
+          "Name": "Passing `std::string` by value (existing `proxy` behavior) vs. by reference",
+          "TargetBenchmarkName": "BM_AdHoc_ParameterPassing_String_ByValue",
+          "BaselineBenchmarkName": "BM_AdHoc_ParameterPassing_String_ByReference"
+        },
+        {
+          "Name": "Passing `std::vector` by value (existing `proxy` behavior) vs. by reference",
+          "TargetBenchmarkName": "BM_AdHoc_ParameterPassing_Vector_ByValue",
+          "BaselineBenchmarkName": "BM_AdHoc_ParameterPassing_Vector_ByReference"
         }
       ]
     }

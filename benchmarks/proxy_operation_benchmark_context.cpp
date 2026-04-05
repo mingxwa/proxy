@@ -75,6 +75,15 @@ auto GenerateTestData(const F& generator) {
   return result;
 }
 
+template <class T>
+struct SimpleValueStorage {
+  void Store(T val) { value_ = std::move(val); }
+  T Release() { return std::move(value_); }
+
+private:
+  T value_;
+};
+
 } // namespace
 
 std::vector<pro::proxy<InvocationTestFacade>>
@@ -169,4 +178,46 @@ std::vector<std::any> GenerateLargeObjectAnyTestData() {
       []<int TypeSeries>(IntConstant<TypeSeries>, int seed) {
         return std::make_any<NonIntrusiveLargeImpl<TypeSeries>>(seed);
       });
+}
+
+pro::proxy<ValueStorageFacade<std::unique_ptr<int>>>
+    GenerateParameterPassingTestProxy_UniquePtr_ByValue() {
+  return pro::make_proxy<ValueStorageFacade<std::unique_ptr<int>>,
+                         SimpleValueStorage<std::unique_ptr<int>>>();
+}
+pro::proxy<ValueStorageFacade<std::shared_ptr<int>>>
+    GenerateParameterPassingTestProxy_SharedPtr_ByValue() {
+  return pro::make_proxy<ValueStorageFacade<std::shared_ptr<int>>,
+                         SimpleValueStorage<std::shared_ptr<int>>>();
+}
+pro::proxy<ValueStorageFacade<std::string>>
+    GenerateParameterPassingTestProxy_String_ByValue() {
+  return pro::make_proxy<ValueStorageFacade<std::string>,
+                         SimpleValueStorage<std::string>>();
+}
+pro::proxy<ValueStorageFacade<std::stop_token>>
+    GenerateParameterPassingTestProxy_StopToken_ByValue() {
+  return pro::make_proxy<ValueStorageFacade<std::stop_token>,
+                         SimpleValueStorage<std::stop_token>>();
+}
+
+pro::proxy<ValueStorageFacade<std::unique_ptr<int>&&>>
+    GenerateParameterPassingTestProxy_UniquePtr_ByReference() {
+  return pro::make_proxy<ValueStorageFacade<std::unique_ptr<int>&&>,
+                         SimpleValueStorage<std::unique_ptr<int>>>();
+}
+pro::proxy<ValueStorageFacade<std::shared_ptr<int>&&>>
+    GenerateParameterPassingTestProxy_SharedPtr_ByReference() {
+  return pro::make_proxy<ValueStorageFacade<std::shared_ptr<int>&&>,
+                         SimpleValueStorage<std::shared_ptr<int>>>();
+}
+pro::proxy<ValueStorageFacade<std::string&&>>
+    GenerateParameterPassingTestProxy_String_ByReference() {
+  return pro::make_proxy<ValueStorageFacade<std::string&&>,
+                         SimpleValueStorage<std::string>>();
+}
+pro::proxy<ValueStorageFacade<std::stop_token&&>>
+    GenerateParameterPassingTestProxy_StopToken_ByReference() {
+  return pro::make_proxy<ValueStorageFacade<std::stop_token&&>,
+                         SimpleValueStorage<std::stop_token>>();
 }

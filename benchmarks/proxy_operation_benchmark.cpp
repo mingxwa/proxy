@@ -8,6 +8,8 @@
 
 namespace {
 
+constexpr int ParameterPassingTestBatchSize = 1000000;
+
 void BM_SmallObjectInvocationViaProxy(benchmark::State& state) {
   auto data = GenerateSmallObjectProxyTestData();
   for (auto _ : state) {
@@ -244,6 +246,106 @@ void BM_LargeObjectRelocationViaAny(benchmark::State& state) {
   }
 }
 
+void BM_AdHoc_ParameterPassing_UniquePtr_ByValue(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_UniquePtr_ByValue();
+  int* testData = new int(123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(std::unique_ptr<int>{testData});
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+      testData = released.release();
+    }
+  }
+  delete testData;
+}
+
+void BM_AdHoc_ParameterPassing_SharedPtr_ByValue(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_SharedPtr_ByValue();
+  auto testData = std::make_shared<int>(123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(testData);
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+    }
+  }
+}
+
+void BM_AdHoc_ParameterPassing_String_ByValue(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_String_ByValue();
+  const char* testData = "123";
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(testData);
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+    }
+  }
+}
+
+void BM_AdHoc_ParameterPassing_Vector_ByValue(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_Vector_ByValue();
+  std::vector<int> testData(10000, 123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(std::move(testData));
+      testData = p->Release();
+      benchmark::DoNotOptimize(testData);
+    }
+  }
+}
+
+void BM_AdHoc_ParameterPassing_UniquePtr_ByReference(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_UniquePtr_ByReference();
+  int* testData = new int(123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(std::unique_ptr<int>{testData});
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+      testData = released.release();
+    }
+  }
+  delete testData;
+}
+
+void BM_AdHoc_ParameterPassing_SharedPtr_ByReference(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_SharedPtr_ByReference();
+  auto testData = std::make_shared<int>(123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(std::shared_ptr{testData});
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+    }
+  }
+}
+
+void BM_AdHoc_ParameterPassing_String_ByReference(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_String_ByReference();
+  const char* testData = "123";
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(testData);
+      auto released = p->Release();
+      benchmark::DoNotOptimize(released);
+    }
+  }
+}
+
+void BM_AdHoc_ParameterPassing_Vector_ByReference(benchmark::State& state) {
+  auto p = GenerateParameterPassingTestProxy_Vector_ByReference();
+  std::vector<int> testData(10000, 123);
+  for (auto _ : state) {
+    for (int i = 0; i < ParameterPassingTestBatchSize; ++i) {
+      p->Store(std::vector(std::move(testData)));
+      testData = p->Release();
+      benchmark::DoNotOptimize(testData);
+    }
+  }
+}
+
 BENCHMARK(BM_SmallObjectInvocationViaProxy);
 BENCHMARK(BM_SmallObjectInvocationViaProxy_Shared);
 BENCHMARK(BM_SmallObjectInvocationViaProxyView);
@@ -264,5 +366,13 @@ BENCHMARK(BM_LargeObjectRelocationViaProxy);
 BENCHMARK(BM_LargeObjectRelocationViaProxy_NothrowRelocatable);
 BENCHMARK(BM_LargeObjectRelocationViaUniquePtr);
 BENCHMARK(BM_LargeObjectRelocationViaAny);
+BENCHMARK(BM_AdHoc_ParameterPassing_UniquePtr_ByValue);
+BENCHMARK(BM_AdHoc_ParameterPassing_SharedPtr_ByValue);
+BENCHMARK(BM_AdHoc_ParameterPassing_String_ByValue);
+BENCHMARK(BM_AdHoc_ParameterPassing_Vector_ByValue);
+BENCHMARK(BM_AdHoc_ParameterPassing_UniquePtr_ByReference);
+BENCHMARK(BM_AdHoc_ParameterPassing_SharedPtr_ByReference);
+BENCHMARK(BM_AdHoc_ParameterPassing_String_ByReference);
+BENCHMARK(BM_AdHoc_ParameterPassing_Vector_ByReference);
 
 } // namespace

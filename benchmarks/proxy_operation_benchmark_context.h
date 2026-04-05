@@ -4,11 +4,14 @@
 
 #include <any>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <proxy/proxy.h>
 
 PRO_DEF_MEM_DISPATCH(MemFun, Fun);
+PRO_DEF_MEM_DISPATCH(MemStore, Store);
+PRO_DEF_MEM_DISPATCH(MemRelease, Release);
 
 struct InvocationTestFacade : pro::facade_builder                   //
                               ::add_convention<MemFun, int() const> //
@@ -24,6 +27,13 @@ struct InvocationTestBase {
   virtual int Fun() const = 0;
   virtual ~InvocationTestBase() = default;
 };
+
+template <class T>
+struct ValueStorageFacade
+    : pro::facade_builder                                      //
+      ::add_convention<MemStore, void(T val)>                  //
+      ::template add_convention<MemRelease, std::decay_t<T>()> //
+      ::build {};
 
 std::vector<pro::proxy<InvocationTestFacade>>
     GenerateSmallObjectProxyTestData();
@@ -48,3 +58,21 @@ std::vector<std::unique_ptr<InvocationTestBase>>
 std::vector<std::shared_ptr<InvocationTestBase>>
     GenerateLargeObjectVirtualFunctionTestData_Shared();
 std::vector<std::any> GenerateLargeObjectAnyTestData();
+
+pro::proxy<ValueStorageFacade<std::unique_ptr<int>>>
+    GenerateParameterPassingTestProxy_UniquePtr_ByValue();
+pro::proxy<ValueStorageFacade<std::shared_ptr<int>>>
+    GenerateParameterPassingTestProxy_SharedPtr_ByValue();
+pro::proxy<ValueStorageFacade<std::string>>
+    GenerateParameterPassingTestProxy_String_ByValue();
+pro::proxy<ValueStorageFacade<std::vector<int>>>
+    GenerateParameterPassingTestProxy_Vector_ByValue();
+
+pro::proxy<ValueStorageFacade<std::unique_ptr<int>&&>>
+    GenerateParameterPassingTestProxy_UniquePtr_ByReference();
+pro::proxy<ValueStorageFacade<std::shared_ptr<int>&&>>
+    GenerateParameterPassingTestProxy_SharedPtr_ByReference();
+pro::proxy<ValueStorageFacade<std::string&&>>
+    GenerateParameterPassingTestProxy_String_ByReference();
+pro::proxy<ValueStorageFacade<std::vector<int>&&>>
+    GenerateParameterPassingTestProxy_Vector_ByReference();
