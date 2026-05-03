@@ -2491,7 +2491,7 @@ struct operator_dispatch;
       return invoke<D, R(int) oq ne>(static_cast<P pq>(*this), 0);             \
     }                                                                          \
   }
-#define PROD_DEF_LHS_BINARY_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
+#define PROD_DEF_LHS_BINARY_OP_ACCESSOR PRO4D_DEF_FREE_ACCESSOR
 #define PROD_DEF_LHS_ALL_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
   template <class T>                                                           \

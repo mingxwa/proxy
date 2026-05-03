@@ -14,8 +14,33 @@ For different `Sign` and `Rhs`, `operator_dispatch<Sign, Rhs>::accessor` has dif
 
 ## Left-Hand-Side Operand Specializations
 
+### Binary SOPs
+
+When `Sign` is one of `"/"`, `"%"`, `"=="`, `"!="`, `">"`, `"<"`, `">="`, `"<="`, `"<=>"`, `"&&"`, `"||"`, `"|"`, `"^"`, `"<<"`, `">>"`, `","`, `"->*"`,
+
 ```cpp
 // (2)
+template <class P, class D, class... Os>
+    requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<P, D, Os>> && ...))
+struct accessor<P, D, Os...> : accessor<P, D, Os>... {};
+```
+
+`(2)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible types, inherits all `accessor<P, D, Os>...` types.
+
+```cpp
+// (3)
+template <class P, class D, class R, class Arg>
+struct accessor<P, D, R(Arg) cv ref noex> {
+  friend R operator sop (P cv <ref ? ref : &> self, Arg arg) noex;
+}
+```
+
+`(3)` Provides a `friend operator sop(P cv <ref ? ref : &> self, Arg arg)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(P cv <ref ? ref : &> self, Arg arg)` is equivalent to `return proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(self), std::forward<Arg>(arg))`.
+
+### Non-Binary SOPs
+
+```cpp
+// (4)
 template <class P, class D, class... Os>
     requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<P, D, Os>> && ...))
 struct accessor<P, D, Os...> : accessor<P, D, Os>... {
@@ -23,62 +48,62 @@ struct accessor<P, D, Os...> : accessor<P, D, Os>... {
 };
 ```
 
-`(2)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible types, inherits all `accessor<P, D, Os>...` types and `using` their `operator sop`.
+`(4)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible types, inherits all `accessor<P, D, Os>...` types and `using` their `operator sop`.
 
 When `Rhs` is `false`, the other specializations are defined as follows, where `sizeof...(Os)` is `1` and the only type `O` qualified with `cv ref noex`:
 
-### Regular SOPs
+#### Regular SOPs
 
-When `Sign` is one of `"+"`, `"-"`, `"*"`, `"/"`, `"%"`, `"++"`, `"--"`, `"=="`, `"!="`, `">"`, `"<"`, `">="`, `"<="`, `"<=>"`, `"&&"`, `"||"`, `"&"`, `"|"`, `"^"`, `"<<"`, `">>"`, `","`, `"->*"`, `"()"`, `"[]"`,
+When `Sign` is one of `"+"`, `"-"`, `"*"`, `"++"`, `"--"`, `"&"`, `"()"`, `"[]"`,
 
 ```cpp
-// (3)
+// (5)
 template <class P, class D, class R, class... Args>
 struct accessor<P, D, R(Args...) cv ref noex> {
   R operator sop (Args... args) cv ref noex;
 }
 ```
 
-`(3)` Provides an `operator sop(Args...)` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop(Args...)` is equivalent to `return proxy_invoke<D, R(Args...) cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this), std::forward<Args>(args)...)`.
+`(5)` Provides an `operator sop(Args...)` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop(Args...)` is equivalent to `return proxy_invoke<D, R(Args...) cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this), std::forward<Args>(args)...)`.
 
-### `!` and `~`
+#### `!` and `~`
 
 When `Sign` is either `!` and `~`,
 
 ```cpp
-// (4)
+// (6)
 template <class P, class D, class R>
 struct accessor<P, D, R() cv ref noex> {
   R operator sop () cv ref noex;
 }
 ```
 
-`(4)` Provides an `operator sop()` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop()` is equivalent to `return proxy_invoke<D, R() cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this))`.
+`(6)` Provides an `operator sop()` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop()` is equivalent to `return proxy_invoke<D, R() cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this))`.
 
-### Assignment SOPs
+#### Assignment SOPs
 
 When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"%="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
 
 ```cpp
-// (5)
+// (7)
 template <class P, class D, class R, class Arg>
 struct accessor<P, D, R(Arg) cv ref noex> {
   /* see below */ operator sop (Arg arg) cv ref noex;
 }
 ```
 
-`(4)` Provides an `operator sop(Arg)` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop(Arg)` calls `proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this), std::forward<Arg>(arg))` and returns `static_cast<P cv <ref ? ref : &>>(*this)`.
+`(7)` Provides an `operator sop(Arg)` with the same *cv ref noex* specifiers as of the overload type. `accessor::operator sop(Arg)` calls `proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this), std::forward<Arg>(arg))` and returns `static_cast<P cv <ref ? ref : &>>(*this)`.
 
 ## Right-Hand-Side Operand Specializations
 
 ```cpp
-// (6)
+// (8)
 template <class P, class D, class... Os>
     requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<P, D, Os>> && ...))
 struct accessor<P, D, Os...> : accessor<P, D, Os>... {};
 ```
 
-`(6)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible types, inherits all `accessor<P, D, Os>...` types.
+`(8)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible types, inherits all `accessor<P, D, Os>...` types.
 
 When `Rhs` is `true`, the other specializations are defined as follows, where `sizeof...(Os)` is `1` and the only type `O` qualified with `cv ref noex`:
 
@@ -87,25 +112,25 @@ When `Rhs` is `true`, the other specializations are defined as follows, where `s
 When `Sign` is one of `"+"`, `"-"`, `"*"`, `"/"`, `"%"`, `"=="`, `"!="`, `">"`, `"<"`, `">="`, `"<="`, `"<=>"`, `"&&"`, `"||"`, `"&"`, `"|"`, `"^"`, `"<<"`, `">>"`, `","`, `"->*"`,
 
 ```cpp
-// (7)
+// (9)
 template <class P, class D, class R, class Arg>
 struct accessor<P, D, R(Arg) cv ref noex> {
   friend R operator sop (Arg arg, P cv <ref ? ref : &> self) noex;
 }
 ```
 
-`(7)` Provides a `friend operator sop(Arg arg, P cv <ref ? ref : &> self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, P cv <ref ? ref : &> self)` is equivalent to `return proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(self), std::forward<Arg>(arg))`.
+`(9)` Provides a `friend operator sop(Arg arg, P cv <ref ? ref : &> self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, P cv <ref ? ref : &> self)` is equivalent to `return proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(self), std::forward<Arg>(arg))`.
 
 ### Assignment SOPs
 
 When `Sign` is one of `"+="`, `"-="`, `"*="`, `"/="`, `"%="`, `"&="`, `"|="`, `"^="`, `"<<="`, `">>="`,
 
 ```cpp
-// (8)
+// (10)
 template <class P, class D, class R, class Arg>
 struct accessor<P, D, R(Arg) cv ref noex> {
   friend /* see below */ operator sop (Arg arg, P cv <ref ? ref : &> self) noex;
 }
 ```
 
-`(8)` Provides a `friend operator sop(Arg arg, P cv <ref ? ref : &> self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, P cv <ref ? ref : &> self)` calls `proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(self), std::forward<Arg>(arg))` and returns `static_cast<P cv <ref ? ref : &>>(self)`.
+`(10)` Provides a `friend operator sop(Arg arg, P cv <ref ? ref : &> self)` with the same *noex* specifiers as of the overload type. `accessor::operator sop(Arg arg, P cv <ref ? ref : &> self)` calls `proxy_invoke<D, R(Arg) cv ref noex>(static_cast<P cv <ref ? ref : &>>(self), std::forward<Arg>(arg))` and returns `static_cast<P cv <ref ? ref : &>>(self)`.
