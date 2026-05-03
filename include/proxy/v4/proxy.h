@@ -33,6 +33,12 @@
 #if __cpp_rtti >= 199711L
 #include <optional>
 #include <typeinfo>
+#elif __STDC_HOSTED__
+namespace std {
+
+struct nullopt_t;
+
+} // namespace std
 #endif // __cpp_rtti >= 199711L
 
 #include "proxy_macros.h"
@@ -604,47 +610,36 @@ using lifetime_meta_t = typename lifetime_meta_traits<F, D, ONE, OE, C>::type;
 template <class... As>
 struct PRO4D_ENFORCE_EBO composite_accessor : As... {};
 
-template <class C, class F, bool IsDirect>
+template <class P, class C, class F, bool IsDirect>
 struct conv_accessor_traits : std::type_identity<void> {};
-template <class C, class F>
-  requires(!C::is_direct)
-struct conv_accessor_traits<C, F, false>
-    : std::type_identity<typename conv_traits<C, F>::template accessor<
-          proxy_indirect_accessor<F>>> {};
-template <class C, class F>
-  requires(C::is_direct)
-struct conv_accessor_traits<C, F, true>
-    : std::type_identity<
-          typename conv_traits<C, F>::template accessor<proxy<F>>> {};
-template <class C, class F, bool IsDirect>
-using conv_accessor_t = typename conv_accessor_traits<C, F, IsDirect>::type;
+template <class P, class C, class F, bool IsDirect>
+  requires(C::is_direct == IsDirect)
+struct conv_accessor_traits<P, C, F, IsDirect>
+    : std::type_identity<typename conv_traits<C, F>::template accessor<P>> {};
+template <class P, class C, class F, bool IsDirect>
+using conv_accessor_t = typename conv_accessor_traits<P, C, F, IsDirect>::type;
 
-template <class R, class F, bool IsDirect>
+template <class P, class R, bool IsDirect>
 struct refl_accessor_traits : std::type_identity<void> {};
-template <class R, class F>
-  requires(!R::is_direct)
-struct refl_accessor_traits<R, F, false>
-    : std::type_identity<
-          accessor_t<typename R::reflector_type, proxy_indirect_accessor<F>,
-                     typename R::reflector_type>> {};
-template <class R, class F>
-  requires(R::is_direct)
-struct refl_accessor_traits<R, F, true>
-    : std::type_identity<accessor_t<typename R::reflector_type, proxy<F>,
+template <class P, class R, bool IsDirect>
+  requires(R::is_direct == IsDirect)
+struct refl_accessor_traits<P, R, IsDirect>
+    : std::type_identity<accessor_t<typename R::reflector_type, P,
                                     typename R::reflector_type>> {};
-template <class R, class F, bool IsDirect>
-using refl_accessor_t = typename refl_accessor_traits<R, F, IsDirect>::type;
+template <class P, class R, bool IsDirect>
+using refl_accessor_t = typename refl_accessor_traits<P, R, IsDirect>::type;
 
-template <class P>
-struct ptr_traits : inapplicable_traits {};
-template <class P>
-  requires((
-               requires { *std::declval<P&>(); } ||
-               requires { typename P::element_type; }) &&
-           requires { typename std::pointer_traits<P>::element_type; })
-struct ptr_traits<P> : applicable_traits {};
-template <class F>
-struct ptr_traits<proxy<F>> : inapplicable_traits {};
+template <class T>
+concept pointer_like = (requires { *std::declval<T&>(); } ||
+    requires { typename T::element_type; }) &&
+    requires { typename std::pointer_traits<T>::element_type; };
+
+template <class T, template <class...> class TT>
+struct specialization_traits : inapplicable_traits {};
+template <template <class...> class TT, class... Args>
+struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
+template <class T, template <class...> class TT>
+concept specialization_of = specialization_traits<T, TT>::applicable;
 
 template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
 consteval bool diagnose_proxiable_size_too_large() {
@@ -737,9 +732,11 @@ struct facade_conv_traits_impl {
   using conv_meta =
       composite_t<composite_meta<>, typename conv_traits<Cs, F>::meta...>;
   using conv_indirect_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, false>...>;
+      composite_t<composite_accessor<>,
+                  conv_accessor_t<proxy_indirect_accessor<F>, Cs, F, false>...>;
   using conv_direct_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, true>...>;
+      composite_t<composite_accessor<>,
+                  conv_accessor_t<proxy<F>, Cs, F, true>...>;
 
   template <class P>
   static consteval bool diagnose_proxiable_conv() {
@@ -759,9 +756,10 @@ template <class F, class... Rs>
 struct facade_refl_traits_impl {
   using refl_meta = composite_meta<typename refl_traits<Rs>::meta...>;
   using refl_indirect_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, false>...>;
+      composite_t<composite_accessor<>,
+                  refl_accessor_t<proxy_indirect_accessor<F>, Rs, false>...>;
   using refl_direct_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, true>...>;
+      composite_t<composite_accessor<>, refl_accessor_t<proxy<F>, Rs, true>...>;
 
   template <class P>
   static consteval bool diagnose_proxiable_refl() {
@@ -872,8 +870,8 @@ using meta_ptr = typename meta_ptr_traits<M>::type;
 template <class T>
 class inplace_ptr {
 public:
-  template <class... Args>
-  explicit inplace_ptr(std::in_place_t, Args&&... args)
+  template <class Ignore, class... Args>
+  explicit inplace_ptr(const Ignore&, Args&&... args)
       : value_(std::forward<Args>(args)...) {}
   inplace_ptr() = default;
   inplace_ptr(const inplace_ptr&) = default;
@@ -912,7 +910,7 @@ add_qualifier_t<proxy<F>, Q>
 } // namespace details
 
 template <class P, class F>
-concept proxiable = facade<F> && details::ptr_traits<P>::applicable &&
+concept proxiable = facade<F> && details::pointer_like<P> &&
                     details::facade_traits<F>::template applicable_ptr<P>;
 
 template <facade F>
@@ -990,7 +988,8 @@ public:
   template <class P>
   constexpr proxy(P&& ptr) noexcept(
       std::is_nothrow_constructible_v<std::decay_t<P>, P>)
-    requires(details::ptr_traits<std::decay_t<P>>::applicable &&
+    requires(!details::specialization_of<std::decay_t<P>, proxy> &&
+             details::pointer_like<std::decay_t<P>> &&
              std::is_constructible_v<std::decay_t<P>, P>)
   {
     initialize<std::decay_t<P>>(std::forward<P>(ptr));
@@ -998,8 +997,7 @@ public:
   template <class P, class... Args>
   constexpr explicit proxy(std::in_place_type_t<P>, Args&&... args) noexcept(
       std::is_nothrow_constructible_v<P, Args...>)
-    requires(details::ptr_traits<P>::applicable &&
-             std::is_constructible_v<P, Args...>)
+    requires(details::pointer_like<P> && std::is_constructible_v<P, Args...>)
   {
     initialize<P>(std::forward<Args>(args)...);
   }
@@ -1009,7 +1007,7 @@ public:
       Args&&... args) noexcept(std::
                                    is_nothrow_constructible_v<
                                        P, std::initializer_list<U>&, Args...>)
-    requires(details::ptr_traits<P>::applicable &&
+    requires(details::pointer_like<P> &&
              std::is_constructible_v<P, std::initializer_list<U>&, Args...>)
   {
     initialize<P>(il, std::forward<Args>(args)...);
@@ -1060,7 +1058,8 @@ public:
   constexpr proxy& operator=(P&& ptr) noexcept(
       std::is_nothrow_constructible_v<std::decay_t<P>, P> &&
       F::destructibility >= constraint_level::nothrow)
-    requires(details::ptr_traits<std::decay_t<P>>::applicable &&
+    requires(!details::specialization_of<std::decay_t<P>, proxy> &&
+             details::pointer_like<std::decay_t<P>> &&
              std::is_constructible_v<std::decay_t<P>, P> &&
              F::destructibility >= constraint_level::nontrivial)
   {
@@ -1127,8 +1126,7 @@ public:
   constexpr P& emplace(Args&&... args) noexcept(
       std::is_nothrow_constructible_v<P, Args...> &&
       F::destructibility >= constraint_level::nothrow)
-    requires(details::ptr_traits<P>::applicable &&
-             std::is_constructible_v<P, Args...> &&
+    requires(details::pointer_like<P> && std::is_constructible_v<P, Args...> &&
              F::destructibility >= constraint_level::nontrivial)
   {
     reset();
@@ -1138,7 +1136,7 @@ public:
   constexpr P& emplace(std::initializer_list<U> il, Args&&... args) noexcept(
       std::is_nothrow_constructible_v<P, std::initializer_list<U>&, Args...> &&
       F::destructibility >= constraint_level::nothrow)
-    requires(details::ptr_traits<P>::applicable &&
+    requires(details::pointer_like<P> &&
              std::is_constructible_v<P, std::initializer_list<U>&, Args...> &&
              F::destructibility >= constraint_level::nontrivial)
   {
@@ -1146,7 +1144,9 @@ public:
     return initialize<P>(il, std::forward<Args>(args)...);
   }
 
-  friend void swap(proxy& lhs, proxy& rhs) noexcept(noexcept(lhs.swap(rhs))) {
+  friend void swap(proxy& lhs, proxy& rhs) noexcept(noexcept(lhs.swap(rhs)))
+    requires(requires { lhs.swap(rhs); })
+  {
     lhs.swap(rhs);
   }
   friend bool operator==(const proxy& lhs, std::nullptr_t) noexcept {
@@ -1163,7 +1163,7 @@ public:
     return details::invoke_impl<F, true, D, O>(p, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
-  friend auto invoke(proxy<F>&& p, Args&&... args) ->
+  friend auto invoke(proxy&& p, Args&&... args) ->
       typename details::overload_traits<O>::return_type {
     return details::invoke_impl<F, true, D, O>(std::move(p),
                                                std::forward<Args>(args)...);
@@ -1623,21 +1623,21 @@ protected:
 };
 
 template <class T, class Alloc>
-class PRO4D_ENFORCE_EBO allocated_ptr : private alloc_aware<Alloc>,
-                                        public indirect_ptr<inplace_ptr<T>> {
+class PRO4D_ENFORCE_EBO wide_ptr : private alloc_aware<Alloc>,
+                                   public indirect_ptr<inplace_ptr<T>> {
 public:
   template <class... Args>
-  allocated_ptr(const Alloc& alloc, Args&&... args)
+  wide_ptr(const Alloc& alloc, Args&&... args)
       : alloc_aware<Alloc>(alloc),
         indirect_ptr<inplace_ptr<T>>(allocate<inplace_ptr<T>>(
             this->alloc, std::in_place, std::forward<Args>(args)...)) {}
-  allocated_ptr(const allocated_ptr& rhs)
+  wide_ptr(const wide_ptr& rhs)
     requires(std::is_copy_constructible_v<T>)
       : alloc_aware<Alloc>(rhs),
         indirect_ptr<inplace_ptr<T>>(
             allocate<inplace_ptr<T>>(this->alloc, std::in_place, *rhs)) {}
-  allocated_ptr(allocated_ptr&& rhs) = delete;
-  ~allocated_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
+  wide_ptr(wide_ptr&& rhs) = delete;
+  ~wide_ptr() noexcept(std::is_nothrow_destructible_v<T>) {
     deallocate(this->alloc, this->ptr_);
   }
 };
@@ -1795,42 +1795,31 @@ private:
   strong_weak_compact_ptr_storage<T, Alloc>* ptr_;
 };
 
-template <class F, class T, class Alloc, class... Args>
-constexpr proxy<F> allocate_proxy_impl(const Alloc& alloc, Args&&... args) {
-  if constexpr (proxiable<allocated_ptr<T, Alloc>, F>) {
-    return proxy<F>{std::in_place_type<allocated_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  } else {
-    return proxy<F>{std::in_place_type<compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  }
-}
-template <class F, class T, class... Args>
-constexpr proxy<F> make_proxy_impl(Args&&... args) {
-  if constexpr (proxiable<inplace_ptr<T>, F>) {
-    return proxy<F>{std::in_place_type<inplace_ptr<T>>, std::in_place,
-                    std::forward<Args>(args)...};
-  } else {
-    return allocate_proxy_impl<F, T>(std::allocator<void>{},
-                                     std::forward<Args>(args)...);
-  }
-}
-template <class F, class T, class Alloc, class... Args>
-constexpr proxy<F> allocate_proxy_shared_impl(const Alloc& alloc,
-                                              Args&&... args) {
-  if constexpr (std::is_convertible_v<proxy<F>, weak_proxy<F>>) {
-    return proxy<F>{std::in_place_type<strong_compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  } else {
-    return proxy<F>{std::in_place_type<shared_compact_ptr<T, Alloc>>, alloc,
-                    std::forward<Args>(args)...};
-  }
-}
-template <class F, class T, class... Args>
-constexpr proxy<F> make_proxy_shared_impl(Args&&... args) {
-  return allocate_proxy_shared_impl<F, T>(std::allocator<void>{},
-                                          std::forward<Args>(args)...);
-}
+template <class F, class T, class Alloc>
+struct allocated_ptr_traits : std::type_identity<compact_ptr<T, Alloc>> {};
+template <class F, class T, class Alloc>
+  requires(proxiable<wide_ptr<T, Alloc>, F>)
+struct allocated_ptr_traits<F, T, Alloc>
+    : std::type_identity<wide_ptr<T, Alloc>> {};
+template <class F, class T, class Alloc>
+using allocated_ptr = typename allocated_ptr_traits<F, T, Alloc>::type;
+
+template <class F, class T>
+struct owned_ptr_traits : allocated_ptr_traits<F, T, std::allocator<void>> {};
+template <class F, class T>
+  requires(proxiable<inplace_ptr<T>, F>)
+struct owned_ptr_traits<F, T> : std::type_identity<inplace_ptr<T>> {};
+template <class F, class T>
+using owned_ptr = typename owned_ptr_traits<F, T>::type;
+
+template <class F, class T, class Alloc>
+struct shared_ptr_traits : std::type_identity<shared_compact_ptr<T, Alloc>> {};
+template <class F, class T, class Alloc>
+  requires(std::is_convertible_v<proxy<F>, weak_proxy<F>>)
+struct shared_ptr_traits<F, T, Alloc>
+    : std::type_identity<strong_compact_ptr<T, Alloc>> {};
+template <class F, class T, class Alloc = std::allocator<void>>
+using shared_ptr = typename shared_ptr_traits<F, T, Alloc>::type;
 #endif // __STDC_HOSTED__
 
 } // namespace details
@@ -1891,7 +1880,7 @@ template <class T>
 struct is_bitwise_trivially_relocatable<std::weak_ptr<T>> : std::true_type {};
 template <class T, class Alloc>
   requires(is_bitwise_trivially_relocatable_v<Alloc>)
-struct is_bitwise_trivially_relocatable<details::allocated_ptr<T, Alloc>>
+struct is_bitwise_trivially_relocatable<details::wide_ptr<T, Alloc>>
     : std::true_type {};
 template <class T, class Alloc>
 struct is_bitwise_trivially_relocatable<details::compact_ptr<T, Alloc>>
@@ -1906,52 +1895,65 @@ template <class T, class Alloc>
 struct is_bitwise_trivially_relocatable<details::weak_compact_ptr<T, Alloc>>
     : std::true_type {};
 
+template <facade F, class Alloc, class T>
+constexpr proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
+  requires(std::is_constructible_v<std::decay_t<T>, T>)
+{
+  return proxy<F>{
+      std::in_place_type<details::allocated_ptr<F, std::decay_t<T>, Alloc>>,
+      alloc, std::forward<T>(value)};
+}
 template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy(const Alloc& alloc, Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::allocate_proxy_impl<F, T>(alloc, std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::allocated_ptr<F, T, Alloc>>,
+                  alloc, std::forward<Args>(args)...};
 }
 template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy(const Alloc& alloc,
                                   std::initializer_list<U> il, Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::allocate_proxy_impl<F, T>(alloc, il,
-                                            std::forward<Args>(args)...);
-}
-template <facade F, class Alloc, class T>
-constexpr proxy<F> allocate_proxy(const Alloc& alloc, T&& value)
-  requires(std::is_constructible_v<std::decay_t<T>, T>)
-{
-  return details::allocate_proxy_impl<F, std::decay_t<T>>(
-      alloc, std::forward<T>(value));
-}
-template <facade F, class T, class... Args>
-constexpr proxy<F> make_proxy(Args&&... args)
-  requires(std::is_constructible_v<T, Args...>)
-{
-  return details::make_proxy_impl<F, T>(std::forward<Args>(args)...);
-}
-template <facade F, class T, class U, class... Args>
-constexpr proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
-  requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
-{
-  return details::make_proxy_impl<F, T>(il, std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::allocated_ptr<F, T, Alloc>>,
+                  alloc, il, std::forward<Args>(args)...};
 }
 template <facade F, class T>
 constexpr proxy<F> make_proxy(T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::make_proxy_impl<F, std::decay_t<T>>(std::forward<T>(value));
+  return proxy<F>{std::in_place_type<details::owned_ptr<F, std::decay_t<T>>>,
+                  std::allocator<void>{}, std::forward<T>(value)};
+}
+template <facade F, class T, class... Args>
+constexpr proxy<F> make_proxy(Args&&... args)
+  requires(std::is_constructible_v<T, Args...>)
+{
+  return proxy<F>{std::in_place_type<details::owned_ptr<F, T>>,
+                  std::allocator<void>{}, std::forward<Args>(args)...};
+}
+template <facade F, class T, class U, class... Args>
+constexpr proxy<F> make_proxy(std::initializer_list<U> il, Args&&... args)
+  requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
+{
+  return proxy<F>{std::in_place_type<details::owned_ptr<F, T>>,
+                  std::allocator<void>{}, il, std::forward<Args>(args)...};
 }
 
+template <facade F, class Alloc, class T>
+constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
+  requires(std::is_constructible_v<std::decay_t<T>, T>)
+{
+  return proxy<F>{
+      std::in_place_type<details::shared_ptr<F, std::decay_t<T>, Alloc>>, alloc,
+      std::forward<T>(value)};
+}
 template <facade F, class T, class Alloc, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::allocate_proxy_shared_impl<F, T>(alloc,
-                                                   std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::shared_ptr<F, T, Alloc>>, alloc,
+                  std::forward<Args>(args)...};
 }
 template <facade F, class T, class Alloc, class U, class... Args>
 constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
@@ -1959,36 +1961,267 @@ constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc,
                                          Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::allocate_proxy_shared_impl<F, T>(alloc, il,
-                                                   std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::shared_ptr<F, T, Alloc>>, alloc,
+                  il, std::forward<Args>(args)...};
 }
-template <facade F, class Alloc, class T>
-constexpr proxy<F> allocate_proxy_shared(const Alloc& alloc, T&& value)
+template <facade F, class T>
+constexpr proxy<F> make_proxy_shared(T&& value)
   requires(std::is_constructible_v<std::decay_t<T>, T>)
 {
-  return details::allocate_proxy_shared_impl<F, std::decay_t<T>>(
-      alloc, std::forward<T>(value));
+  return proxy<F>{std::in_place_type<details::shared_ptr<F, std::decay_t<T>>>,
+                  std::allocator<void>{}, std::forward<T>(value)};
 }
 template <facade F, class T, class... Args>
 constexpr proxy<F> make_proxy_shared(Args&&... args)
   requires(std::is_constructible_v<T, Args...>)
 {
-  return details::make_proxy_shared_impl<F, T>(std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::shared_ptr<F, T>>,
+                  std::allocator<void>{}, std::forward<Args>(args)...};
 }
 template <facade F, class T, class U, class... Args>
 constexpr proxy<F> make_proxy_shared(std::initializer_list<U> il,
                                      Args&&... args)
   requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
 {
-  return details::make_proxy_shared_impl<F, T>(il, std::forward<Args>(args)...);
+  return proxy<F>{std::in_place_type<details::shared_ptr<F, T>>,
+                  std::allocator<void>{}, il, std::forward<Args>(args)...};
 }
-template <facade F, class T>
-constexpr proxy<F> make_proxy_shared(T&& value)
-  requires(std::is_constructible_v<std::decay_t<T>, T>)
-{
-  return details::make_proxy_shared_impl<F, std::decay_t<T>>(
-      std::forward<T>(value));
-}
+
+// =============================================================================
+// == box                                                                     ==
+// =============================================================================
+
+template <facade F>
+class box;
+
+namespace details {
+
+struct incomplete;
+struct incomplete_ptr : std::unique_ptr<incomplete> {
+  incomplete_ptr(incomplete_ptr&&) noexcept;
+  incomplete_ptr(const incomplete_ptr&);
+};
+
+template <class... Cs>
+using lifetime_conv_types =
+    composite_t<std::tuple<>,
+                std::conditional_t<
+                    Cs::is_direct && !std::is_same_v<typename Cs::dispatch_type,
+                                                     substitution_dispatch>,
+                    Cs, void>...>;
+template <class... Rs>
+using lifetime_refl_types =
+    composite_t<std::tuple<>, std::conditional_t<Rs::is_direct, Rs, void>...>;
+template <class F>
+struct lifetime_facade
+    : facade_impl<
+          instantiated_t<lifetime_conv_types, typename F::convention_types>,
+          instantiated_t<lifetime_refl_types, typename F::reflection_types>,
+          F::max_size, F::max_align, F::copyability, F::relocatability,
+          F::destructibility> {};
+
+template <class F, class... Cs>
+struct box_conv_traits_impl {
+  using conv_accessor = composite_t<composite_accessor<>,
+                                    conv_accessor_t<box<F>, Cs, F, false>...>;
+};
+template <class F, class... Rs>
+struct box_refl_traits_impl {
+  using refl_accessor =
+      composite_t<composite_accessor<>, refl_accessor_t<box<F>, Rs, false>...>;
+};
+template <class F>
+struct box_traits
+    : instantiated_t<box_conv_traits_impl, typename F::convention_types, F>,
+      instantiated_t<box_refl_traits_impl, typename F::reflection_types, F> {
+  using accessor = composite_t<typename box_traits::conv_accessor,
+                               typename box_traits::refl_accessor>;
+};
+
+} // namespace details
+
+template <>
+struct is_bitwise_trivially_relocatable<details::incomplete_ptr>
+    : std::true_type {};
+
+template <facade F>
+class box : public details::box_traits<F>::accessor {
+  static_assert(proxiable<details::incomplete_ptr, details::lifetime_facade<F>>,
+                "facade type not eligible for boxing");
+
+public:
+  using facade_type = F;
+
+  box() noexcept = default;
+  box(std::nullopt_t) noexcept {}
+  box(const box&) = default;
+  box(box&&) = default;
+  template <facade F2>
+  box(const box<F2>& rhs) noexcept(
+      std::is_nothrow_convertible_v<proxy<F>, const proxy<F2>&>)
+    requires(std::is_convertible_v<proxy<F>, const proxy<F2>&>)
+      : p_(rhs.p_) {}
+  template <facade F2>
+  box(box<F2>&& rhs) noexcept(
+      std::is_nothrow_convertible_v<proxy<F>, proxy<F2>>)
+    requires(std::is_convertible_v<proxy<F>, proxy<F2>>)
+      : p_(std::move(rhs.p_)) {}
+  template <class T>
+  constexpr box(T&& val)
+    requires(
+        !details::specialization_of<std::decay_t<T>, box> &&
+        !details::specialization_of<std::decay_t<T>, std::in_place_type_t> &&
+        std::is_constructible_v<std::decay_t<T>, T>)
+      : p_(std::in_place_type<details::owned_ptr<F, std::decay_t<T>>>,
+           std::allocator<void>{}, std::forward<T>(val)) {}
+  template <class T, class... Args>
+  constexpr explicit box(std::in_place_type_t<T>, Args&&... args)
+    requires(std::is_constructible_v<T, Args...>)
+      : p_(std::in_place_type<details::owned_ptr<F, T>>, std::allocator<void>{},
+           std::forward<Args>(args)...) {}
+  template <class T, class U, class... Args>
+  constexpr explicit box(std::in_place_type_t<T>, std::initializer_list<U> il,
+                         Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
+      : p_(std::in_place_type<details::owned_ptr<F, T>>, std::allocator<void>{},
+           il, std::forward<Args>(args)...) {}
+  template <class Alloc, class T>
+  constexpr explicit box(std::allocator_arg_t, const Alloc& alloc, T&& val)
+    requires(
+        !details::specialization_of<std::decay_t<T>, std::in_place_type_t> &&
+        std::is_constructible_v<std::decay_t<T>, T>)
+      : p_(std::in_place_type<
+               details::allocated_ptr<F, std::decay_t<T>, Alloc>>,
+           alloc, std::forward<T>(val)) {}
+  template <class Alloc, class T, class U, class... Args>
+  constexpr explicit box(std::allocator_arg_t, const Alloc& alloc,
+                         std::in_place_type_t<T>, std::initializer_list<U> il,
+                         Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...>)
+      : p_(std::in_place_type<details::allocated_ptr<F, T, Alloc>>, alloc, il,
+           std::forward<Args>(args)...) {}
+  box& operator=(std::nullopt_t) noexcept(
+      std::is_nothrow_assignable_v<proxy<F>, std::nullptr_t>)
+    requires(std::is_assignable_v<proxy<F>, std::nullptr_t>)
+  {
+    p_ = nullptr;
+    return *this;
+  }
+  box& operator=(const box&) = default;
+  box& operator=(box&&) = default;
+  template <facade F2>
+  box& operator=(const box<F2>& rhs) noexcept(
+      std::is_nothrow_assignable_v<proxy<F>, const proxy<F2>&>)
+    requires(std::is_assignable_v<proxy<F>, const proxy<F2>&>)
+  {
+    p_ = rhs.p_;
+  }
+  template <facade F2>
+  box& operator=(box<F2>&& rhs) noexcept(
+      std::is_nothrow_assignable_v<proxy<F>, proxy<F2>>)
+    requires(std::is_assignable_v<proxy<F>, proxy<F2>>)
+  {
+    p_ = std::move(rhs.p_);
+  }
+  template <class T>
+  constexpr box& operator=(T&& val)
+    requires(!details::specialization_of<std::decay_t<T>, box> &&
+             std::is_constructible_v<std::decay_t<T>, T> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    p_ = make_proxy<F>(std::forward<T>(val));
+    return *this;
+  }
+  ~box() = default;
+
+  bool has_value() const noexcept { return p_.has_value(); }
+  explicit operator bool() const noexcept { return p_.has_value(); }
+  void reset() noexcept(std::is_nothrow_destructible_v<proxy<F>>)
+    requires(std::is_destructible_v<proxy<F>>)
+  {
+    p_.reset();
+  }
+  void swap(box& rhs) noexcept(std::is_nothrow_swappable_v<proxy<F>>)
+    requires(std::is_swappable_v<proxy<F>>)
+  {
+    swap(p_, rhs.p_);
+  }
+  template <class T, class... Args>
+  constexpr T& emplace(Args&&... args)
+    requires(std::is_constructible_v<T, Args...> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    return *p_.template emplace<details::owned_ptr<F, T>>(
+        std::allocator<void>{}, std::forward<Args>(args)...);
+  }
+  template <class T, class U, class... Args>
+  constexpr T& emplace(std::initializer_list<U> il, Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    return *p_.template emplace<details::owned_ptr<F, T>>(
+        std::allocator<void>{}, il, std::forward<Args>(args)...);
+  }
+  template <class T, class Alloc, class... Args>
+  constexpr T& emplace_alloc(const Alloc& alloc, Args&&... args)
+    requires(std::is_constructible_v<T, Args...> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    return *p_.template emplace<details::allocated_ptr<F, T, Alloc>>(
+        alloc, std::forward<Args>(args)...);
+  }
+  template <class T, class Alloc, class U, class... Args>
+  constexpr T& emplace_alloc(const Alloc& alloc, std::initializer_list<U> il,
+                             Args&&... args)
+    requires(std::is_constructible_v<T, std::initializer_list<U>&, Args...> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    return *p_.template emplace<details::allocated_ptr<F, T, Alloc>>(
+        alloc, il, std::forward<Args>(args)...);
+  }
+  proxy<F> release() noexcept(std::is_nothrow_move_constructible_v<proxy<F>>) {
+    return std::move(p_);
+  }
+  operator proxy_indirect_accessor<F>&() & noexcept { return *p_; }
+  operator const proxy_indirect_accessor<F>&() const& noexcept { return *p_; }
+  operator proxy_indirect_accessor<F>&&() && noexcept { return *std::move(p_); }
+  operator const proxy_indirect_accessor<F>&&() const&& noexcept {
+    return *std::move(p_);
+  }
+
+  friend void swap(box& lhs,
+                   box& rhs) noexcept(std::is_nothrow_swappable_v<proxy<F>>)
+    requires(std::is_swappable_v<proxy<F>>)
+  {
+    lhs.swap(rhs);
+  }
+  friend bool operator==(const box& lhs, std::nullopt_t) noexcept {
+    return !lhs.has_value();
+  }
+  template <class D, class O, class... Args>
+  friend decltype(auto) invoke(box& v, Args&&... args) {
+    return invoke<D, O>(*v.p_, std::forward<Args>(args)...);
+  }
+  template <class D, class O, class... Args>
+  friend decltype(auto) invoke(const box& v, Args&&... args) {
+    return invoke<D, O>(*v.p_, std::forward<Args>(args)...);
+  }
+  template <class D, class O, class... Args>
+  friend decltype(auto) invoke(box&& v, Args&&... args) {
+    return invoke<D, O>(*std::move(v.p_), std::forward<Args>(args)...);
+  }
+  template <class D, class O, class... Args>
+  friend decltype(auto) invoke(const box&& v, Args&&... args) {
+    return invoke<D, O>(*std::move(v.p_), std::forward<Args>(args)...);
+  }
+  template <class R>
+  friend const R& reflect(const box& v) noexcept {
+    return reflect<R>(*v.p_);
+  }
+
+private:
+  proxy<F> p_;
+};
 #endif // __STDC_HOSTED__
 
 // =============================================================================
@@ -2519,13 +2752,13 @@ struct operator_dispatch;
             MEM, PROD_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)      \
   };
 
-#define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                              \
-  template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg) oq ne> {                                        \
-    friend R operator __VA_ARGS__(Arg arg, P pq self) ne {                     \
-      return invoke<D, R(Arg) oq ne>(static_cast<P pq>(self),                  \
-                                     std::forward<Arg>(arg));                  \
-    }                                                                          \
+#define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                               \
+  template <class P, class D, class R, class Arg>                               \
+  struct accessor<P, D, R(Arg) oq ne> {                                         \
+    friend R operator __VA_ARGS__(Arg arg, P pq self) ne {                      \
+      return invoke<D, R(Arg) oq ne>(static_cast<P pq>(self),                   \
+                                     std::forward<Arg>(arg));                   \
+    }                                                                           \
     PRO4D_DEBUG(                                                             \
       accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
                                                                              \
