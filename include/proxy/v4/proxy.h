@@ -2491,8 +2491,16 @@ struct operator_dispatch;
       return invoke<D, R(int) oq ne>(static_cast<P pq>(*this), 0);             \
     }                                                                          \
   }
-#define PROD_DEF_LHS_BINARY_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
-#define PROD_DEF_LHS_ALL_OP_ACCESSOR PRO4D_DEF_MEM_ACCESSOR
+#define PROD_LHS_LEFT_OP_DISPATCH_ACCESSOR_IMPL(func)                          \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_LEFT_OP_ACCESSOR, func)
+#define PROD_LHS_UNARY_OP_DISPATCH_ACCESSOR_IMPL(func)                         \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_UNARY_OP_ACCESSOR, func)
+#define PROD_LHS_BINARY_OP_DISPATCH_ACCESSOR_IMPL(func)                        \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)
+#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_ACCESSOR_IMPL(func)               \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)
+#define PROD_LHS_COMPARISON_OP_DISPATCH_ACCESSOR_IMPL(func)                    \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, func)
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
   template <class T>                                                           \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
@@ -2508,15 +2516,16 @@ struct operator_dispatch;
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                       \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                                 \
                              __VA_ARGS__ std::forward<Arg>(arg))
-#define PROD_LHS_ALL_OP_DISPATCH_BODY_IMPL(...)                                \
+#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_BODY_IMPL(...)                    \
   PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                             \
   PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)
+#define PROD_LHS_COMPARISON_OP_DISPATCH_BODY_IMPL                              \
+  PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL
 #define PROD_LHS_OP_DISPATCH_IMPL(type, ...)                                   \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
-    PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                       \
-        PRO4D_DEF_ACCESSOR_TEMPLATE(                                           \
-            MEM, PROD_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)      \
+    PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__) PROD_LHS_##type       \
+        ##_OP_DISPATCH_ACCESSOR_IMPL(operator __VA_ARGS__)                     \
   };
 
 #define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                              \
@@ -2546,12 +2555,8 @@ struct operator_dispatch;
                                     __VA_ARGS__)                               \
   };
 
-#define PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(...)                             \
-  PROD_LHS_OP_DISPATCH_IMPL(ALL, __VA_ARGS__)                                  \
-  PROD_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
-
-#define PROD_BINARY_OP_DISPATCH_IMPL(...)                                      \
-  PROD_LHS_OP_DISPATCH_IMPL(BINARY, __VA_ARGS__)                               \
+#define PROD_EVALUATION_OP_DISPATCH_IMPL(type, ...)                            \
+  PROD_LHS_OP_DISPATCH_IMPL(type, __VA_ARGS__)                                 \
   PROD_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
 
 #define PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                   \
@@ -2598,29 +2603,29 @@ struct operator_dispatch;
                                     __VA_ARGS__)                               \
   };
 
-PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(+)
-PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(-)
-PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(*)
-PROD_BINARY_OP_DISPATCH_IMPL(/)
-PROD_BINARY_OP_DISPATCH_IMPL(%)
+PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, +)
+PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, -)
+PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, *)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, /)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, %)
 PROD_LHS_OP_DISPATCH_IMPL(UNARY, ++)
 PROD_LHS_OP_DISPATCH_IMPL(UNARY, --)
-PROD_BINARY_OP_DISPATCH_IMPL(==)
-PROD_BINARY_OP_DISPATCH_IMPL(!=)
-PROD_BINARY_OP_DISPATCH_IMPL(>)
-PROD_BINARY_OP_DISPATCH_IMPL(<)
-PROD_BINARY_OP_DISPATCH_IMPL(>=)
-PROD_BINARY_OP_DISPATCH_IMPL(<=)
-PROD_BINARY_OP_DISPATCH_IMPL(<=>)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, ==)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, !=)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, >)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, >=)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <=)
+PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <=>)
 PROD_LHS_OP_DISPATCH_IMPL(LEFT, !)
-PROD_BINARY_OP_DISPATCH_IMPL(&&)
-PROD_BINARY_OP_DISPATCH_IMPL(||)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, &&)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ||)
 PROD_LHS_OP_DISPATCH_IMPL(LEFT, ~)
-PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL(&)
-PROD_BINARY_OP_DISPATCH_IMPL(|)
-PROD_BINARY_OP_DISPATCH_IMPL(^)
-PROD_BINARY_OP_DISPATCH_IMPL(<<)
-PROD_BINARY_OP_DISPATCH_IMPL(>>)
+PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, &)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, |)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ^)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, <<)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, >>)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(+=)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(-=)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(*=)
@@ -2631,8 +2636,8 @@ PROD_ASSIGNMENT_OP_DISPATCH_IMPL(|=)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(^=)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(<<=)
 PROD_ASSIGNMENT_OP_DISPATCH_IMPL(>>=)
-PROD_BINARY_OP_DISPATCH_IMPL(, )
-PROD_BINARY_OP_DISPATCH_IMPL(->*)
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, , )
+PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ->*)
 
 template <>
 struct operator_dispatch<"()", false> {
@@ -2663,11 +2668,9 @@ struct operator_dispatch<"[]", false> {
 #undef PROD_RHS_OP_DISPATCH_IMPL
 #undef PROD_DEF_RHS_OP_ACCESSOR
 #undef PROD_LHS_OP_DISPATCH_IMPL
-#undef PROD_LHS_ALL_OP_DISPATCH_BODY_IMPL
 #undef PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL
 #undef PROD_LHS_UNARY_OP_DISPATCH_BODY_IMPL
 #undef PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL
-#undef PROD_DEF_LHS_ALL_OP_ACCESSOR
 #undef PROD_DEF_LHS_BINARY_OP_ACCESSOR
 #undef PROD_DEF_LHS_UNARY_OP_ACCESSOR
 #undef PROD_DEF_LHS_LEFT_OP_ACCESSOR
