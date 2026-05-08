@@ -2462,7 +2462,119 @@ struct noreturn_conversion {
 };
 using wildcard = converter<noreturn_conversion>;
 
+template <class T, template <class...> class TT>
+struct specialization_traits : inapplicable_traits {};
+template <template <class...> class TT, class... Args>
+struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
+template <class T, template <class...> class TT>
+concept specialization_of = specialization_traits<T, TT>::applicable;
+
+template <class T>
+concept erased =
+    specialization_of<std::remove_cvref_t<T>, proxy_indirect_accessor>;
+
+template <class T, class F>
+std::remove_const_t<T>& op_cast(proxy_indirect_accessor<F>& p)
+  requires(proxy_cast<std::remove_const_t<T>&>(p))
+{
+  return proxy_cast<std::remove_const_t<T>&>(p);
+}
+template <class T, class F>
+const T& op_cast(const proxy_indirect_accessor<F>& p)
+  requires(proxy_cast<const T&>(p))
+{
+  return proxy_cast<const T&>(p);
+}
+template <class T, class F>
+std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p)
+  requires(proxy_cast<std::remove_cvref_t<T>>(std::move(p)))
+{
+  return proxy_cast<std::remove_cvref_t<T>>(std::move(p));
+}
+
 } // namespace details
+
+#define PROD_DEF_SELF_BINARY_OP(...)                                           \
+  template <class T, details::erased U>                                        \
+  decltype(auto) operator __VA_ARGS__(T&& lhs, U&& rhs)                        \
+    requires(requires {                                                        \
+      std::forward<T>(lhs)                                                     \
+          __VA_ARGS__ details::op_cast<T>(std::forward<U>(rhs));               \
+    })                                                                         \
+  {                                                                            \
+    return std::forward<T>(lhs)                                                \
+        __VA_ARGS__ details::op_cast<T>(std::forward<U>(rhs));                 \
+  }                                                                            \
+  template <details::erased T, class U>                                        \
+  decltype(auto) operator __VA_ARGS__(T&& lhs, U&& rhs)                        \
+    requires(requires {                                                        \
+      details::op_cast<U>(std::forward<T>(lhs))                                \
+          __VA_ARGS__ std::forward<U>(rhs);                                    \
+    })                                                                         \
+  {                                                                            \
+    return details::op_cast<U>(std::forward<T>(lhs))                           \
+        __VA_ARGS__ std::forward<U>(rhs);                                      \
+  }
+
+#define PRO_DEF_SELF_COMPARISON_OP(type, default_val, ...)                     \
+  template <class T, details::erased U>                                        \
+  type operator __VA_ARGS__(const T& lhs, const U& rhs) noexcept               \
+    requires(requires {                                                        \
+      *proxy_cast<T>(std::addressof(rhs));                                     \
+      { lhs __VA_ARGS__ lhs } -> std::convertible_to<type>;                    \
+    })                                                                         \
+  {                                                                            \
+    auto ptr = proxy_cast<T>(std::addressof(rhs));                             \
+    if (ptr == nullptr) [[unlikely]] {                                         \
+      return default_val;                                                      \
+    }                                                                          \
+    return lhs __VA_ARGS__ * ptr;                                              \
+  }                                                                            \
+  template <class T, details::erased U>                                        \
+  type operator __VA_ARGS__(const T& lhs, const U& rhs) noexcept               \
+    requires(requires {                                                        \
+      *proxy_cast<U>(std::addressof(lhs));                                     \
+      { rhs __VA_ARGS__ rhs } -> std::convertible_to<type>;                    \
+    })                                                                         \
+  {                                                                            \
+    auto ptr = proxy_cast<U>(std::addressof(lhs));                             \
+    if (ptr == nullptr) [[unlikely]] {                                         \
+      return default_val;                                                      \
+    }                                                                          \
+    return *ptr __VA_ARGS__ rhs;                                               \
+  }
+
+PROD_DEF_SELF_BINARY_OP(+)
+PROD_DEF_SELF_BINARY_OP(-)
+PROD_DEF_SELF_BINARY_OP(*)
+PROD_DEF_SELF_BINARY_OP(/)
+PROD_DEF_SELF_BINARY_OP(%)
+PRO_DEF_SELF_COMPARISON_OP(bool, false, ==)
+PRO_DEF_SELF_COMPARISON_OP(bool, true, !=)
+PRO_DEF_SELF_COMPARISON_OP(bool, false, >)
+PRO_DEF_SELF_COMPARISON_OP(bool, false, <)
+PRO_DEF_SELF_COMPARISON_OP(bool, false, >=)
+PRO_DEF_SELF_COMPARISON_OP(bool, false, <=)
+PRO_DEF_SELF_COMPARISON_OP(std::partial_ordering,
+                           std::partial_ordering::unordered, <=>)
+PROD_DEF_SELF_BINARY_OP(&&)
+PROD_DEF_SELF_BINARY_OP(||)
+PROD_DEF_SELF_BINARY_OP(&)
+PROD_DEF_SELF_BINARY_OP(|)
+PROD_DEF_SELF_BINARY_OP(^)
+PROD_DEF_SELF_BINARY_OP(<<)
+PROD_DEF_SELF_BINARY_OP(>>)
+PROD_DEF_SELF_BINARY_OP(+=)
+PROD_DEF_SELF_BINARY_OP(-=)
+PROD_DEF_SELF_BINARY_OP(*=)
+PROD_DEF_SELF_BINARY_OP(/=)
+PROD_DEF_SELF_BINARY_OP(%=)
+PROD_DEF_SELF_BINARY_OP(&=)
+PROD_DEF_SELF_BINARY_OP(|=)
+PROD_DEF_SELF_BINARY_OP(^=)
+PROD_DEF_SELF_BINARY_OP(<<=)
+PROD_DEF_SELF_BINARY_OP(>>=)
+PROD_DEF_SELF_BINARY_OP(, )
 
 template <details::sign Sign, bool Rhs = false>
 struct operator_dispatch;
