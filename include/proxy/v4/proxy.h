@@ -2431,6 +2431,7 @@ struct noreturn_conversion {
 };
 using wildcard = converter<noreturn_conversion>;
 
+#if __cpp_rtti >= 199711L
 template <class T>
 concept erased =
     specialization_of<std::remove_cvref_t<T>, proxy_indirect_accessor> &&
@@ -2530,6 +2531,7 @@ PROD_DEF_SELF_BIN_OP(, )
 
 #undef PROD_DEF_SELF_BIN_OP
 #undef PRO_DEF_SELF_CMP_OP
+#endif // __cpp_rtti >= 199711L
 
 template <sign Sign, bool Rhs>
 struct op_dispatch_impl;
