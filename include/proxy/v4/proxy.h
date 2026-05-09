@@ -2449,7 +2449,7 @@ std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p) {
   return proxy_cast<std::remove_cvref_t<T>>(std::move(p));
 }
 
-#define PROD_DEF_SELF_BINARY_OP(...)                                           \
+#define PROD_DEF_SELF_BIN_OP(...)                                              \
   template <class T, details::erased U>                                        \
   decltype(auto) operator __VA_ARGS__(T&& lhs, U&& rhs)                        \
     requires(requires {                                                        \
@@ -2470,7 +2470,7 @@ std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p) {
     return details::op_cast<U>(std::forward<T>(lhs))                           \
         __VA_ARGS__ std::forward<U>(rhs);                                      \
   }
-#define PRO_DEF_SELF_COMPARISON_OP(type, default_val, ...)                     \
+#define PRO_DEF_SELF_CMP_OP(type, default_val, ...)                            \
   template <class T, details::erased U>                                        \
   type operator __VA_ARGS__(const T& lhs, const U& rhs) noexcept               \
     requires(requires {                                                        \
@@ -2496,45 +2496,45 @@ std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p) {
     return *ptr __VA_ARGS__ rhs;                                               \
   }
 
-PROD_DEF_SELF_BINARY_OP(+)
-PROD_DEF_SELF_BINARY_OP(-)
-PROD_DEF_SELF_BINARY_OP(*)
-PROD_DEF_SELF_BINARY_OP(/)
-PROD_DEF_SELF_BINARY_OP(%)
-PRO_DEF_SELF_COMPARISON_OP(bool, false, ==)
-PRO_DEF_SELF_COMPARISON_OP(bool, true, !=)
-PRO_DEF_SELF_COMPARISON_OP(bool, false, >)
-PRO_DEF_SELF_COMPARISON_OP(bool, false, <)
-PRO_DEF_SELF_COMPARISON_OP(bool, false, >=)
-PRO_DEF_SELF_COMPARISON_OP(bool, false, <=)
-PRO_DEF_SELF_COMPARISON_OP(std::partial_ordering,
-                           std::partial_ordering::unordered, <=>)
-PROD_DEF_SELF_BINARY_OP(&&)
-PROD_DEF_SELF_BINARY_OP(||)
-PROD_DEF_SELF_BINARY_OP(&)
-PROD_DEF_SELF_BINARY_OP(|)
-PROD_DEF_SELF_BINARY_OP(^)
-PROD_DEF_SELF_BINARY_OP(<<)
-PROD_DEF_SELF_BINARY_OP(>>)
-PROD_DEF_SELF_BINARY_OP(+=)
-PROD_DEF_SELF_BINARY_OP(-=)
-PROD_DEF_SELF_BINARY_OP(*=)
-PROD_DEF_SELF_BINARY_OP(/=)
-PROD_DEF_SELF_BINARY_OP(%=)
-PROD_DEF_SELF_BINARY_OP(&=)
-PROD_DEF_SELF_BINARY_OP(|=)
-PROD_DEF_SELF_BINARY_OP(^=)
-PROD_DEF_SELF_BINARY_OP(<<=)
-PROD_DEF_SELF_BINARY_OP(>>=)
-PROD_DEF_SELF_BINARY_OP(, )
+PROD_DEF_SELF_BIN_OP(+)
+PROD_DEF_SELF_BIN_OP(-)
+PROD_DEF_SELF_BIN_OP(*)
+PROD_DEF_SELF_BIN_OP(/)
+PROD_DEF_SELF_BIN_OP(%)
+PRO_DEF_SELF_CMP_OP(bool, false, ==)
+PRO_DEF_SELF_CMP_OP(bool, true, !=)
+PRO_DEF_SELF_CMP_OP(bool, false, >)
+PRO_DEF_SELF_CMP_OP(bool, false, <)
+PRO_DEF_SELF_CMP_OP(bool, false, >=)
+PRO_DEF_SELF_CMP_OP(bool, false, <=)
+PRO_DEF_SELF_CMP_OP(std::partial_ordering, std::partial_ordering::unordered,
+                    <=>)
+PROD_DEF_SELF_BIN_OP(&&)
+PROD_DEF_SELF_BIN_OP(||)
+PROD_DEF_SELF_BIN_OP(&)
+PROD_DEF_SELF_BIN_OP(|)
+PROD_DEF_SELF_BIN_OP(^)
+PROD_DEF_SELF_BIN_OP(<<)
+PROD_DEF_SELF_BIN_OP(>>)
+PROD_DEF_SELF_BIN_OP(+=)
+PROD_DEF_SELF_BIN_OP(-=)
+PROD_DEF_SELF_BIN_OP(*=)
+PROD_DEF_SELF_BIN_OP(/=)
+PROD_DEF_SELF_BIN_OP(%=)
+PROD_DEF_SELF_BIN_OP(&=)
+PROD_DEF_SELF_BIN_OP(|=)
+PROD_DEF_SELF_BIN_OP(^=)
+PROD_DEF_SELF_BIN_OP(<<=)
+PROD_DEF_SELF_BIN_OP(>>=)
+PROD_DEF_SELF_BIN_OP(, )
 
-#undef PROD_DEF_SELF_BINARY_OP
-#undef PRO_DEF_SELF_COMPARISON_OP
+#undef PROD_DEF_SELF_BIN_OP
+#undef PRO_DEF_SELF_CMP_OP
 
 template <sign Sign, bool Rhs>
 struct op_dispatch_impl;
 
-#define PROD_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                         \
+#define PROD_DEF_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                             \
   template <class P, class D, class R>                                         \
   struct accessor<P, D, R() oq ne> {                                           \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
@@ -2542,7 +2542,7 @@ struct op_dispatch_impl;
       return invoke<D, R() oq ne>(static_cast<P pq>(*this));                   \
     }                                                                          \
   }
-#define PROD_DEF_LHS_UNARY_OP_ACCESSOR(oq, pq, ne, ...)                        \
+#define PROD_DEF_UNARY_OP_ACCESSOR(oq, pq, ne, ...)                            \
   template <class P, class D, class R>                                         \
   struct accessor<P, D, R() oq ne> {                                           \
     PRO4D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
@@ -2557,16 +2557,16 @@ struct op_dispatch_impl;
     R __VA_ARGS__(int) oq ne {                                                 \
       return invoke<D, R(int) oq ne>(static_cast<P pq>(*this), 0);             \
     }                                                                          \
-  } // TODO: Rename!!!
-#define PROD_LHS_LEFT_OP_DISPATCH_ACCESSOR_IMPL(...)                           \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_LEFT_OP_ACCESSOR, __VA_ARGS__)
-#define PROD_LHS_UNARY_OP_DISPATCH_ACCESSOR_IMPL(...)                          \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_UNARY_OP_ACCESSOR, __VA_ARGS__)
-#define PROD_LHS_BINARY_OP_DISPATCH_ACCESSOR_IMPL(...)                         \
+  }
+#define PROD_DEF_LHS_LEFT_OP_ACCESSORS(...)                                    \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LEFT_OP_ACCESSOR, __VA_ARGS__)
+#define PROD_DEF_LHS_UNARY_OP_ACCESSORS(...)                                   \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_UNARY_OP_ACCESSOR, __VA_ARGS__)
+#define PROD_DEF_LHS_BIN_OP_ACCESSORS(...)                                     \
   PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, __VA_ARGS__)
-#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_ACCESSOR_IMPL(...)                \
+#define PROD_DEF_LHS_BIN_EXT_OP_ACCESSORS(...)                                 \
   PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, __VA_ARGS__)
-#define PROD_LHS_COMPARISON_OP_DISPATCH_ACCESSOR_IMPL(...)                     \
+#define PROD_DEF_LHS_CMP_OP_ACCESSORS(...)                                     \
   PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, __VA_ARGS__)
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
   template <class T>                                                           \
@@ -2578,21 +2578,20 @@ struct op_dispatch_impl;
   PRO4D_DIRECT_FUNC_IMPL(__VA_ARGS__ std::forward<T>(self)) template <class T> \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, int)                             \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self) __VA_ARGS__)
-#define PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL(...)                             \
+#define PROD_LHS_BIN_OP_DISPATCH_BODY_IMPL(...)                                \
   template <class T, class Arg>                                                \
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                       \
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                                 \
                              __VA_ARGS__ std::forward<Arg>(arg))
-#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_BODY_IMPL(...)                    \
+#define PROD_LHS_BIN_EXT_OP_DISPATCH_BODY_IMPL(...)                            \
   PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                             \
-  PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)
-#define PROD_LHS_COMPARISON_OP_DISPATCH_BODY_IMPL                              \
-  PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL
-#define PROD_LHS_OP_DISPATCH_IMPL(type, ...)                                   \
+  PROD_LHS_BIN_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)
+#define PROD_LHS_CMP_OP_DISPATCH_BODY_IMPL PROD_LHS_BIN_OP_DISPATCH_BODY_IMPL
+#define PROD_DEF_LHS_OP_DISPATCH(type, ...)                                    \
   template <>                                                                  \
   struct op_dispatch_impl<#__VA_ARGS__, false> {                               \
-    PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__) PROD_LHS_##type       \
-        ##_OP_DISPATCH_ACCESSOR_IMPL(operator __VA_ARGS__)                     \
+    PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__) PROD_DEF_LHS_##type   \
+        ##_OP_ACCESSORS(operator __VA_ARGS__)                                  \
   };
 
 #define PROD_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                              \
@@ -2611,7 +2610,7 @@ struct op_dispatch_impl;
       }                                                                      \
     ) \
   }
-#define PROD_RHS_OP_DISPATCH_IMPL(...)                                         \
+#define PROD_DEF_RHS_OP_DISPATCH(...)                                          \
   template <>                                                                  \
   struct op_dispatch_impl<#__VA_ARGS__, true> {                                \
     template <class T, class Arg>                                              \
@@ -2622,9 +2621,9 @@ struct op_dispatch_impl;
                                     __VA_ARGS__)                               \
   };
 
-#define PROD_EVALUATION_OP_DISPATCH_IMPL(type, ...)                            \
-  PROD_LHS_OP_DISPATCH_IMPL(type, __VA_ARGS__)                                 \
-  PROD_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
+#define PROD_DEF_EVAL_OP_DISPATCH(type, ...)                                   \
+  PROD_DEF_LHS_OP_DISPATCH(type, __VA_ARGS__)                                  \
+  PROD_DEF_RHS_OP_DISPATCH(__VA_ARGS__)
 
 #define PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                   \
   template <class P, class D, class R, class Arg>                              \
@@ -2650,7 +2649,7 @@ struct op_dispatch_impl;
             Arg& arg,                                                          \
             P pq self) { return arg __VA_ARGS__ static_cast<P pq>(self); })    \
   }
-#define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
+#define PROD_DEF_ASSIGN_OP_DISPATCH(...)                                       \
   template <>                                                                  \
   struct op_dispatch_impl<#__VA_ARGS__, false> {                               \
     template <class T, class Arg>                                              \
@@ -2670,41 +2669,41 @@ struct op_dispatch_impl;
                                     __VA_ARGS__)                               \
   };
 
-PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, +)
-PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, -)
-PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, *)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, /)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, %)
-PROD_LHS_OP_DISPATCH_IMPL(UNARY, ++)
-PROD_LHS_OP_DISPATCH_IMPL(UNARY, --)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, ==)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, !=)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, >)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, >=)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <=)
-PROD_EVALUATION_OP_DISPATCH_IMPL(COMPARISON, <=>)
-PROD_LHS_OP_DISPATCH_IMPL(LEFT, !)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, &&)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ||)
-PROD_LHS_OP_DISPATCH_IMPL(LEFT, ~)
-PROD_EVALUATION_OP_DISPATCH_IMPL(EXTENDED_BINARY, &)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, |)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ^)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, <<)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, >>)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(+=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(-=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(*=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(/=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(%=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(&=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(|=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(^=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(<<=)
-PROD_ASSIGNMENT_OP_DISPATCH_IMPL(>>=)
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, , )
-PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ->*)
+PROD_DEF_EVAL_OP_DISPATCH(BIN_EXT, +)
+PROD_DEF_EVAL_OP_DISPATCH(BIN_EXT, -)
+PROD_DEF_EVAL_OP_DISPATCH(BIN_EXT, *)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, /)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, %)
+PROD_DEF_LHS_OP_DISPATCH(UNARY, ++)
+PROD_DEF_LHS_OP_DISPATCH(UNARY, --)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, ==)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, !=)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, >)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, <)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, >=)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, <=)
+PROD_DEF_EVAL_OP_DISPATCH(CMP, <=>)
+PROD_DEF_LHS_OP_DISPATCH(LEFT, !)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, &&)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, ||)
+PROD_DEF_LHS_OP_DISPATCH(LEFT, ~)
+PROD_DEF_EVAL_OP_DISPATCH(BIN_EXT, &)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, |)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, ^)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, <<)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, >>)
+PROD_DEF_ASSIGN_OP_DISPATCH(+=)
+PROD_DEF_ASSIGN_OP_DISPATCH(-=)
+PROD_DEF_ASSIGN_OP_DISPATCH(*=)
+PROD_DEF_ASSIGN_OP_DISPATCH(/=)
+PROD_DEF_ASSIGN_OP_DISPATCH(%=)
+PROD_DEF_ASSIGN_OP_DISPATCH(&=)
+PROD_DEF_ASSIGN_OP_DISPATCH(|=)
+PROD_DEF_ASSIGN_OP_DISPATCH(^=)
+PROD_DEF_ASSIGN_OP_DISPATCH(<<=)
+PROD_DEF_ASSIGN_OP_DISPATCH(>>=)
+PROD_DEF_EVAL_OP_DISPATCH(BIN, , )
+PROD_DEF_EVAL_OP_DISPATCH(BIN, ->*)
 
 template <>
 struct op_dispatch_impl<"()", false> {
@@ -2727,20 +2726,25 @@ struct op_dispatch_impl<"[]", false> {
       PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, operator[])
 };
 
-#undef PROD_ASSIGNMENT_OP_DISPATCH_IMPL
+#undef PROD_DEF_ASSIGN_OP_DISPATCH
 #undef PROD_DEF_RHS_ASSIGNMENT_OP_ACCESSOR
 #undef PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR
-#undef PROD_BINARY_OP_DISPATCH_IMPL
-#undef PROD_EXTENDED_BINARY_OP_DISPATCH_IMPL
-#undef PROD_RHS_OP_DISPATCH_IMPL
+#undef PROD_DEF_EVAL_OP_DISPATCH
+#undef PROD_DEF_RHS_OP_DISPATCH
 #undef PROD_DEF_RHS_OP_ACCESSOR
-#undef PROD_LHS_OP_DISPATCH_IMPL
-#undef PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL
+#undef PROD_DEF_LHS_OP_DISPATCH
+#undef PROD_LHS_CMP_OP_DISPATCH_BODY_IMPL
+#undef PROD_LHS_BIN_EXT_OP_DISPATCH_BODY_IMPL
+#undef PROD_LHS_BIN_OP_DISPATCH_BODY_IMPL
 #undef PROD_LHS_UNARY_OP_DISPATCH_BODY_IMPL
 #undef PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL
-#undef PROD_DEF_LHS_BINARY_OP_ACCESSOR
-#undef PROD_DEF_LHS_UNARY_OP_ACCESSOR
-#undef PROD_DEF_LHS_LEFT_OP_ACCESSOR
+#undef PROD_DEF_LHS_CMP_OP_ACCESSORS
+#undef PROD_DEF_LHS_BIN_EXT_OP_ACCESSORS
+#undef PROD_DEF_LHS_BIN_OP_ACCESSORS
+#undef PROD_DEF_LHS_UNARY_OP_ACCESSORS
+#undef PROD_DEF_LHS_LEFT_OP_ACCESSORS
+#undef PROD_DEF_UNARY_OP_ACCESSOR
+#undef PROD_DEF_LEFT_OP_ACCESSOR
 
 } // namespace details
 
