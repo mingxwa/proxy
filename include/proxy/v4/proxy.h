@@ -2557,17 +2557,17 @@ struct op_dispatch_impl;
     R __VA_ARGS__(int) oq ne {                                                 \
       return invoke<D, R(int) oq ne>(static_cast<P pq>(*this), 0);             \
     }                                                                          \
-  }
-#define PROD_LHS_LEFT_OP_DISPATCH_ACCESSOR_IMPL(func)                          \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_LEFT_OP_ACCESSOR, func)
-#define PROD_LHS_UNARY_OP_DISPATCH_ACCESSOR_IMPL(func)                         \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_UNARY_OP_ACCESSOR, func)
-#define PROD_LHS_BINARY_OP_DISPATCH_ACCESSOR_IMPL(func)                        \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)
-#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_ACCESSOR_IMPL(func)               \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, func)
-#define PROD_LHS_COMPARISON_OP_DISPATCH_ACCESSOR_IMPL(func)                    \
-  PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, func)
+  } // TODO: Rename!!!
+#define PROD_LHS_LEFT_OP_DISPATCH_ACCESSOR_IMPL(...)                           \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_LEFT_OP_ACCESSOR, __VA_ARGS__)
+#define PROD_LHS_UNARY_OP_DISPATCH_ACCESSOR_IMPL(...)                          \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PROD_DEF_LHS_UNARY_OP_ACCESSOR, __VA_ARGS__)
+#define PROD_LHS_BINARY_OP_DISPATCH_ACCESSOR_IMPL(...)                         \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, __VA_ARGS__)
+#define PROD_LHS_EXTENDED_BINARY_OP_DISPATCH_ACCESSOR_IMPL(...)                \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, __VA_ARGS__)
+#define PROD_LHS_COMPARISON_OP_DISPATCH_ACCESSOR_IMPL(...)                     \
+  PRO4D_DEF_ACCESSOR_TEMPLATE(FREE, PRO4D_DEF_FREE_ACCESSOR, __VA_ARGS__)
 #define PROD_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                               \
   template <class T>                                                           \
   PRO4D_STATIC_CALL(decltype(auto), T&& self)                                  \
