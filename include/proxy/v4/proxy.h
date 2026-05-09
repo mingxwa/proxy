@@ -2179,6 +2179,11 @@ struct weak_conversion_dispatch : cast_dispatch_base<false, true> {
 template <class F>
 using weak_conversion_overload = weak_proxy<F>() const noexcept;
 
+template <class T>
+struct enabled_t {};
+template <class T, class U>
+concept enabled_for = std::is_base_of_v<enabled_t<U>, T>;
+
 #ifdef PRO4D_HAS_FORMAT
 template <class CharT>
 struct format_overload_traits;
@@ -2230,8 +2235,14 @@ struct proxy_cast_context {
   void* result_ptr;
 };
 
+template <class Self>
+struct noop_rtti_accessor_base {};
+template <class Self>
+using rtti_accessor_base = std::conditional_t<std::is_same_v<Self, const Self&>,
+                                              enabled_t<std::type_info>,
+                                              noop_rtti_accessor_base<Self>>;
 template <class Self, class D, class O>
-struct proxy_cast_accessor_impl {
+struct proxy_cast_accessor_impl : rtti_accessor_base<Self> {
   template <class T>
   friend T proxy_cast(Self self) {
     static_assert(!std::is_rvalue_reference_v<T>);
@@ -2420,37 +2431,23 @@ struct noreturn_conversion {
 };
 using wildcard = converter<noreturn_conversion>;
 
-template <class T, template <class...> class TT>
-struct specialization_traits : inapplicable_traits {};
-template <template <class...> class TT, class... Args>
-struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
-template <class T, template <class...> class TT>
-concept specialization_of = specialization_traits<T, TT>::applicable;
-
 template <class T>
 concept erased =
-    specialization_of<std::remove_cvref_t<T>, proxy_indirect_accessor>;
+    specialization_of<std::remove_cvref_t<T>, proxy_indirect_accessor> &&
+    enabled_for<T, std::type_info>;
 
 template <class T, class F>
-std::remove_const_t<T>& op_cast(proxy_indirect_accessor<F>& p)
-  requires(proxy_cast<std::remove_const_t<T>&>(p))
-{
+std::remove_const_t<T>& op_cast(proxy_indirect_accessor<F>& p) {
   return proxy_cast<std::remove_const_t<T>&>(p);
 }
 template <class T, class F>
-const T& op_cast(const proxy_indirect_accessor<F>& p)
-  requires(proxy_cast<const T&>(p))
-{
+const T& op_cast(const proxy_indirect_accessor<F>& p) {
   return proxy_cast<const T&>(p);
 }
 template <class T, class F>
-std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p)
-  requires(proxy_cast<std::remove_cvref_t<T>>(std::move(p)))
-{
+std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p) {
   return proxy_cast<std::remove_cvref_t<T>>(std::move(p));
 }
-
-} // namespace details
 
 #define PROD_DEF_SELF_BINARY_OP(...)                                           \
   template <class T, details::erased U>                                        \
@@ -2473,12 +2470,10 @@ std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p)
     return details::op_cast<U>(std::forward<T>(lhs))                           \
         __VA_ARGS__ std::forward<U>(rhs);                                      \
   }
-
 #define PRO_DEF_SELF_COMPARISON_OP(type, default_val, ...)                     \
   template <class T, details::erased U>                                        \
   type operator __VA_ARGS__(const T& lhs, const U& rhs) noexcept               \
     requires(requires {                                                        \
-      *proxy_cast<T>(std::addressof(rhs));                                     \
       { lhs __VA_ARGS__ lhs } -> std::convertible_to<type>;                    \
     })                                                                         \
   {                                                                            \
@@ -2488,10 +2483,9 @@ std::remove_cvref_t<T> op_cast(proxy_indirect_accessor<F>&& p)
     }                                                                          \
     return lhs __VA_ARGS__ * ptr;                                              \
   }                                                                            \
-  template <class T, details::erased U>                                        \
+  template <details::erased T, class U>                                        \
   type operator __VA_ARGS__(const T& lhs, const U& rhs) noexcept               \
     requires(requires {                                                        \
-      *proxy_cast<U>(std::addressof(lhs));                                     \
       { rhs __VA_ARGS__ rhs } -> std::convertible_to<type>;                    \
     })                                                                         \
   {                                                                            \
@@ -2534,8 +2528,11 @@ PROD_DEF_SELF_BINARY_OP(<<=)
 PROD_DEF_SELF_BINARY_OP(>>=)
 PROD_DEF_SELF_BINARY_OP(, )
 
-template <details::sign Sign, bool Rhs = false>
-struct operator_dispatch;
+#undef PROD_DEF_SELF_BINARY_OP
+#undef PRO_DEF_SELF_COMPARISON_OP
+
+template <sign Sign, bool Rhs>
+struct op_dispatch_impl;
 
 #define PROD_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                         \
   template <class P, class D, class R>                                         \
@@ -2593,7 +2590,7 @@ struct operator_dispatch;
   PROD_LHS_BINARY_OP_DISPATCH_BODY_IMPL
 #define PROD_LHS_OP_DISPATCH_IMPL(type, ...)                                   \
   template <>                                                                  \
-  struct operator_dispatch<#__VA_ARGS__, false> {                              \
+  struct op_dispatch_impl<#__VA_ARGS__, false> {                               \
     PROD_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__) PROD_LHS_##type       \
         ##_OP_DISPATCH_ACCESSOR_IMPL(operator __VA_ARGS__)                     \
   };
@@ -2616,7 +2613,7 @@ struct operator_dispatch;
   }
 #define PROD_RHS_OP_DISPATCH_IMPL(...)                                         \
   template <>                                                                  \
-  struct operator_dispatch<#__VA_ARGS__, true> {                               \
+  struct op_dispatch_impl<#__VA_ARGS__, true> {                                \
     template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
@@ -2655,7 +2652,7 @@ struct operator_dispatch;
   }
 #define PROD_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                  \
   template <>                                                                  \
-  struct operator_dispatch<#__VA_ARGS__, false> {                              \
+  struct op_dispatch_impl<#__VA_ARGS__, false> {                               \
     template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)                               \
@@ -2664,7 +2661,7 @@ struct operator_dispatch;
             MEM, PROD_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)    \
   };                                                                           \
   template <>                                                                  \
-  struct operator_dispatch<#__VA_ARGS__, true> {                               \
+  struct op_dispatch_impl<#__VA_ARGS__, true> {                                \
     template <class T, class Arg>                                              \
     PRO4D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO4D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
@@ -2710,14 +2707,14 @@ PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, , )
 PROD_EVALUATION_OP_DISPATCH_IMPL(BINARY, ->*)
 
 template <>
-struct operator_dispatch<"()", false> {
+struct op_dispatch_impl<"()", false> {
   template <class T, class... Args>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
   PRO4D_DIRECT_FUNC_IMPL(std::forward<T>(self)(std::forward<Args>(args)...))
       PRO4D_DEF_ACCESSOR_TEMPLATE(MEM, PRO4D_DEF_MEM_ACCESSOR, operator())
 };
 template <>
-struct operator_dispatch<"[]", false> {
+struct op_dispatch_impl<"[]", false> {
 #if __cpp_multidimensional_subscript >= 202110L
   template <class T, class... Args>
   PRO4D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
@@ -2744,6 +2741,11 @@ struct operator_dispatch<"[]", false> {
 #undef PROD_DEF_LHS_BINARY_OP_ACCESSOR
 #undef PROD_DEF_LHS_UNARY_OP_ACCESSOR
 #undef PROD_DEF_LHS_LEFT_OP_ACCESSOR
+
+} // namespace details
+
+template <details::sign Sign, bool Rhs = false>
+struct operator_dispatch : details::op_dispatch_impl<Sign, Rhs> {};
 
 struct implicit_conversion_dispatch
     : details::cast_dispatch_base<false, false> {
