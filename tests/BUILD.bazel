@@ -1,0 +1,84 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "clang_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang",
+    },
+)
+
+config_setting(
+    name = "msvc_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "msvc-cl",
+    },
+)
+
+PROXY_CXX_COPTS = select({
+    "@bazel_tools//src/conditions:windows": ["/std:c++20", "/utf-8"],
+    "//conditions:default": ["-std=c++20"],
+})
+
+PROXY_WARNING_COPTS = select({
+    ":msvc_compiler": ["/W4"],
+    ":clang_compiler": ["-Wall", "-Wextra", "-Wpedantic", "-Wno-c++2b-extensions"],
+    "//conditions:default": ["-Wall", "-Wextra", "-Wpedantic"],
+})
+
+PROXY_STRICT_WARNING_COPTS = select({
+    ":msvc_compiler": ["/WX"],
+    "//conditions:default": ["-Werror"],
+})
+
+PROXY_COPTS = PROXY_CXX_COPTS + PROXY_WARNING_COPTS + PROXY_STRICT_WARNING_COPTS
+
+cc_test(
+    name = "proxy_tests",
+    size = "small",
+    srcs = [
+        "proxy_creation_tests.cpp",
+        "proxy_details_tests.cpp",
+        "proxy_dispatch_tests.cpp",
+        "proxy_format_tests.cpp",
+        "proxy_integration_tests.cpp",
+        "proxy_invocation_tests.cpp",
+        "proxy_lifetime_tests.cpp",
+        "proxy_reflection_tests.cpp",
+        "proxy_regression_tests.cpp",
+        "proxy_rtti_tests.cpp",
+        "proxy_traits_tests.cpp",
+        "proxy_view_tests.cpp",
+        "utils.h",
+    ],
+    copts = PROXY_COPTS,
+    includes = ["."],
+    deps = [
+        "//:proxy",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "proxy_fmt_tests",
+    size = "small",
+    srcs = [
+        "proxy_fmt_format_no_wchar_tests.cpp",
+        "proxy_fmt_format_tests.cpp",
+    ],
+    copts = PROXY_COPTS,
+    deps = [
+        "//:proxy",
+        "@fmt//:fmt",
+        "@googletest//:gtest_main",
+    ],
+)
+
+test_suite(
+    name = "proxy_test_suite",
+    tests = [
+        ":proxy_tests",
+        ":proxy_fmt_tests",
+    ],
+)

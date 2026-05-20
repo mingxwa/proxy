@@ -1,0 +1,26 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "msft_proxy4",
+    actual = ":proxy",
+)
+
+cc_library(
+    name = "proxy",
+    hdrs = [
+        "include/proxy/proxy.h",
+        "include/proxy/proxy_fmt.h",
+        "include/proxy/proxy_macros.h",
+        "include/proxy/v4/proxy.h",
+        "include/proxy/v4/proxy_fmt.h",
+        "include/proxy/v4/proxy_macros.h",
+    ],
+    includes = ["include"],
+)
+
+filegroup(
+    name = "proxy_modules",
+    srcs = ["include/proxy/v4/proxy.ixx"],
+)

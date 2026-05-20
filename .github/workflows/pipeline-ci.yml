@@ -36,10 +36,14 @@ jobs:
     uses: ./.github/workflows/bvt-compatibility.yml
     name: Run BVT for compatibility
 
+  run-bvt-bazel:
+    uses: ./.github/workflows/bvt-bazel.yml
+    name: Run BVT with Bazel
+
   report:
     uses: ./.github/workflows/bvt-report.yml
     name: Generate report
-    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc, run-bvt-oneapi]
+    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc, run-bvt-oneapi, run-bvt-bazel]
 
   mkdocs:
     uses: ./.github/workflows/mkdocs.yml

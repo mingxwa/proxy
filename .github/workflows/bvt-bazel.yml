@@ -1,0 +1,19 @@
+on:
+  workflow_call:
+
+jobs:
+  bvt-bazel:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: setup bazel
+      uses: bazel-contrib/setup-bazel@0.15.0
+      with:
+        bazelisk-version: 1.27.0
+
+    - name: build with bazel
+      run: bazel build //:proxy //tests:proxy_test_suite
+
+    - name: test with bazel
+      run: bazel test //tests:proxy_test_suite --test_output=errors

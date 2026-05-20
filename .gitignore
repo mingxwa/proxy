@@ -1,6 +1,8 @@
 # Ignore build directories
 build/
 Testing/
+/bazel-*/
+/MODULE.bazel.lock
 
 # Python bytecode cache
 __pycache__/
