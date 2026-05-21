@@ -18,7 +18,7 @@ foreach(SOURCE ${EXAMPLE_SOURCES})
   get_filename_component(EXECUTABLE_NAME ${SOURCE} NAME_WE)
   add_executable(${EXECUTABLE_NAME} ${SOURCE})
   target_link_libraries(${EXECUTABLE_NAME} PRIVATE msft_proxy4::proxy)
-  target_compile_options(${EXECUTABLE_NAME} PRIVATE ${PROXY_WARNING_FLAGS})
+  target_compile_options(${EXECUTABLE_NAME} PRIVATE ${PROXY_COMPILE_OPTIONS})
 endforeach()
 
 target_link_libraries(example_spec_skills_fmt_format PRIVATE fmt::fmt)

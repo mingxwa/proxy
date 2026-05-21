@@ -1,0 +1,12 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "extract_example_code_from_docs",
+    srcs = [
+        "doc_examples.py",
+        "extract_example_code_from_docs.py",
+    ],
+    main = "extract_example_code_from_docs.py",
+)

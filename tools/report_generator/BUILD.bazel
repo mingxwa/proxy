@@ -1,0 +1,11 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//:proxy_bazel_copts.bzl", "PROXY_COMMON_COPTS")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "report_generator",
+    srcs = ["main.cpp"],
+    copts = PROXY_COMMON_COPTS,
+    deps = ["@nlohmann_json//:json"],
+)

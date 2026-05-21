@@ -20,8 +20,5 @@ target_sources(msft_proxy4_module PUBLIC
     ${msft_proxy4_INCLUDE_DIR}/proxy/v4/proxy.ixx
 )
 target_compile_features(msft_proxy4_module PUBLIC cxx_std_20)
-target_compile_options(msft_proxy4_module PRIVATE
-  $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
-  $<$<CXX_COMPILER_ID:Clang>:-Wno-c++2b-extensions>
-)
+target_compile_options(msft_proxy4_module PRIVATE ${PROXY_COMPILE_OPTIONS})
 target_link_libraries(msft_proxy4_module PUBLIC msft_proxy4::proxy)

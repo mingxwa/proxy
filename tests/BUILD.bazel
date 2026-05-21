@@ -1,38 +1,22 @@
 load("@rules_cc//cc:defs.bzl", "cc_test")
+load("//:proxy_bazel_copts.bzl", "PROXY_COMMON_COPTS")
 
 package(default_visibility = ["//visibility:public"])
 
-config_setting(
-    name = "clang_compiler",
-    flag_values = {
-        "@bazel_tools//tools/cpp:compiler": "clang",
-    },
-)
-
-config_setting(
-    name = "msvc_compiler",
-    flag_values = {
-        "@bazel_tools//tools/cpp:compiler": "msvc-cl",
-    },
-)
-
-PROXY_CXX_COPTS = select({
-    "@bazel_tools//src/conditions:windows": ["/std:c++20", "/utf-8"],
-    "//conditions:default": ["-std=c++20"],
+PROXY_GTEST_SYSTEM_COPTS = select({
+    "@bazel_tools//src/conditions:windows": [
+        "/external:Iexternal/googletest+/googletest/include",
+        "/external:Iexternal/googletest+/googlemock/include",
+    ],
+    "//conditions:default": [
+        "-isystem",
+        "external/googletest+/googletest/include",
+        "-isystem",
+        "external/googletest+/googlemock/include",
+    ],
 })
 
-PROXY_WARNING_COPTS = select({
-    ":msvc_compiler": ["/W4"],
-    ":clang_compiler": ["-Wall", "-Wextra", "-Wpedantic", "-Wno-c++2b-extensions"],
-    "//conditions:default": ["-Wall", "-Wextra", "-Wpedantic"],
-})
-
-PROXY_STRICT_WARNING_COPTS = select({
-    ":msvc_compiler": ["/WX"],
-    "//conditions:default": ["-Werror"],
-})
-
-PROXY_COPTS = PROXY_CXX_COPTS + PROXY_WARNING_COPTS + PROXY_STRICT_WARNING_COPTS
+PROXY_COPTS = PROXY_COMMON_COPTS + PROXY_GTEST_SYSTEM_COPTS
 
 cc_test(
     name = "proxy_tests",

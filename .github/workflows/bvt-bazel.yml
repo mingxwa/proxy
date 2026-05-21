@@ -13,7 +13,7 @@ jobs:
         bazelisk-version: 1.27.0
 
     - name: build with bazel
-      run: bazel build //:proxy //tests:proxy_test_suite
+      run: bazel build //:proxy //tests:proxy_test_suite //benchmarks:msft_proxy_benchmarks //docs:examples
 
     - name: test with bazel
       run: bazel test //tests:proxy_test_suite --test_output=errors

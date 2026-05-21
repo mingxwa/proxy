@@ -1,5 +1,19 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
+config_setting(
+    name = "clang_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang",
+    },
+)
+
+config_setting(
+    name = "msvc_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "msvc-cl",
+    },
+)
+
 package(default_visibility = ["//visibility:public"])
 
 alias(

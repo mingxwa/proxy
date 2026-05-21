@@ -1,0 +1,21 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//:proxy_bazel_copts.bzl", "PROXY_COMMON_COPTS")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "msft_proxy_benchmarks",
+    srcs = [
+        "proxy_creation_benchmark.cpp",
+        "proxy_operation_benchmark_context.h",
+        "proxy_operation_benchmark_context.cpp",
+        "proxy_operation_benchmark.cpp",
+    ],
+    copts = PROXY_COMMON_COPTS,
+    deps = [
+        "//:proxy",
+        "@google_benchmark//:benchmark",
+        "@google_benchmark//:benchmark_main",
+    ],
+    includes = ["."],
+)

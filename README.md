@@ -44,13 +44,21 @@ Please refer to the [Proxy's Frequently Asked Questions](https://ngcpp.github.io
     
     target_link_libraries(main PRIVATE msft_proxy4::proxy)
     ```
-- [Bazel](https://bazel.build/) / [Bzlmod](https://bazel.build/external/overview): the repository now exposes `//:proxy` for the header-only library, `//:proxy_modules` for the C++20 module interface file, and `//tests:proxy_test_suite` for the Bazel test suite. The Bazel targets assume a C++20-capable toolchain.
+- [Bazel](https://bazel.build/) / [Bzlmod](https://bazel.build/external/overview): the repository now exposes `//:proxy` for the header-only library, `//:proxy_modules` for the C++20 module interface file, `//tests:proxy_test_suite` for the Bazel test suite, `//benchmarks:msft_proxy_benchmarks` for the benchmark executable, `//docs:examples` for the generated documentation examples, and `//tools/report_generator:report_generator` for the benchmarking report tool. The Bazel targets assume a C++20-capable toolchain.
 
     To build and test this repository with Bazel:
 
     ```starlark
     bazel build //:proxy
     bazel test //tests:proxy_test_suite
+    ```
+
+    Additional repository targets can be built with:
+
+    ```starlark
+    bazel build //benchmarks:msft_proxy_benchmarks
+    bazel build //tools/report_generator:report_generator
+    bazel build //docs:examples
     ```
 
     To consume a local checkout from another Bazel workspace:

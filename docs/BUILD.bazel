@@ -1,0 +1,69 @@
+load("//:proxy_bazel_copts.bzl", "PROXY_COMMON_COPTS")
+load("//tools:docs_examples.bzl", "doc_examples")
+
+package(default_visibility = ["//visibility:public"])
+
+DOC_EXAMPLE_MARKDOWNS = [
+    "spec/allocate_proxy.md",
+    "spec/allocate_proxy_shared.md",
+    "spec/facade_aware_overload_t.md",
+    "spec/explicit_conversion_dispatch/README.md",
+    "spec/make_proxy_view.md",
+    "spec/make_proxy_shared.md",
+    "spec/implicit_conversion_dispatch/README.md",
+    "spec/basic_facade_builder/add_reflection.md",
+    "spec/make_proxy_inplace.md",
+    "spec/make_proxy.md",
+    "spec/is_bitwise_trivially_relocatable.md",
+    "spec/inplace_proxiable_target.md",
+    "spec/basic_facade_builder/support_relocation.md",
+    "spec/basic_facade_builder/add_convention.md",
+    "spec/basic_facade_builder/add_skill.md",
+    "spec/basic_facade_builder/README.md",
+    "spec/basic_facade_builder/support_copy.md",
+    "spec/basic_facade_builder/support_destruction.md",
+    "spec/basic_facade_builder/build.md",
+    "spec/basic_facade_builder/restrict_layout.md",
+    "spec/msft_lib_proxy.md",
+    "spec/basic_facade_builder/add_facade.md",
+    "spec/operator_dispatch/README.md",
+    "spec/proxiable.md",
+    "spec/weak_proxy.md",
+    "spec/proxy_invoke.md",
+    "spec/proxy/constructor.md",
+    "spec/proxy/destructor.md",
+    "spec/proxy_reflect.md",
+    "spec/proxy_view.md",
+    "spec/proxy/emplace.md",
+    "spec/skills_as_weak.md",
+    "spec/proxy/friend_operator_equality.md",
+    "spec/skills_as_view.md",
+    "spec/proxy/friend_swap.md",
+    "spec/PRO_DEF_MEM_DISPATCH.md",
+    "spec/proxy/indirection.md",
+    "spec/weak_dispatch/README.md",
+    "spec/PRO_DEF_FREE_AS_MEM_DISPATCH.md",
+    "spec/proxy/operator_bool.md",
+    "spec/skills_fmt_format.md",
+    "spec/proxy/README.md",
+    "spec/skills_slim.md",
+    "spec/skills_format.md",
+    "spec/PRO_DEF_FREE_DISPATCH.md",
+    "spec/proxy/reset.md",
+    "spec/substitution_dispatch/README.md",
+    "spec/skills_rtti/proxy_cast.md",
+    "spec/skills_rtti/proxy_typeid.md",
+    "spec/skills_rtti/README.md",
+    "spec/proxiable_target.md",
+]
+
+filegroup(
+    name = "markdowns",
+    srcs = glob(["**/*.md"]),
+)
+
+doc_examples(
+    name = "examples",
+    docs = DOC_EXAMPLE_MARKDOWNS,
+    copts = PROXY_COMMON_COPTS,
+)
