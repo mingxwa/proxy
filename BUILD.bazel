@@ -1,0 +1,18 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+selects.config_setting_group(
+    name = "msvc_like",
+    match_any = [
+        "@rules_cc//cc/compiler:msvc-cl",
+        "@rules_cc//cc/compiler:clang-cl",
+    ],
+)
+
+cc_library(
+    name = "proxy",
+    hdrs = glob(["include/proxy/**/*.h"]),
+    includes = ["include"],
+)

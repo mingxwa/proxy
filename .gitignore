@@ -8,3 +8,8 @@ __pycache__/
 # Meson subprojects
 /subprojects/*
 !/subprojects/*.wrap
+
+# Bazel
+/bazel-*
+/.bazel/
+user.bazelrc

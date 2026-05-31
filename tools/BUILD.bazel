@@ -1,0 +1,4 @@
+exports_files([
+    "extract_example_code.py",
+    "gen_doc_examples.py",
+])

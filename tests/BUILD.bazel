@@ -1,0 +1,55 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("//:copts.bzl", "PROXY_STRICT_BUILD_COPTS")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "test_utils",
+    hdrs = ["utils.h"],
+    includes = ["."],
+    deps = ["//:proxy"],
+    visibility = [":__pkg__"],
+)
+
+cc_test(
+    name = "proxy_tests",
+    srcs = [
+        "proxy_creation_tests.cpp",
+        "proxy_details_tests.cpp",
+        "proxy_dispatch_tests.cpp",
+        "proxy_fmt_format_no_wchar_tests.cpp",
+        "proxy_fmt_format_tests.cpp",
+        "proxy_format_tests.cpp",
+        "proxy_integration_tests.cpp",
+        "proxy_invocation_tests.cpp",
+        "proxy_lifetime_tests.cpp",
+        "proxy_reflection_tests.cpp",
+        "proxy_regression_tests.cpp",
+        "proxy_rtti_tests.cpp",
+        "proxy_traits_tests.cpp",
+        "proxy_view_tests.cpp",
+    ],
+    copts = PROXY_STRICT_BUILD_COPTS,
+    deps = [
+        ":test_utils",
+        "//:proxy",
+        "@fmt//:fmt",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "proxy_freestanding_tests",
+    srcs = ["freestanding/proxy_freestanding_tests.cpp"],
+    copts = PROXY_STRICT_BUILD_COPTS + [
+        "-ffreestanding",
+        "-fno-exceptions",
+        "-fno-rtti",
+    ],
+    linkopts = [
+        "-nodefaultlibs",
+        "-lc",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//:proxy"],
+)
