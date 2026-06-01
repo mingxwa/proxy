@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
 
 jobs:
+  run-bvt-lint:
+    uses: ./.github/workflows/bvt-lint.yml
+    name: Run BVT for lint
+
   run-bvt-gcc:
     uses: ./.github/workflows/bvt-gcc.yml
     name: Run BVT with GCC

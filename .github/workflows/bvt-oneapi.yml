@@ -40,6 +40,9 @@ jobs:
         meson --version
         bazel version
 
+    - name: Check MODULE.bazel.lock is up-to-date
+      run: bazel mod deps --lockfile_mode=error
+
     - name: Build and run test with oneapi on cmake
       run: |
         cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release

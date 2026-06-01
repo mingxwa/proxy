@@ -20,6 +20,9 @@ jobs:
         meson --version
         bazel version
 
+    - name: Check MODULE.bazel.lock is up-to-date
+      run: bazel mod deps --lockfile_mode=error
+
     - name: Build and run test with MSVC on cmake
       run: |
         cmake -B build-cmake -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE `

@@ -1,0 +1,15 @@
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  bvt-lint:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Check tool versions
+      run: bazel version
+
+    - name: Check MODULE.bazel.lock is up-to-date
+      run: bazel mod deps --lockfile_mode=error
