@@ -53,7 +53,7 @@ _FILE_DEPS: dict[str, tuple[str, ...]] = {
 def _collect(docs_dir: Path) -> list[Example]:
     examples: list[Example] = []
     for md in sorted(docs_dir.rglob("*.md")):
-        if try_extract_example_code(md) is None:
+        if try_extract_example_code(md.read_text(encoding="utf-8")) is None:
             continue
         rel_md = md.relative_to(docs_dir).as_posix()
         examples.append(Example(rel_md=rel_md, deps=_FILE_DEPS.get(rel_md, ())))

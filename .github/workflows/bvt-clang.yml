@@ -17,7 +17,7 @@ jobs:
     - name: Install clang
       run: |
         curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$CLANG_VERSION"
-        sudo apt install -y "clang-$CLANG_VERSION" "libc++-$CLANG_VERSION-dev" "clang-format-$CLANG_VERSION"
+        sudo apt install -y "clang-$CLANG_VERSION" "libc++-$CLANG_VERSION-dev"
         {
           echo "CC=clang-$CLANG_VERSION"
           echo "CXX=clang++-$CLANG_VERSION"
@@ -27,7 +27,6 @@ jobs:
     - name: Check toolchain versions
       run: |
         "$CXX" --version
-        "clang-format-$CLANG_VERSION" --version
         cmake --version
         ninja --version
         meson --version
@@ -36,9 +35,6 @@ jobs:
     - name: Build and run test with clang ${{ env.CLANG_VERSION }} on cmake
       run: |
         cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=TRUE
-        mapfile -t FILES < <(find include tests benchmarks build-cmake/examples_from_docs tools -type f \( -name '*.h' -o -name '*.ixx' -o -name '*.cpp' \))
-        echo "Running clang-format on ${#FILES[@]} files: ${FILES[*]}"
-        "clang-format-$CLANG_VERSION" --dry-run --Werror "${FILES[@]}"
         cmake --build build-cmake -j
         ctest --test-dir build-cmake -j
         mkdir build-cmake/drop

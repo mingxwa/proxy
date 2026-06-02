@@ -1,0 +1,56 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-illegal-windows-names
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff-format
+
+  - repo: https://github.com/BlankSpruce/gersemi-pre-commit
+    rev: 0.27.7
+    hooks:
+      - id: gersemi
+        args: ["--indent", "2"]
+        exclude: '^(subprojects|build|bazel-.*)/'
+
+  - repo: https://github.com/keith/pre-commit-buildifier
+    rev: 8.2.1
+    hooks:
+      - id: buildifier
+        exclude: '^(subprojects|build|bazel-.*)/'
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: meson-format
+        name: meson format
+        language: python
+        additional_dependencies: ["meson==1.10.1"]
+        entry: meson
+        args: ["format", "--check-only", "--recursive", "meson.build"]
+        pass_filenames: false
+        files: '(^|/)(meson\.build|meson\.options|meson_options\.txt)$'
+
+      - id: clang-format
+        name: clang-format
+        language: python
+        additional_dependencies: ["clang-format==22.1.5"]
+        entry: python3 tools/format_cpp.py
+        pass_filenames: false
+        files: '\.(h|ixx|cpp|md)$'
