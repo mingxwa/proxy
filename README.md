@@ -29,21 +29,11 @@ Please refer to the [Proxy's Frequently Asked Questions](https://ngcpp.github.io
 
 ## Quick Start
 
-"Proxy" is a header-only C++20 library. To use the library, make sure your compiler meets the [minimum requirements](#compiler-req) and just put the [proxy](https://github.com/ngcpp/proxy/tree/main/include/proxy) directory in your project's include directory. Alternatively, you can install the library via:
+"Proxy" is a header-only C++20 library. Make sure your compiler meets the [minimum requirements](#compiler-req), then pick one of three ways to use the library:
 
-- [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/overview): [proxy port on vcpkg.io](https://vcpkg.io/en/package/proxy)
-- [conan](https://conan.io/): [proxy recipe on conan.io](https://conan.io/center/recipes/proxy)
-- [CPM](https://github.com/cpm-cmake/CPM.cmake) / CMake [FetchContent_Declare](https://cmake.org/cmake/help/latest/module/FetchContent.html):
-
-    ```cmake
-    CPMAddPackage(
-      NAME msft_proxy4
-      GIT_TAG 4.0.0 # or above
-      GIT_REPOSITORY https://github.com/ngcpp/proxy.git
-    )
-    
-    target_link_libraries(main PRIVATE msft_proxy4::proxy)
-    ```
+1. **Direct include**: drop the [proxy/include](https://github.com/ngcpp/proxy/tree/main/include) directory into your project's include path.
+2. **Package manager**: install via [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/overview) ([proxy port on vcpkg.io](https://vcpkg.io/en/package/proxy)) or [conan](https://conan.io/) ([proxy recipe on conan.io](https://conan.io/center/recipes/proxy)).
+3. **Build system integration**: wire it in through CMake, Meson, or Bazel. See [Build System Integration](#build-system-integration) for snippets.
 
 ### Hello World
 
@@ -242,14 +232,108 @@ The "Proxy" library is a self-contained solution for runtime polymorphism in C++
 | NVIDIA HPC   | 24.1            | -std=c++20     |
 | Intel oneAPI | 2024.0          | -std=c++20     |
 
-## Build and Run Tests with CMake
+## Build System Integration
+
+The snippets below show how to wire "Proxy" into a consuming project, preferring fetches directly from GitHub so you don't have to manage a local clone yourself.
+
+### CMake
+
+Fetch via [CPM](https://github.com/cpm-cmake/CPM.cmake) (a thin wrapper over CMake's [`FetchContent_Declare`](https://cmake.org/cmake/help/latest/module/FetchContent.html)):
+
+```cmake
+CPMAddPackage(
+  NAME msft_proxy4
+  GIT_TAG 4.0.2
+  GIT_REPOSITORY https://github.com/ngcpp/proxy.git
+)
+
+target_link_libraries(main PRIVATE msft_proxy4::proxy)
+```
+
+Or, if you already have a local clone, use `add_subdirectory(path/to/proxy)` instead of `CPMAddPackage`.
+
+### Meson
+
+Place a wrap file at `subprojects/proxy.wrap` and Meson will fetch the source automatically:
+
+```ini
+[wrap-git]
+url = https://github.com/ngcpp/proxy.git
+revision = 4.0.2
+
+[provide]
+dependency_names = msft_proxy4
+```
+
+Then in your `meson.build`:
+
+```meson
+msft_proxy4_dep = dependency('msft_proxy4')
+executable('main', 'main.cpp', dependencies: msft_proxy4_dep)
+```
+
+### Bazel
+
+The library is not yet published to the [Bazel Central Registry](https://registry.bazel.build/), so consumers point Bazel at the GitHub repository directly (or at a local clone).
+
+With **Bzlmod** (Bazel 7+), add to your `MODULE.bazel`:
+
+```python
+bazel_dep(name = "proxy", version = "4.1.0")
+git_override(
+    module_name = "proxy",
+    remote = "https://github.com/ngcpp/proxy.git",
+    commit = "<commit SHA>",  # `git_override` requires a SHA; tags are not accepted
+)
+```
+
+With **legacy WORKSPACE mode** (Bazel 5.1+ without Bzlmod), add to your `WORKSPACE`:
+
+```python
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+git_repository(
+    name = "proxy",
+    remote = "https://github.com/ngcpp/proxy.git",
+    tag = "4.1.0",
+)
+load("@proxy//:proxy_deps.bzl", "proxy_deps")
+proxy_deps()
+```
+
+Either way, add `@proxy//:proxy` to the `deps` of any `cc_library` or `cc_binary` target that needs it. If you'd rather work against a local clone, replace `git_override` with `local_path_override(module_name = "proxy", path = "path/to/proxy")`.
+
+## Build and Run Tests
+
+Running the test suite (or contributing changes back) starts with cloning the repository:
 
 ```
 git clone https://github.com/ngcpp/proxy.git
 cd proxy
+```
+
+Then drive the tests through any of the supported build systems:
+
+### CMake
+
+```
 cmake -B build
 cmake --build build -j
 ctest --test-dir build -j
+```
+
+### Meson
+
+```
+meson setup build
+meson test -C build --suite ProxyTests
+```
+
+### Bazel
+
+Testing requires **Bazel 7+**. The repository pins a specific Bazel version in `.bazelversion` to keep contributor builds reproducible. Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (invoked as `bazel`) and the pinned version is downloaded automatically.
+
+```
+bazel test //tests/...
 ```
 
 ## Related Resources

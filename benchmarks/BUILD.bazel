@@ -1,0 +1,24 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//:copts.bzl", "PROXY_BUILD_COPTS")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_binary(
+    name = "proxy_benchmarks",
+    srcs = [
+        "proxy_creation_benchmark.cpp",
+        "proxy_operation_benchmark.cpp",
+        "proxy_operation_benchmark_context.cpp",
+        "proxy_operation_benchmark_context.h",
+    ],
+    copts = PROXY_BUILD_COPTS + select({
+        "//:msvc_like": ["/bigobj"],
+        "//conditions:default": [],
+    }),
+    includes = ["."],
+    deps = [
+        "//:proxy",
+        "@google_benchmark//:benchmark",
+        "@google_benchmark//:benchmark_main",
+    ],
+)

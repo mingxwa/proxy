@@ -8,6 +8,7 @@ and writes the result to stdout in the requested format.
 
   --format json    JSON array consumed by CMake:   [{md, deps}, ...]
   --format txt     Colon-separated lines for Meson: <md> or <md>:<dep1>,...
+  --format bzl     Starlark dict for Bazel:         DOC_EXAMPLES = {...}
 
 Run from the repository root:
   python3 tools/gen_doc_examples.py --format <fmt>
@@ -26,6 +27,7 @@ from extract_example_code import try_extract_example_code
 class DepInfo:
     cmake: str  # CMake link target,    e.g. "fmt::fmt"
     meson: str  # Meson dep variable,   e.g. "fmt_dep"
+    bazel: str  # Bazel target label,   e.g. "@fmt//:fmt"
 
 
 @dataclass(frozen=True)
@@ -39,7 +41,7 @@ _DOCS_DIR = _REPO_ROOT / "docs"
 
 # Add one entry here when introducing a new library dependency.
 _DEPS: dict[str, DepInfo] = {
-    "fmt": DepInfo(cmake="fmt::fmt", meson="fmt_dep"),
+    "fmt": DepInfo(cmake="fmt::fmt", meson="fmt_dep", bazel="@fmt//:fmt"),
 }
 
 # Hardcoded per-file dependencies (path relative to docs/).
@@ -68,13 +70,22 @@ def _generate_txt(examples: list[Example]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _generate_bzl(examples: list[Example]) -> str:
+    lines = ["DOC_EXAMPLES = {"]
+    for e in examples:
+        targets = ", ".join(f'"{_DEPS[d].bazel}"' for d in e.deps)
+        lines.append(f'    "{e.rel_md}": [{targets}],')
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--format", choices=["json", "txt"], required=True)
+    parser.add_argument("--format", choices=["json", "txt", "bzl"], required=True)
     args = parser.parse_args()
 
     examples = _collect(_DOCS_DIR)
-    generators = {"json": _generate_json, "txt": _generate_txt}
+    generators = {"json": _generate_json, "txt": _generate_txt, "bzl": _generate_bzl}
     sys.stdout.write(generators[args.format](examples))
 
 

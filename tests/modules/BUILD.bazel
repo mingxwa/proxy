@@ -1,0 +1,1 @@
+# C++20 module tests are not supported under Bazel. Use CMake instead.

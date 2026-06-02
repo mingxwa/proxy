@@ -1,0 +1,11 @@
+# Global Options
+common --enable_bzlmod
+common --enable_platform_specific_config
+
+# Default Build Options
+build --features=external_include_paths
+
+# Platform-Specific Toolchain Overrides
+build:linux --repo_env=BAZEL_CXXOPTS=-std=c++20
+build:macos --repo_env=BAZEL_CXXOPTS=-std=c++20
+build:windows --cxxopt=/std:c++20 --features=-default_cpp_std
