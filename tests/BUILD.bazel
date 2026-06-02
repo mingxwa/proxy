@@ -7,8 +7,8 @@ cc_library(
     name = "test_utils",
     hdrs = ["utils.h"],
     includes = ["."],
-    deps = ["//:proxy"],
     visibility = [":__pkg__"],
+    deps = ["//:proxy"],
 )
 
 cc_test(
@@ -33,7 +33,7 @@ cc_test(
     deps = [
         ":test_utils",
         "//:proxy",
-        "@fmt//:fmt",
+        "@fmt",
         "@googletest//:gtest_main",
     ],
 )

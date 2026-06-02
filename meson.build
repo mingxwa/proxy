@@ -24,7 +24,10 @@ elif cxx.get_id() == 'clang'
   )
 elif cxx.get_id() == 'nvidia_hpc'
   add_project_arguments(
-    '-Minform=warn', '-Wall', '-Wextra', '-Wpedantic',
+    '-Minform=warn',
+    '-Wall',
+    '-Wextra',
+    '-Wpedantic',
     language: 'cpp',
   )
 endif

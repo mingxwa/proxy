@@ -24,24 +24,29 @@ if(PROJECT_IS_TOP_LEVEL)
   )
 endif()
 
-target_sources(msft_proxy4
+target_sources(
+  msft_proxy4
   INTERFACE
     FILE_SET public_headers
-    TYPE HEADERS 
-    BASE_DIRS include
-    FILES
-      include/proxy/proxy.h
-      include/proxy/proxy_macros.h
-      include/proxy/proxy_fmt.h
-      include/proxy/v4/proxy.ixx
-      include/proxy/v4/proxy.h
-      include/proxy/v4/proxy_macros.h
-      include/proxy/v4/proxy_fmt.h
+      TYPE HEADERS
+      BASE_DIRS include
+      FILES
+        include/proxy/proxy.h
+        include/proxy/proxy_macros.h
+        include/proxy/proxy_fmt.h
+        include/proxy/v4/proxy.ixx
+        include/proxy/v4/proxy.h
+        include/proxy/v4/proxy_macros.h
+        include/proxy/v4/proxy_fmt.h
 )
 
 target_compile_features(msft_proxy4 INTERFACE cxx_std_20)
-target_include_directories(msft_proxy4 INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                                                $<INSTALL_INTERFACE:include>)
+target_include_directories(
+  msft_proxy4
+  INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 # Do not set the module target if proxy is consumed as a subdirectory.
 if(PROJECT_IS_TOP_LEVEL)
@@ -58,9 +63,10 @@ endif()
 
 include(GNUInstallDirs)
 
-install(TARGETS msft_proxy4
-        EXPORT msft_proxy4Targets
-        FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+install(
+  TARGETS msft_proxy4
+  EXPORT msft_proxy4Targets
+  FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 install(
@@ -83,19 +89,21 @@ configure_package_config_file(
 )
 
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(cmake/msft_proxy4ConfigVersion.cmake
-                                 COMPATIBILITY SameMajorVersion
-                                 ARCH_INDEPENDENT)
+write_basic_package_version_file(
+  cmake/msft_proxy4ConfigVersion.cmake
+  COMPATIBILITY SameMajorVersion
+  ARCH_INDEPENDENT
+)
 
 install(
-  FILES 
+  FILES
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/msft_proxy4Config.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/msft_proxy4ConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_DATADIR}/msft_proxy4
 )
 
 # build tests if BUILD_TESTING is ON
-if (BUILD_TESTING)
+if(BUILD_TESTING)
   include(CTest)
 
   include(FetchContent)
@@ -108,7 +116,8 @@ if (BUILD_TESTING)
   FetchContent_Declare(
     fmt
     URL https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
-    URL_HASH SHA256=ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea
+    URL_HASH
+      SHA256=ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea
     SYSTEM
   )
   FetchContent_MakeAvailable(fmt)
@@ -117,7 +126,13 @@ if (BUILD_TESTING)
     set(PROXY_BUILD_FLAGS /utf-8 /W4)
     set(PROXY_STRICT_WARNING_FLAGS ${PROXY_BUILD_FLAGS} /WX)
   else()
-    set(PROXY_BUILD_FLAGS -Wall -Wextra -Wpedantic $<$<CXX_COMPILER_ID:Clang>:-Wno-c++2b-extensions>)
+    set(
+      PROXY_BUILD_FLAGS
+      -Wall
+      -Wextra
+      -Wpedantic
+      $<$<CXX_COMPILER_ID:Clang>:-Wno-c++2b-extensions>
+    )
     set(PROXY_STRICT_WARNING_FLAGS ${PROXY_BUILD_FLAGS} -Werror)
   endif()
 

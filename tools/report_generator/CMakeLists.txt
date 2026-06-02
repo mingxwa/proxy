@@ -12,7 +12,8 @@ endif()
 FetchContent_Declare(
   nlohmann_json
   URL https://github.com/nlohmann/json/archive/refs/tags/v3.12.0.tar.gz
-  URL_HASH SHA256=4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
+  URL_HASH
+    SHA256=4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
@@ -21,8 +22,11 @@ add_executable(report_generator main.cpp)
 target_link_libraries(report_generator PRIVATE nlohmann_json::nlohmann_json)
 
 target_compile_features(report_generator PRIVATE cxx_std_20)
-if (MSVC)
+if(MSVC)
   target_compile_options(report_generator PRIVATE /W4 /WX)
 else()
-  target_compile_options(report_generator PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  target_compile_options(
+    report_generator
+    PRIVATE -Wall -Wextra -Wpedantic -Werror
+  )
 endif()

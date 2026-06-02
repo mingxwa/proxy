@@ -2,7 +2,12 @@ extract_example = find_program('../tools/extract_example_code.py')
 gen_doc_examples = find_program('../tools/gen_doc_examples.py')
 
 # Generate the example list at configure time (txt format: "<md>" or "<md>:<var1>,...").
-_gen = run_command(gen_doc_examples, '--format', 'txt', check: true)
+_gen = run_command(
+  gen_doc_examples,
+  '--format',
+  'txt',
+  check: true,
+)
 
 examples = []
 
@@ -30,7 +35,11 @@ foreach line : _gen.stdout().split('\n')
       build_by_default: false,
     )
     examples += _ex
-    test(suffix, _ex, suite: 'ProxyExamples')
+    test(
+      suffix,
+      _ex,
+      suite: 'ProxyExamples',
+    )
   endif
 endforeach
 

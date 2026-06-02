@@ -32,7 +32,7 @@ class DepInfo:
 
 @dataclass(frozen=True)
 class Example:
-    rel_md: str           # path relative to docs/, e.g. "spec/allocate_proxy.md"
+    rel_md: str  # path relative to docs/, e.g. "spec/allocate_proxy.md"
     deps: tuple[str, ...]  # logical dep names, e.g. ("fmt",)
 
 
@@ -41,13 +41,14 @@ _DOCS_DIR = _REPO_ROOT / "docs"
 
 # Add one entry here when introducing a new library dependency.
 _DEPS: dict[str, DepInfo] = {
-    "fmt": DepInfo(cmake="fmt::fmt", meson="fmt_dep", bazel="@fmt//:fmt"),
+    "fmt": DepInfo(cmake="fmt::fmt", meson="fmt_dep", bazel="@fmt"),
 }
 
 # Hardcoded per-file dependencies (path relative to docs/).
 _FILE_DEPS: dict[str, tuple[str, ...]] = {
     "spec/skills_fmt_format.md": ("fmt",),
 }
+
 
 def _collect(docs_dir: Path) -> list[Example]:
     examples: list[Example] = []
@@ -60,13 +61,25 @@ def _collect(docs_dir: Path) -> list[Example]:
 
 
 def _generate_json(examples: list[Example]) -> str:
-    return json.dumps([{"md": e.rel_md, "deps": [_DEPS[d].cmake for d in e.deps]} for e in examples]) + "\n"
+    return (
+        json.dumps(
+            [
+                {"md": e.rel_md, "deps": [_DEPS[d].cmake for d in e.deps]}
+                for e in examples
+            ]
+        )
+        + "\n"
+    )
 
 
 def _generate_txt(examples: list[Example]) -> str:
     lines: list[str] = []
     for e in examples:
-        lines.append(f"{e.rel_md}:{','.join(_DEPS[d].meson for d in e.deps)}" if e.deps else e.rel_md)
+        lines.append(
+            f"{e.rel_md}:{','.join(_DEPS[d].meson for d in e.deps)}"
+            if e.deps
+            else e.rel_md
+        )
     return "\n".join(lines) + "\n"
 
 

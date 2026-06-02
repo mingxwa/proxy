@@ -1,6 +1,6 @@
+load("@doc_examples//:doc_examples.bzl", "DOC_EXAMPLES")
 load("@rules_cc//cc:defs.bzl", "cc_test")
 load("//:copts.bzl", "PROXY_BUILD_COPTS")
-load("@doc_examples//:doc_examples.bzl", "DOC_EXAMPLES")
 
 package(default_visibility = ["//visibility:private"])
 
