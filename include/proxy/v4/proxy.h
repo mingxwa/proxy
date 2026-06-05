@@ -51,6 +51,55 @@
 #define PROD_UNREACHABLE() std::abort()
 #endif // __cpp_lib_unreachable >= 202202L
 
+// Pointer authentication (PAC) support.
+//
+// On Apple silicon the arm64e C++ ABI signs both the v-table pointer of a
+// polymorphic object and every virtual function pointer inside the v-table
+// using ARMv8.3 pointer authentication, with *address diversity* (the
+// signature depends on where the pointer is stored) and *type diversity* (a
+// constant discriminator derived from the type). `proxy`'s dispatch metadata
+// is a hand-rolled v-table, so on such targets it must be signed the same way
+// to be no less secure than a real virtual function.
+//
+// On every other major platform this is unnecessary: notably, on Linux/AArch64
+// (GCC and Clang) the only PAC-based hardening that ships is `pac-ret` (return
+// address signing), which does not change the C++ ABI -- v-tables there are
+// *not* signed -- so unsigned dispatch metadata is already as secure as a
+// virtual call. PAC is therefore enabled exactly when the toolchain signs code
+// pointers in the ABI (Clang's `ptrauth_calls`) and exposes the `__ptrauth`
+// qualifier (`ptrauth_qualifier`). `PRO4D_PAC` may be predefined to `0` or `1`
+// to override this detection.
+#ifndef PRO4D_PAC
+#if defined(__has_feature)
+#if __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
+#define PRO4D_PAC 1
+#endif // __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
+#endif // defined(__has_feature)
+#ifndef PRO4D_PAC
+#define PRO4D_PAC 0
+#endif // PRO4D_PAC
+#endif // PRO4D_PAC
+
+#if PRO4D_PAC
+#include <ptrauth.h>
+// Signs a function pointer member like an arm64e virtual function: IA key
+// (`ptrauth_key_function_pointer`), address diversity, and a constant
+// discriminator derived from the pointee type (`disc`).
+#define PRO4D_PAC_SIGN_FN(disc)                                                \
+  __ptrauth(ptrauth_key_function_pointer, 1, disc)
+// Signs a meta pointer member like an arm64e v-table pointer: DA key
+// (`ptrauth_key_cxx_vtable_pointer`), address diversity, and a constant
+// discriminator derived from the meta type (`disc`).
+#define PRO4D_PAC_SIGN_VPTR(disc)                                              \
+  __ptrauth(ptrauth_key_cxx_vtable_pointer, 1, disc)
+// A compile-time, type-derived constant discriminator (type diversity).
+#define PRO4D_PAC_TYPE_DISC(...) ptrauth_type_discriminator(__VA_ARGS__)
+#else
+#define PRO4D_PAC_SIGN_FN(disc)
+#define PRO4D_PAC_SIGN_VPTR(disc)
+#define PRO4D_PAC_TYPE_DISC(...) 0
+#endif // PRO4D_PAC
+
 namespace pro::inline v4 {
 
 // =============================================================================
@@ -375,6 +424,12 @@ struct invoker;
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
+    using fp_t = R (*)(ProP pq, Args...) ne;                                    \
+    /* Phantom function type used only to derive the PAC discriminator; it     \
+     * encodes the dispatch `D` in addition to the operand and signature so    \
+     * that distinct conventions sharing one signature are diversified, as     \
+     * arm64e diversifies virtual functions by their mangled name. */          \
+    using pac_disc_t = R (*)(D*, ProP pq, Args...) ne;                          \
     invoker() = default;                                                       \
     template <class P>                                                         \
     constexpr explicit invoker(std::in_place_type_t<P>)                        \
@@ -388,7 +443,7 @@ struct invoker;
       return f_(std::forward<ActualArgs>(args)...);                            \
     }                                                                          \
                                                                                \
-    R (*f_)(ProP pq, Args...) ne;                                              \
+    fp_t PRO4D_PAC_SIGN_FN(PRO4D_PAC_TYPE_DISC(pac_disc_t)) f_;                 \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
@@ -675,11 +730,30 @@ struct basic_facade_traits<F> : applicable_traits {};
 
 using ptr_prototype = void* [2];
 
+#if PRO4D_PAC
+// With pointer authentication, address-diversified `__ptrauth` members make
+// `composite_meta` non-trivially-copyable, because every copy must
+// authenticate-and-resign the pointer for its new storage address. Such a meta
+// is still safe to embed inline as long as it can be relocated cheaply and
+// without throwing, which is the property the small-meta optimization actually
+// relies on. This concept is unused (and therefore false) on non-PAC builds,
+// so behavior there is unchanged.
 template <class M>
-concept lightweight_meta = sizeof(M) <= sizeof(ptr_prototype) &&
-                           alignof(M) <= alignof(ptr_prototype) &&
-                           std::is_nothrow_default_constructible_v<M> &&
-                           std::is_trivially_copyable_v<M>;
+concept pac_relocatable_meta =
+    std::is_nothrow_copy_constructible_v<M> &&
+    std::is_nothrow_move_constructible_v<M> &&
+    std::is_nothrow_copy_assignable_v<M> &&
+    std::is_nothrow_move_assignable_v<M> && std::is_trivially_destructible_v<M>;
+#else
+template <class M>
+concept pac_relocatable_meta = false;
+#endif // PRO4D_PAC
+template <class M>
+concept lightweight_meta =
+    sizeof(M) <= sizeof(ptr_prototype) &&
+    alignof(M) <= alignof(ptr_prototype) &&
+    std::is_nothrow_default_constructible_v<M> &&
+    (std::is_trivially_copyable_v<M> || pac_relocatable_meta<M>);
 
 template <class... Ms>
 struct meta_storage {
@@ -694,7 +768,8 @@ struct meta_storage {
   }
 
 private:
-  const composite_meta<Ms...>* ptr_;
+  const composite_meta<Ms...>* PRO4D_PAC_SIGN_VPTR(
+      PRO4D_PAC_TYPE_DISC(void (*)(composite_meta<Ms...>*))) ptr_;
   template <class P>
   static constexpr composite_meta<Ms...> storage{std::in_place_type<P>};
 };
@@ -2754,5 +2829,10 @@ struct formatter<T, CharT>
 
 #undef PROD_UNREACHABLE
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
+#undef PRO4D_PAC_SIGN_FN
+#undef PRO4D_PAC_SIGN_VPTR
+#undef PRO4D_PAC_TYPE_DISC
+// Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
+// code (e.g. tests) can branch on whether pointer authentication is active.
 
 #endif // MSFT_PROXY_V4_PROXY_H_

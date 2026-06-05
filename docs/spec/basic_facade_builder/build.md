@@ -59,10 +59,19 @@ int main() {
   static_assert(std::is_nothrow_move_constructible_v<pro::proxy<CopyableBase>>);
   static_assert(std::is_nothrow_destructible_v<pro::proxy<CopyableBase>>);
 
+#if !PRO4D_PAC
+  // On targets where the ABI signs code pointers with pointer authentication
+  // (e.g. Apple arm64e), `proxy` signs its dispatch metadata the same way a
+  // v-table is signed. Such metadata is address-diversified, so copying it must
+  // re-sign the pointers and the `proxy` is nothrow- but not *trivially*
+  // copyable. It remains trivially destructible.
   static_assert(
       std::is_trivially_copy_constructible_v<pro::proxy<TrivialBase>>);
   static_assert(
       std::is_trivially_move_constructible_v<pro::proxy<TrivialBase>>);
+#endif // !PRO4D_PAC
+  static_assert(std::is_nothrow_copy_constructible_v<pro::proxy<TrivialBase>>);
+  static_assert(std::is_nothrow_move_constructible_v<pro::proxy<TrivialBase>>);
   static_assert(std::is_trivially_destructible_v<pro::proxy<TrivialBase>>);
 }
 ```
