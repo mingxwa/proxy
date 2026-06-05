@@ -33,20 +33,23 @@ jobs:
             echo "FAIL: $1"; sed 's/^/      /' /tmp/probe.err | head -2
           fi
         }
-        probe "P1 literal-1234 nondependent" '#include <ptrauth.h>
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,1234); };
+        probe "Q1 literal-1234 nondependent" '#include <ptrauth.h>
+        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,1234) f; };
         S<int> s;'
-        probe "P2 builtin-type-disc nondependent" '#include <ptrauth.h>
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(int))); };
+        probe "Q2 builtin-type-disc nondependent" '#include <ptrauth.h>
+        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(int))) f; };
         S<int> s;'
-        probe "P3 consteval builtin dependent" '#include <ptrauth.h>
+        probe "Q3 consteval builtin dependent" '#include <ptrauth.h>
         template<class T> consteval unsigned d(){ return ptrauth_type_discriminator(void(*)(T*)); }
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,d<T>()); };
+        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,d<T>()) f; };
         S<int> s;'
-        probe "P4 sizeof(T) simple-dependent-ICE" '#include <ptrauth.h>
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,(unsigned)sizeof(T)); };
+        probe "Q4 sizeof(T) simple-dependent-ICE" '#include <ptrauth.h>
+        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,(unsigned)sizeof(T)) f; };
         S<int> s;'
-        probe "P5 manual-sign dependent-type-disc" '#include <ptrauth.h>
+        probe "Q5 string-disc nondependent" '#include <ptrauth.h>
+        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,ptrauth_string_discriminator("x")) f; };
+        S<int> s;'
+        probe "Q6 manual-sign dependent-type-disc" '#include <ptrauth.h>
         template<class T> struct S {
           void* f;
           explicit S(void(*p)()) : f(ptrauth_sign_unauthenticated((void*)p, ptrauth_key_function_pointer,
