@@ -20,6 +20,44 @@ jobs:
         meson --version
         bazel version
 
+    # TEMPORARY probe: which __ptrauth discriminator forms does Apple clang
+    # accept inside a class template on arm64e? Exits non-zero so the job ends
+    # immediately and the log is available without running the full pipeline.
+    - name: Probe PAC discriminator forms (arm64e)
+      run: |
+        probe() {
+          printf '%s\n' "$2" > /tmp/probe.cpp
+          if c++ -std=c++23 -arch arm64e -fsyntax-only /tmp/probe.cpp 2>/tmp/probe.err; then
+            echo "PASS: $1"
+          else
+            echo "FAIL: $1"; sed 's/^/      /' /tmp/probe.err | head -2
+          fi
+        }
+        probe "P1 literal-1234 nondependent" '#include <ptrauth.h>
+        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,1234); };
+        S<int> s;'
+        probe "P2 builtin-type-disc nondependent" '#include <ptrauth.h>
+        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(int))); };
+        S<int> s;'
+        probe "P3 consteval builtin dependent" '#include <ptrauth.h>
+        template<class T> consteval unsigned d(){ return ptrauth_type_discriminator(void(*)(T*)); }
+        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,d<T>()); };
+        S<int> s;'
+        probe "P4 sizeof(T) simple-dependent-ICE" '#include <ptrauth.h>
+        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,(unsigned)sizeof(T)); };
+        S<int> s;'
+        probe "P5 manual-sign dependent-type-disc" '#include <ptrauth.h>
+        template<class T> struct S {
+          void* f;
+          explicit S(void(*p)()) : f(ptrauth_sign_unauthenticated((void*)p, ptrauth_key_function_pointer,
+              ptrauth_blend_discriminator(&f, ptrauth_type_discriminator(void(*)(T*))))) {}
+          void call(){ auto q=(void(*)())ptrauth_auth_data(f, ptrauth_key_function_pointer,
+              ptrauth_blend_discriminator(&f, ptrauth_type_discriminator(void(*)(T*)))); q(); }
+        };
+        template struct S<int>;'
+        echo "----- probe complete; failing on purpose to surface log -----"
+        exit 1
+
     - name: Build and run test with AppleClang on cmake
       run: |
         cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE
