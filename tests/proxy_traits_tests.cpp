@@ -506,6 +506,15 @@ static_assert(!std::is_constructible_v<pro::proxy<DefaultFacade>,
 static_assert(std::is_move_constructible_v<ProxyWrapperTemplate<void>>);
 
 // proxiable shall not reject a specialization of proxy.
+#if PRO4D_PAC
+// Under pointer authentication a proxy is address-sensitive (its signed
+// metadata depends on its storage address) and therefore not bitwise-trivially-
+// relocatable, so it cannot satisfy a facade that requires trivial relocation
+// (the default). This is the safe outcome: it prevents a byte-wise relocation
+// that would carry signatures to an address where they no longer authenticate.
+static_assert(!pro::proxiable<pro::proxy_view<DefaultFacade>, DefaultFacade>);
+#else
 static_assert(pro::proxiable<pro::proxy_view<DefaultFacade>, DefaultFacade>);
+#endif
 
 } // namespace proxy_traits_tests_details
