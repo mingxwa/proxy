@@ -28,36 +28,21 @@ jobs:
         mkdir build-cmake/drop
         bash ./tools/dump_build_env.sh c++ build-cmake/drop/env-info.json
 
-    # TEMPORARY probe: determine which __ptrauth discriminator forms Apple clang
-    # accepts inside a class template on arm64e. Always exits 0 (reports only).
-    - name: Probe PAC discriminator forms (arm64e)
+    # The default target on these runners is arm64 (no pointer authentication),
+    # so the build above does NOT exercise the PAC code path. Parse the header,
+    # then build and run the full suite as arm64e (the ABI where v-tables are
+    # signed) to cover the signed dispatch metadata.
+    - name: Verify pointer authentication is enabled on arm64e
       run: |
-        probe() {
-          printf '%s\n' "$2" > /tmp/probe.cpp
-          if c++ -std=c++23 -arch arm64e -fsyntax-only /tmp/probe.cpp 2>/tmp/probe.err; then
-            echo "PASS: $1"
-          else
-            echo "FAIL: $1"; sed 's/^/      /' /tmp/probe.err | head -2
-          fi
-        }
-        probe "F1 builtin-type-disc dependent" '#include <ptrauth.h>
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(T*))); };
-        S<int> s;'
-        probe "F2 string-disc nondependent" '#include <ptrauth.h>
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,ptrauth_string_discriminator("x")); };
-        S<int> s;'
-        probe "F3 consteval-int dependent" '#include <ptrauth.h>
-        #include <cstdint>
-        template<class T> consteval uint16_t d(){ return sizeof(T)?0x1234:1; }
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,d<T>()); };
-        S<int> s;'
-        probe "F5 builtin-type-disc plain-nontemplate" '#include <ptrauth.h>
-        struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(int))); };'
-        probe "F6 builtin-type-disc var-template-wrapped" '#include <ptrauth.h>
-        template<class T> constexpr unsigned dv = ptrauth_type_discriminator(void(*)(T*));
-        template<class T> struct S { void(*f)() __ptrauth(ptrauth_key_function_pointer,1,dv<T>); };
-        S<int> s;'
-        true
+        printf '#include <proxy/proxy.h>\n#if !PRO4D_PAC\n#error PRO4D_PAC must be 1 on arm64e\n#endif\nint main() {}\n' > pac_check.cpp
+        c++ -std=c++23 -arch arm64e -Iinclude -fsyntax-only pac_check.cpp
+        echo "PRO4D_PAC is enabled for arm64e."
+
+    - name: Build and run tests as arm64e (pointer authentication)
+      run: |
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j
+        ctest --test-dir build-arm64e -j --output-on-failure
 
     - name: Build and run test with AppleClang on meson
       run: |

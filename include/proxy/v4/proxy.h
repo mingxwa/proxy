@@ -93,7 +93,10 @@
 #define PRO4D_PAC_SIGN_VPTR(disc)                                              \
   __ptrauth(ptrauth_key_cxx_vtable_pointer, 1, disc)
 // A compile-time, type-derived constant discriminator (type diversity).
-#define PRO4D_PAC_TYPE_DISC(...) ptrauth_type_discriminator(__VA_ARGS__)
+// Routed through a variable template (see `pac_type_disc_v`) so the builtin's
+// value is deferred to instantiation and can act as a value-dependent
+// `__ptrauth` discriminator inside class templates.
+#define PRO4D_PAC_TYPE_DISC(...) ::pro::details::pac_type_disc_v<__VA_ARGS__>
 #else
 #define PRO4D_PAC_SIGN_FN(disc)
 #define PRO4D_PAC_SIGN_VPTR(disc)
@@ -418,6 +421,14 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                     overload_traits<O>::template applicable_ptr<P, IsDirect, D>,
                 "not proxiable due to a required convention not implemented");
 }
+
+#if PRO4D_PAC
+// Defers `ptrauth_type_discriminator` to instantiation so it can be used as a
+// value-dependent `__ptrauth` discriminator; see `PRO4D_PAC_TYPE_DISC`. `FP` is
+// a function pointer type whose mangling provides the type diversity.
+template <class FP>
+inline constexpr auto pac_type_disc_v = ptrauth_type_discriminator(FP);
+#endif // PRO4D_PAC
 
 template <class ProP, class D, class O>
 struct invoker;
