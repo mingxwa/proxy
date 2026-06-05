@@ -20,6 +20,28 @@ jobs:
         meson --version
         bazel version
 
+    # TEMPORARY diagnostic: reveal proxy_view trait values on arm64e via the
+    # undefined-template trick (each error prints Show<Name, true|false>).
+    - name: Diagnose proxy_view traits on arm64e
+      run: |
+        cat > diag.cpp <<'CPP'
+        #include <proxy/proxy.h>
+        struct DF : pro::facade_builder::build {};
+        using V = pro::proxy_view<DF>;
+        template<class,bool> struct Show;
+        Show<struct CopyCtor, std::is_copy_constructible_v<V>> a;
+        Show<struct NothrowCopy, std::is_nothrow_copy_constructible_v<V>> b;
+        Show<struct NothrowMove, std::is_nothrow_move_constructible_v<V>> c;
+        Show<struct NothrowDtor, std::is_nothrow_destructible_v<V>> d;
+        Show<struct TrivCopyable, std::is_trivially_copyable_v<V>> e;
+        Show<struct BitwiseReloc, pro::is_bitwise_trivially_relocatable_v<V>> f;
+        Show<struct Proxiable, pro::proxiable<V, DF>> g;
+        Show<struct Reloc, (int)DF::relocatability> h;
+        CPP
+        c++ -std=c++23 -arch arm64e -Iinclude -fsyntax-only diag.cpp 2>&1 | grep -aE "Show<" | head -20 || true
+        echo "----- diagnostic done; failing to surface log -----"
+        exit 1
+
     # The default target on these runners is arm64, which has no pointer
     # authentication, so build and run the suite as arm64e -- the ABI where
     # v-tables are signed -- to exercise proxy's signed dispatch metadata.
