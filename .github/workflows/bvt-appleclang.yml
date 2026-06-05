@@ -28,6 +28,21 @@ jobs:
         mkdir build-cmake/drop
         bash ./tools/dump_build_env.sh c++ build-cmake/drop/env-info.json
 
+    # The default target on these runners is arm64 (no pointer authentication),
+    # so the build above does NOT exercise the PAC code path. Re-build and run
+    # the suite as arm64e, the ABI where v-tables are signed, to cover it.
+    - name: Verify pointer authentication is enabled on arm64e
+      run: |
+        printf '#include <proxy/proxy.h>\n#if !PRO4D_PAC\n#error PRO4D_PAC must be 1 on arm64e\n#endif\nint main() {}\n' > pac_check.cpp
+        c++ -std=c++23 -arch arm64e -Iinclude -fsyntax-only pac_check.cpp
+        echo "PRO4D_PAC is enabled for arm64e."
+
+    - name: Build and run tests as arm64e (pointer authentication)
+      run: |
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j
+        ctest --test-dir build-arm64e -j --output-on-failure
+
     - name: Build and run test with AppleClang on meson
       run: |
         meson setup build-meson --buildtype=release -Dtests=enabled -Dbenchmarks=enabled
