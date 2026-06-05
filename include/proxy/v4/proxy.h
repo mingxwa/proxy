@@ -82,25 +82,23 @@
 
 #if PRO4D_PAC
 #include <ptrauth.h>
-// Signs a function pointer member like an arm64e virtual function: IA key
-// (`ptrauth_key_function_pointer`), address diversity, and a constant
-// discriminator derived from the pointee type (`disc`).
+// Signs an `invoker`'s function pointer like an arm64e virtual function: IA key
+// (`ptrauth_key_function_pointer`) with address diversity. The discriminator
+// `disc` distinguishes the kind of pointer; Apple clang only accepts an integer
+// constant expression (not a template-dependent value) here, so it cannot
+// encode the full convention type -- per-storage address diversity provides the
+// rest of the separation. `disc` is supplied at the use site.
 #define PRO4D_PAC_SIGN_FN(disc)                                                \
   __ptrauth(ptrauth_key_function_pointer, 1, disc)
-// Signs a meta pointer member like an arm64e v-table pointer: DA key
-// (`ptrauth_key_cxx_vtable_pointer`), address diversity, and a constant
-// discriminator derived from the meta type (`disc`).
-#define PRO4D_PAC_SIGN_VPTR(disc)                                              \
-  __ptrauth(ptrauth_key_cxx_vtable_pointer, 1, disc)
-// A compile-time, type-derived constant discriminator (type diversity).
-// Routed through a variable template (see `pac_type_disc_v`) so the builtin's
-// value is deferred to instantiation and can act as a value-dependent
-// `__ptrauth` discriminator inside class templates.
-#define PRO4D_PAC_TYPE_DISC(...) ::pro::details::pac_type_disc_v<__VA_ARGS__>
+// Signs a `meta_storage` v-table pointer like an arm64e v-table pointer: DA key
+// (`ptrauth_key_cxx_vtable_pointer`) with address diversity and a constant
+// discriminator.
+#define PRO4D_PAC_SIGN_VPTR                                                    \
+  __ptrauth(ptrauth_key_cxx_vtable_pointer, 1,                                 \
+            ptrauth_string_discriminator("pro::v4::details::meta_storage"))
 #else
 #define PRO4D_PAC_SIGN_FN(disc)
-#define PRO4D_PAC_SIGN_VPTR(disc)
-#define PRO4D_PAC_TYPE_DISC(...) 0
+#define PRO4D_PAC_SIGN_VPTR
 #endif // PRO4D_PAC
 
 namespace pro::inline v4 {
@@ -422,25 +420,15 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                 "not proxiable due to a required convention not implemented");
 }
 
-#if PRO4D_PAC
-// Defers `ptrauth_type_discriminator` to instantiation so it can be used as a
-// value-dependent `__ptrauth` discriminator; see `PRO4D_PAC_TYPE_DISC`. `FP` is
-// a function pointer type whose mangling provides the type diversity.
-template <class FP>
-inline constexpr auto pac_type_disc_v = ptrauth_type_discriminator(FP);
-#endif // PRO4D_PAC
-
 template <class ProP, class D, class O>
 struct invoker;
+// The PAC discriminator encodes the overload shape (`oq`/`ne`) as a string
+// literal; it must be a non-dependent integer constant expression, so the
+// operand/dispatch types cannot be folded in (see `PRO4D_PAC_SIGN_FN`).
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
     using fp_t = R (*)(ProP pq, Args...) ne;                                    \
-    /* Phantom function type used only to derive the PAC discriminator; it     \
-     * encodes the dispatch `D` in addition to the operand and signature so    \
-     * that distinct conventions sharing one signature are diversified, as     \
-     * arm64e diversifies virtual functions by their mangled name. */          \
-    using pac_disc_t = R (*)(D*, ProP pq, Args...) ne;                          \
     invoker() = default;                                                       \
     template <class P>                                                         \
     constexpr explicit invoker(std::in_place_type_t<P>)                        \
@@ -454,7 +442,8 @@ struct invoker;
       return f_(std::forward<ActualArgs>(args)...);                            \
     }                                                                          \
                                                                                \
-    fp_t PRO4D_PAC_SIGN_FN(PRO4D_PAC_TYPE_DISC(pac_disc_t)) f_;                 \
+    fp_t PRO4D_PAC_SIGN_FN(ptrauth_string_discriminator(                       \
+        "pro::v4::details::invoker[" #oq #ne "]")) f_;                          \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
@@ -779,8 +768,7 @@ struct meta_storage {
   }
 
 private:
-  const composite_meta<Ms...>* PRO4D_PAC_SIGN_VPTR(
-      PRO4D_PAC_TYPE_DISC(void (*)(composite_meta<Ms...>*))) ptr_;
+  const composite_meta<Ms...>* PRO4D_PAC_SIGN_VPTR ptr_;
   template <class P>
   static constexpr composite_meta<Ms...> storage{std::in_place_type<P>};
 };
@@ -2842,7 +2830,6 @@ struct formatter<T, CharT>
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
 #undef PRO4D_PAC_SIGN_FN
 #undef PRO4D_PAC_SIGN_VPTR
-#undef PRO4D_PAC_TYPE_DISC
 // Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
 // code (e.g. tests) can branch on whether pointer authentication is active.
 

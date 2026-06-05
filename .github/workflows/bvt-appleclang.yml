@@ -20,59 +20,10 @@ jobs:
         meson --version
         bazel version
 
-    # TEMPORARY probe: which __ptrauth discriminator forms does Apple clang
-    # accept inside a class template on arm64e? Exits non-zero so the job ends
-    # immediately and the log is available without running the full pipeline.
-    - name: Probe PAC discriminator forms (arm64e)
-      run: |
-        probe() {
-          printf '%s\n' "$2" > /tmp/probe.cpp
-          if c++ -std=c++23 -arch arm64e -fsyntax-only /tmp/probe.cpp 2>/tmp/probe.err; then
-            echo "PASS: $1"
-          else
-            echo "FAIL: $1"; sed 's/^/      /' /tmp/probe.err | head -2
-          fi
-        }
-        probe "Q1 literal-1234 nondependent" '#include <ptrauth.h>
-        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,1234) f; };
-        S<int> s;'
-        probe "Q2 builtin-type-disc nondependent" '#include <ptrauth.h>
-        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,ptrauth_type_discriminator(void(*)(int))) f; };
-        S<int> s;'
-        probe "Q3 consteval builtin dependent" '#include <ptrauth.h>
-        template<class T> consteval unsigned d(){ return ptrauth_type_discriminator(void(*)(T*)); }
-        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,d<T>()) f; };
-        S<int> s;'
-        probe "Q4 sizeof(T) simple-dependent-ICE" '#include <ptrauth.h>
-        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,(unsigned)sizeof(T)) f; };
-        S<int> s;'
-        probe "Q5 string-disc nondependent" '#include <ptrauth.h>
-        template<class T> struct S { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,ptrauth_string_discriminator("x")) f; };
-        S<int> s;'
-        probe "Q6 manual-sign dependent-type-disc" '#include <ptrauth.h>
-        template<class T> struct S {
-          void* f;
-          explicit S(void(*p)()) : f(ptrauth_sign_unauthenticated((void*)p, ptrauth_key_function_pointer,
-              ptrauth_blend_discriminator(&f, ptrauth_type_discriminator(void(*)(T*))))) {}
-          void call(){ auto q=(void(*)())ptrauth_auth_data(f, ptrauth_key_function_pointer,
-              ptrauth_blend_discriminator(&f, ptrauth_type_discriminator(void(*)(T*)))); q(); }
-        };
-        template struct S<int>;'
-        echo "----- probe complete; failing on purpose to surface log -----"
-        exit 1
-
-    - name: Build and run test with AppleClang on cmake
-      run: |
-        cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE
-        cmake --build build-cmake -j
-        ctest --test-dir build-cmake -j
-        mkdir build-cmake/drop
-        bash ./tools/dump_build_env.sh c++ build-cmake/drop/env-info.json
-
-    # The default target on these runners is arm64 (no pointer authentication),
-    # so the build above does NOT exercise the PAC code path. Parse the header,
-    # then build and run the full suite as arm64e (the ABI where v-tables are
-    # signed) to cover the signed dispatch metadata.
+    # The default target on these runners is arm64, which has no pointer
+    # authentication, so build and run the suite as arm64e -- the ABI where
+    # v-tables are signed -- to exercise proxy's signed dispatch metadata.
+    # Placed first so a PAC regression fails fast.
     - name: Verify pointer authentication is enabled on arm64e
       run: |
         printf '#include <proxy/proxy.h>\n#if !PRO4D_PAC\n#error PRO4D_PAC must be 1 on arm64e\n#endif\nint main() {}\n' > pac_check.cpp
@@ -84,6 +35,14 @@ jobs:
         cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DCMAKE_OSX_ARCHITECTURES=arm64e
         cmake --build build-arm64e -j
         ctest --test-dir build-arm64e -j --output-on-failure
+
+    - name: Build and run test with AppleClang on cmake
+      run: |
+        cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE
+        cmake --build build-cmake -j
+        ctest --test-dir build-cmake -j
+        mkdir build-cmake/drop
+        bash ./tools/dump_build_env.sh c++ build-cmake/drop/env-info.json
 
     - name: Build and run test with AppleClang on meson
       run: |
