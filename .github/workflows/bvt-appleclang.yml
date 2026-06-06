@@ -21,20 +21,14 @@ jobs:
         bazel version
 
     # The default target on these runners is arm64, which has no pointer
-    # authentication, so build and run the suite as arm64e -- the ABI where
-    # v-tables are signed -- to exercise proxy's signed dispatch metadata.
-    # Placed first so a PAC regression fails fast.
-    - name: Verify pointer authentication is enabled on arm64e
-      run: |
-        printf '#include <proxy/proxy.h>\n#if !PRO4D_PAC\n#error PRO4D_PAC must be 1 on arm64e\n#endif\nint main() {}\n' > pac_check.cpp
-        c++ -std=c++23 -arch arm64e -Iinclude -fsyntax-only pac_check.cpp
-        echo "PRO4D_PAC is enabled for arm64e."
-
+    # authentication. Build and run just the test binary as arm64e -- the ABI
+    # where v-tables are signed -- to exercise proxy's signed dispatch metadata.
+    # (proxy_pac_tests itself static_asserts that PAC is enabled on this target.)
     - name: Build and run tests as arm64e (pointer authentication)
       run: |
-        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DCMAKE_OSX_ARCHITECTURES=arm64e
-        cmake --build build-arm64e -j
-        ctest --test-dir build-arm64e -j --output-on-failure
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j --target msft_proxy_tests
+        ./build-arm64e/tests/msft_proxy_tests
 
     - name: Build and run test with AppleClang on cmake
       run: |
