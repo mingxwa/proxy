@@ -14,35 +14,11 @@ jobs:
     - name: Check toolchain version
       run: c++ --version
 
-    # TEMPORARY: diagnose why the synthetic type-diversity demo sees equal bytes.
-    - name: Diagnose type-diversity signing (arm64e)
+    # Build and run the test suite as arm64e -- the ABI where v-tables are
+    # signed -- to exercise proxy's manually-signed dispatch metadata (address +
+    # type diversity). proxy_pac_tests static_asserts that PAC is on here.
+    - name: Build and run tests as arm64e (pointer authentication)
       run: |
-        cat > /tmp/t.cpp <<'CPP'
-        #include <ptrauth.h>
-        #include <cstdio>
-        #include <cstring>
-        using FP=int(*)(int);
-        static int foo(int x){return x;}
-        static unsigned long long bits(FP p){ unsigned long long u; memcpy(&u,&p,8); return u; }
-        int main(){
-          FP raw=foo;
-          long a1,a2; // two distinct addresses
-          // auth_and_resign (what the impl uses): standard schema -> custom schema.
-          unsigned long fpd=ptrauth_function_pointer_type_discriminator(FP);
-          FP r_a1_d1=ptrauth_auth_and_resign(raw,1,fpd,1,ptrauth_blend_discriminator(&a1,111));
-          FP r_a1_d2=ptrauth_auth_and_resign(raw,1,fpd,1,ptrauth_blend_discriminator(&a1,222));
-          FP r_a2_d1=ptrauth_auth_and_resign(raw,1,fpd,1,ptrauth_blend_discriminator(&a2,111));
-          printf("auth_resign: type(a1,d1 vs a1,d2) eq=%d  addr(a1,d1 vs a2,d1) eq=%d\n",
-                 (int)(bits(r_a1_d1)==bits(r_a1_d2)), (int)(bits(r_a1_d1)==bits(r_a2_d1)));
-          // blend with constant directly used as modifier (no address), two consts.
-          FP c1=ptrauth_auth_and_resign(raw,1,fpd,1,(ptrauth_extra_data_t)111);
-          FP c2=ptrauth_auth_and_resign(raw,1,fpd,1,(ptrauth_extra_data_t)222);
-          printf("const-only modifier: d1 vs d2 eq=%d\n",(int)(bits(c1)==bits(c2)));
-          // blend integer placement check: low vs high
-          printf("blend(&a1,1)=%llx blend(&a1,2)=%llx\n",
-                 (unsigned long long)ptrauth_blend_discriminator(&a1,1),
-                 (unsigned long long)ptrauth_blend_discriminator(&a1,2));
-          return 0; }
-        CPP
-        for opt in -O0 -O2; do echo "[$opt]"; c++ -std=c++23 -arch arm64e $opt /tmp/t.cpp -o /tmp/t && /tmp/t; done
-        echo "----- diag done -----"; exit 1
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j --target msft_proxy_tests
+        ./build-arm64e/tests/msft_proxy_tests
