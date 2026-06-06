@@ -185,6 +185,42 @@ TEST(ProxyPacTests, MoveResignsAndDispatches) {
   EXPECT_EQ(moved->GetA(), 42);
 }
 
+// Copying or swapping an EMPTY proxy/view must not trap. For a trivially-
+// copyable facade the proxy's copy is the defaulted, memberwise one -- it copies
+// the metadata with no has_value() guard -- so an empty proxy copies its null
+// metadata straight through the signed pointers, whose copy is total. Covers
+// both inline metadata (signed_fn_ptr) and out-of-line metadata
+// (signed_data_ptr), and the empty<->non-empty swap that moves a null around.
+TEST(ProxyPacTests, EmptyProxyAndViewCopyAndSwap) {
+  // Inline metadata, trivially-copyable owning proxy.
+  pro::proxy<InlineMetaFacade> p;
+  ASSERT_FALSE(p.has_value());
+  pro::proxy<InlineMetaFacade> p2 = p; // copy-construct from empty
+  EXPECT_FALSE(p2.has_value());
+  p2 = p; // copy-assign from empty
+  EXPECT_FALSE(p2.has_value());
+
+  // Out-of-line metadata, trivially-copyable view.
+  pro::proxy_view<PointerMetaFacade> v;
+  ASSERT_FALSE(v.has_value());
+  pro::proxy_view<PointerMetaFacade> v2 = v; // copy-construct from empty
+  EXPECT_FALSE(v2.has_value());
+  v2 = v; // copy-assign from empty
+  EXPECT_FALSE(v2.has_value());
+
+  // Swapping empty<->empty and empty<->non-empty must not trap, and the live
+  // value must survive (re-signed for its new slot).
+  Widget w{1, 2};
+  pro::proxy<InlineMetaFacade> nonempty = &w;
+  p.swap(p2); // empty <-> empty
+  EXPECT_FALSE(p.has_value());
+  EXPECT_FALSE(p2.has_value());
+  p.swap(nonempty); // empty <-> non-empty
+  EXPECT_TRUE(p.has_value());
+  EXPECT_FALSE(nonempty.has_value());
+  EXPECT_EQ(p->GetA(), 1);
+}
+
 #if PRO4D_PAC
 // Type diversity: signing the same function at the *same* storage address with
 // two different convention discriminators must yield different signatures. This
@@ -223,6 +259,38 @@ TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
   b->~SignB();
 
   EXPECT_NE(bytes_a, bytes_b);
+}
+
+// The out-of-line v-table pointer (`signed_data_ptr`) must be copyable while
+// null: an empty out-of-line `meta_storage` *is* exactly this one pointer, and
+// its own null is the empty state, so copying an empty meta must not
+// authenticate-and-resign a null (which would trap). Unlike the inline
+// convention pointers, there is no separate has_value() bit gating this copy.
+// A non-null pointer is still resigned for its new address and stays usable.
+TEST(ProxyPacTests, SignedDataPtrCopiesNullAndResigns) {
+  using SDP = pro::v4::details::signed_data_ptr<int, void (*)(int*)>;
+
+  // Null source: default-construct, copy-construct, and copy-assign must not
+  // trap, and the result stays a (raw) null.
+  SDP null_src;
+  EXPECT_TRUE(null_src == nullptr);
+  SDP null_copy = null_src;
+  EXPECT_TRUE(null_copy == nullptr);
+  SDP null_assigned;
+  null_assigned = null_src;
+  EXPECT_TRUE(null_assigned == nullptr);
+
+  // Non-null source: the copy authenticates and resigns for its own address and
+  // still dereferences to the same object.
+  const int obj = 7;
+  SDP a{&obj};
+  EXPECT_FALSE(a == nullptr);
+  SDP b = a;
+  EXPECT_EQ(std::addressof(*b), std::addressof(obj));
+  EXPECT_EQ(*b, 7);
+  SDP c;
+  c = a;
+  EXPECT_EQ(std::addressof(*c), std::addressof(obj));
 }
 #endif // PRO4D_PAC
 

@@ -477,12 +477,17 @@ consteval ptrauth_extra_data_t pac_type_disc() {
 // re-signed on copy for the destination address. `value_` must only be reached
 // through `get()`, which re-signs it to the standard schema so it is callable.
 //
-// IMPORTANT: copy/assignment are deliberately branchless -- they unconditionally
-// authenticate-and-resign and so REQUIRE a validly signed (non-null) value. The
-// empty state (null) is never copied through them: `proxy` checks `has_value()`
-// once before copying its metadata, which proves every convention's pointer is
-// non-null, so a per-pointer null check here would be redundant on a hot path.
-// The empty state is produced only via `operator=(nullptr)` / a fresh object.
+// `get()` (the dispatch hot path) authenticates unconditionally and is therefore
+// branchless: you only ever dispatch through a non-empty proxy. Copy/assignment,
+// by contrast, must be *total* -- an empty (null) value is a valid object state,
+// and copying it must not authenticate-and-resign a null (which would trap). So
+// the copy carries a null test; it lives only on this cold path (copying an
+// empty proxy is rare and the branch is perfectly predicted), mirroring what the
+// `__ptrauth` qualifier emits for a real v-table slot, whose generated copy also
+// skips authentication for null. The empty state stays a *raw* null so
+// `operator==` and the meta's `has_value()` keep plain pointer-comparison
+// semantics; signing the null instead would make a non-zero "empty" that those
+// checks could not recognize.
 template <class FP, class Disc>
 class signed_fn_ptr {
 public:
@@ -493,13 +498,19 @@ public:
             ptrauth_function_pointer_type_discriminator(FP),
             ptrauth_key_function_pointer, schema(&value_))) {}
   signed_fn_ptr(const signed_fn_ptr& rhs) noexcept
-      : value_(ptrauth_auth_and_resign(
-            rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
-            ptrauth_key_function_pointer, schema(&value_))) {}
+      : value_(rhs.value_ == nullptr
+                   ? nullptr
+                   : ptrauth_auth_and_resign(
+                         rhs.value_, ptrauth_key_function_pointer,
+                         schema(&rhs.value_), ptrauth_key_function_pointer,
+                         schema(&value_))) {}
   signed_fn_ptr& operator=(const signed_fn_ptr& rhs) noexcept {
-    value_ = ptrauth_auth_and_resign(
-        rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
-        ptrauth_key_function_pointer, schema(&value_));
+    value_ = rhs.value_ == nullptr
+                 ? nullptr
+                 : ptrauth_auth_and_resign(
+                       rhs.value_, ptrauth_key_function_pointer,
+                       schema(&rhs.value_), ptrauth_key_function_pointer,
+                       schema(&value_));
     return *this;
   }
   signed_fn_ptr& operator=(std::nullptr_t) noexcept {
@@ -520,15 +531,17 @@ private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
-  FP value_;
+  FP value_ = nullptr;
 };
 
 // A data pointer signed like an arm64e v-table pointer: DA key, address
-// diversity, and type diversity (a constant derived from `Disc`). Mirrors
-// `signed_fn_ptr` for the v-table pointer in the out-of-line `meta_storage`,
-// including its branchless (non-null-requiring) construction and copy: it is
-// only ever signed from the address of a static v-table and only ever copied
-// after `proxy` has checked `has_value()`.
+// diversity, and type diversity (a constant derived from `Disc`). Used for the
+// v-table pointer in the out-of-line `meta_storage`. The copy is total in the
+// same way as `signed_fn_ptr`'s: it carries a null source through unchanged and
+// otherwise authenticates-and-resigns for the destination address. An out-of-
+// line `meta_storage` *is* this single signed pointer, and its own (raw) null is
+// the empty state that `meta_storage::has_value()` / `reset()` read and write,
+// so an empty meta must be copyable without trapping.
 template <class T, class Disc>
 class signed_data_ptr {
 public:
@@ -537,13 +550,19 @@ public:
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
   signed_data_ptr(const signed_data_ptr& rhs) noexcept
-      : value_(ptrauth_auth_and_resign(
-            rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
-            ptrauth_key_cxx_vtable_pointer, schema(&value_))) {}
+      : value_(rhs.value_ == nullptr
+                   ? nullptr
+                   : ptrauth_auth_and_resign(
+                         rhs.value_, ptrauth_key_cxx_vtable_pointer,
+                         schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
+                         schema(&value_))) {}
   signed_data_ptr& operator=(const signed_data_ptr& rhs) noexcept {
-    value_ = ptrauth_auth_and_resign(
-        rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
-        ptrauth_key_cxx_vtable_pointer, schema(&value_));
+    value_ = rhs.value_ == nullptr
+                 ? nullptr
+                 : ptrauth_auth_and_resign(
+                       rhs.value_, ptrauth_key_cxx_vtable_pointer,
+                       schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
+                       schema(&value_));
     return *this;
   }
   signed_data_ptr& operator=(std::nullptr_t) noexcept {
@@ -563,7 +582,7 @@ private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
-  const T* value_;
+  const T* value_ = nullptr;
 };
 #endif // PRO4D_PAC
 
@@ -1188,20 +1207,16 @@ public:
 
   proxy() noexcept { initialize(); }
   proxy(std::nullptr_t) noexcept : proxy() {}
-#if PRO4D_PAC
-  // Under PAC the metadata is address-diversified (non-trivially-copyable), and
-  // its signed pointers re-sign branchlessly, so route the copy through
-  // initialize(), which checks has_value() once and never copies a null meta.
-  proxy(const proxy& rhs) noexcept
-    requires(F::copyability == constraint_level::trivial)
-      : details::inplace_ptr<proxy_indirect_accessor<F>>() {
-    initialize(rhs);
-  }
-#else
+  // For a trivially-copyable facade the copy is memberwise: it copies the
+  // storage bytes and the metadata as-is, with no has_value() check (an empty
+  // proxy is copied just like any other). Under PAC the metadata is
+  // address-diversified, so this defaulted copy is non-trivial -- it re-signs
+  // each pointer for the destination address -- but it stays correct for the
+  // empty state because the signed pointers' copy is total (it carries the null
+  // pointer through unchanged). See `signed_fn_ptr` / `signed_data_ptr`.
   proxy(const proxy&) noexcept
     requires(F::copyability == constraint_level::trivial)
   = default;
-#endif // PRO4D_PAC
   proxy(const proxy& rhs) noexcept(F::copyability == constraint_level::nothrow)
     requires(F::copyability == constraint_level::nontrivial ||
              F::copyability == constraint_level::nothrow)
@@ -1249,23 +1264,11 @@ public:
     reset();
     return *this;
   }
-#if PRO4D_PAC
-  proxy& operator=(const proxy& rhs) noexcept
-    requires(F::copyability == constraint_level::trivial)
-  {
-    // See the copy constructor: re-initialize through the has_value()-guarded
-    // path so the branchless signed metadata is never copied from null. Trivial
-    // copyability implies the stored value needs no destruction before reuse.
-    if (this != std::addressof(rhs)) [[likely]] {
-      initialize(rhs);
-    }
-    return *this;
-  }
-#else
+  // Memberwise like the copy constructor; the signed metadata's total copy keeps
+  // it correct under PAC, including for an empty proxy.
   proxy& operator=(const proxy&) noexcept
     requires(F::copyability == constraint_level::trivial)
   = default;
-#endif // PRO4D_PAC
   proxy& operator=(const proxy& rhs) noexcept(F::copyability >=
                                                   constraint_level::nothrow &&
                                               F::destructibility >=
@@ -1341,27 +1344,11 @@ public:
   {
     if constexpr (F::relocatability == constraint_level::trivial ||
                   F::copyability == constraint_level::trivial) {
-#if PRO4D_PAC
-      // The signed metadata re-signs branchlessly, so swap it with has_value()
-      // guards -- every signed-pointer copy below sees a non-null source. The
-      // object buffer is still swapped wholesale (empty slots hold only unused
-      // bytes).
-      if (meta_.has_value()) {
-        if (rhs.meta_.has_value()) {
-          auto meta_tmp = meta_;
-          meta_ = rhs.meta_;
-          rhs.meta_ = meta_tmp;
-        } else {
-          rhs.meta_ = meta_;
-          meta_.reset();
-        }
-      } else if (rhs.meta_.has_value()) {
-        meta_ = rhs.meta_;
-        rhs.meta_.reset();
-      }
-#else
+      // The signed metadata's copy/move is total (it carries a null through and
+      // otherwise re-signs for the destination address), so a plain swap is
+      // correct for empty as well as non-empty proxies -- each of the three
+      // moves below re-signs for the slot it lands in.
       std::swap(meta_, rhs.meta_);
-#endif // PRO4D_PAC
 #ifdef __INTEL_LLVM_COMPILER
       // Workaround: Intel oneAPI compiler (as of 2025.2.0) may over-optimize
       // the swap below, causing unit tests failure
