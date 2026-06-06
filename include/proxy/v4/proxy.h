@@ -477,44 +477,38 @@ consteval ptrauth_extra_data_t pac_type_disc() {
 // re-signed on copy for the destination address. `value_` must only be reached
 // through `get()`, which re-signs it to the standard schema so it is callable.
 //
-// `get()` (the dispatch hot path) authenticates unconditionally and is therefore
-// branchless: you only ever dispatch through a non-empty proxy. Copy/assignment,
-// by contrast, must be *total* -- an empty (null) value is a valid object state,
-// and copying it must not authenticate-and-resign a null (which would trap). So
-// the copy carries a null test; it lives only on this cold path (copying an
-// empty proxy is rare and the branch is perfectly predicted), mirroring what the
-// `__ptrauth` qualifier emits for a real v-table slot, whose generated copy also
-// skips authentication for null. The empty state stays a *raw* null so
-// `operator==` and the meta's `has_value()` keep plain pointer-comparison
-// semantics; signing the null instead would make a non-zero "empty" that those
-// checks could not recognize.
+// The empty state is a *signed* null: a null pointer signed with the slot's own
+// schema, exactly as a real entry is. This keeps every hot path branchless --
+// construction, copy/assignment, and `get()` are each a single unconditional
+// authenticate-and-resign, with no null special-case. An empty slot round-trips
+// through that same resign (authenticating a slot-signed null succeeds and
+// re-signs it for the destination), so copying an empty meta neither branches
+// nor traps. The only place that distinguishes empty is `operator==(nullptr)`
+// (hence `has_value()`), which strips the signature and compares the raw pointer
+// -- still branchless. Storing a *raw* null instead would force the copy to
+// branch to avoid authenticating it; signing the null is what removes the
+// branch.
 template <class FP, class Disc>
 class signed_fn_ptr {
 public:
-  signed_fn_ptr() = default;
+  signed_fn_ptr() noexcept : value_(signed_null(&value_)) {}
   signed_fn_ptr(FP fp) noexcept
       : value_(ptrauth_auth_and_resign(
             fp, ptrauth_key_function_pointer,
             ptrauth_function_pointer_type_discriminator(FP),
             ptrauth_key_function_pointer, schema(&value_))) {}
   signed_fn_ptr(const signed_fn_ptr& rhs) noexcept
-      : value_(rhs.value_ == nullptr
-                   ? nullptr
-                   : ptrauth_auth_and_resign(
-                         rhs.value_, ptrauth_key_function_pointer,
-                         schema(&rhs.value_), ptrauth_key_function_pointer,
-                         schema(&value_))) {}
+      : value_(ptrauth_auth_and_resign(
+            rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
+            ptrauth_key_function_pointer, schema(&value_))) {}
   signed_fn_ptr& operator=(const signed_fn_ptr& rhs) noexcept {
-    value_ = rhs.value_ == nullptr
-                 ? nullptr
-                 : ptrauth_auth_and_resign(
-                       rhs.value_, ptrauth_key_function_pointer,
-                       schema(&rhs.value_), ptrauth_key_function_pointer,
-                       schema(&value_));
+    value_ = ptrauth_auth_and_resign(
+        rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
+        ptrauth_key_function_pointer, schema(&value_));
     return *this;
   }
   signed_fn_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = nullptr;
+    value_ = signed_null(&value_);
     return *this;
   }
   FP get() const noexcept {
@@ -524,49 +518,48 @@ public:
         ptrauth_function_pointer_type_discriminator(FP));
   }
   friend bool operator==(const signed_fn_ptr& self, std::nullptr_t) noexcept {
-    return self.value_ == nullptr;
+    return ptrauth_strip(self.value_, ptrauth_key_function_pointer) == nullptr;
   }
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
-  FP value_ = nullptr;
+  static FP signed_null(const void* addr) noexcept {
+    return ptrauth_sign_unauthenticated(static_cast<FP>(nullptr),
+                                        ptrauth_key_function_pointer,
+                                        schema(addr));
+  }
+  FP value_;
 };
 
 // A data pointer signed like an arm64e v-table pointer: DA key, address
 // diversity, and type diversity (a constant derived from `Disc`). Used for the
-// v-table pointer in the out-of-line `meta_storage`. The copy is total in the
-// same way as `signed_fn_ptr`'s: it carries a null source through unchanged and
-// otherwise authenticates-and-resigns for the destination address. An out-of-
-// line `meta_storage` *is* this single signed pointer, and its own (raw) null is
-// the empty state that `meta_storage::has_value()` / `reset()` read and write,
-// so an empty meta must be copyable without trapping.
+// v-table pointer in the out-of-line `meta_storage`. The empty state is a signed
+// null exactly as in `signed_fn_ptr`, so construction, copy/assignment, and
+// dereference are each a single unconditional sign/authenticate with no null
+// branch; an empty meta round-trips through the resigning copy. `operator==`
+// (and thus `meta_storage::has_value()`) strips the signature to recognize the
+// null, branchlessly.
 template <class T, class Disc>
 class signed_data_ptr {
 public:
-  signed_data_ptr() = default;
+  signed_data_ptr() noexcept : value_(signed_null(&value_)) {}
   signed_data_ptr(const T* p) noexcept
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
   signed_data_ptr(const signed_data_ptr& rhs) noexcept
-      : value_(rhs.value_ == nullptr
-                   ? nullptr
-                   : ptrauth_auth_and_resign(
-                         rhs.value_, ptrauth_key_cxx_vtable_pointer,
-                         schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
-                         schema(&value_))) {}
+      : value_(ptrauth_auth_and_resign(
+            rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
+            ptrauth_key_cxx_vtable_pointer, schema(&value_))) {}
   signed_data_ptr& operator=(const signed_data_ptr& rhs) noexcept {
-    value_ = rhs.value_ == nullptr
-                 ? nullptr
-                 : ptrauth_auth_and_resign(
-                       rhs.value_, ptrauth_key_cxx_vtable_pointer,
-                       schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
-                       schema(&value_));
+    value_ = ptrauth_auth_and_resign(
+        rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
+        ptrauth_key_cxx_vtable_pointer, schema(&value_));
     return *this;
   }
   signed_data_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = nullptr;
+    value_ = signed_null(&value_);
     return *this;
   }
   const T& operator*() const noexcept {
@@ -575,14 +568,20 @@ public:
   }
   friend bool operator==(const signed_data_ptr& self,
                          std::nullptr_t) noexcept {
-    return self.value_ == nullptr;
+    return ptrauth_strip(self.value_, ptrauth_key_cxx_vtable_pointer) ==
+           nullptr;
   }
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
-  const T* value_ = nullptr;
+  static const T* signed_null(const void* addr) noexcept {
+    return ptrauth_sign_unauthenticated(static_cast<const T*>(nullptr),
+                                        ptrauth_key_cxx_vtable_pointer,
+                                        schema(addr));
+  }
+  const T* value_;
 };
 #endif // PRO4D_PAC
 
