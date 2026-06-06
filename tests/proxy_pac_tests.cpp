@@ -7,10 +7,12 @@
 // `proxy` implements a hand-rolled v-table: `invoker::f_` holds the dispatched
 // function pointers and `meta_storage::ptr_` is the v-table pointer. On targets
 // whose C++ ABI signs code pointers (Apple arm64e), real virtual functions and
-// v-table pointers are protected with ARMv8.3 pointer authentication using
-// *address diversity* (the signature depends on the storage address) and *type
-// diversity* (a per-type constant discriminator). To be no less secure than a
-// virtual call, `proxy` signs its metadata the same way when `PRO4D_PAC` is on.
+// v-table pointers are protected with ARMv8.3 pointer authentication. When
+// `PRO4D_PAC` is on, `proxy` signs its metadata the same way, using *address
+// diversity* (the signature depends on the storage address) -- the primary
+// protection -- plus a constant discriminator. (Per-convention *type* diversity
+// is not used because clang's `__ptrauth` qualifier only accepts a non-template-
+// dependent integer-constant discriminator.)
 //
 // The observable hallmark of address diversity is that copying a non-empty
 // proxy re-signs its metadata for the new address, so a copy holds different

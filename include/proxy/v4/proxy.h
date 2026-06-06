@@ -58,8 +58,16 @@
 // using ARMv8.3 pointer authentication, with *address diversity* (the
 // signature depends on where the pointer is stored) and *type diversity* (a
 // constant discriminator derived from the type). `proxy`'s dispatch metadata
-// is a hand-rolled v-table, so on such targets it must be signed the same way
-// to be no less secure than a real virtual function.
+// is a hand-rolled v-table, so on such targets it must be signed similarly to
+// be no less secure than a real virtual function.
+//
+// We sign with **address diversity** -- the primary protection: a forged or
+// relocated metadata pointer fails authentication, and copying re-signs for the
+// new address. The discriminator is a constant; per-convention *type* diversity
+// is not applied because clang's `__ptrauth` qualifier only accepts a non-
+// template-dependent integer constant expression as the discriminator (a
+// per-convention value is necessarily template-dependent). Function pointers
+// fold the overload shape into the discriminator for coarse type separation.
 //
 // On every other major platform this is unnecessary: notably, on Linux/AArch64
 // (GCC and Clang) the only PAC-based hardening that ships is `pac-ret` (return
