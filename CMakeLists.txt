@@ -36,6 +36,7 @@ target_sources(msft_proxy4
       include/proxy/v4/proxy.ixx
       include/proxy/v4/proxy.h
       include/proxy/v4/proxy_macros.h
+      include/proxy/v4/proxy_pac.h
       include/proxy/v4/proxy_fmt.h
 )
 

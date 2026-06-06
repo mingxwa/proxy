@@ -40,6 +40,7 @@ hdrs_v4 = files(
   'include/proxy/v4/proxy.h',
   'include/proxy/v4/proxy_fmt.h',
   'include/proxy/v4/proxy_macros.h',
+  'include/proxy/v4/proxy_pac.h',
 )
 hdrs_mod = files('include/proxy/v4/proxy.ixx')
 
