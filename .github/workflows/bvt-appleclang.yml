@@ -14,11 +14,33 @@ jobs:
     - name: Check toolchain version
       run: c++ --version
 
-    # Build and run the test suite as arm64e -- the ABI where v-tables are
-    # signed -- to exercise proxy's manually-signed dispatch metadata (address +
-    # type diversity). proxy_pac_tests static_asserts that PAC is on here.
-    - name: Build and run tests as arm64e (pointer authentication)
+    # TEMPORARY: diagnose why the synthetic type-diversity demo sees equal bytes.
+    - name: Diagnose type-diversity signing (arm64e)
       run: |
-        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
-        cmake --build build-arm64e -j --target msft_proxy_tests
-        ./build-arm64e/tests/msft_proxy_tests
+        cat > /tmp/t.cpp <<'CPP'
+        #include <ptrauth.h>
+        #include <cstdio>
+        #include <cstring>
+        template<class T> consteval unsigned long td(){
+          const char* n=__PRETTY_FUNCTION__; unsigned long long h=14695981039346656037ull;
+          for(const char*s=n;*s;++s) h=(h^(unsigned char)*s)*1099511628211ull;
+          return (unsigned long)(h%65535)+1; }
+        using FP=int(*)(int);
+        static int foo(int x){return x;}
+        int main(){
+          unsigned long da=td<int(int)>(), db=td<long(long)>();
+          FP anchor_obj; void* anchor=&anchor_obj;
+          FP sa=ptrauth_sign_unauthenticated(foo,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,da));
+          FP sb=ptrauth_sign_unauthenticated(foo,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,db));
+          unsigned long long ua,ub; memcpy(&ua,&sa,8); memcpy(&ub,&sb,8);
+          printf("da=%lu db=%lu sa=%016llx sb=%016llx eq=%d\n",da,db,ua,ub,(int)(ua==ub));
+          // also: sign foo raw (stripped) instead of the already-signed pointer
+          void* raw=ptrauth_strip((void*)foo,ptrauth_key_function_pointer);
+          void* ra=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,da));
+          void* rb=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,db));
+          memcpy(&ua,&ra,8); memcpy(&ub,&rb,8);
+          printf("stripped: ra=%016llx rb=%016llx eq=%d\n",ua,ub,(int)(ua==ub));
+          return 0; }
+        CPP
+        for opt in -O0 -O2; do echo "[$opt]"; c++ -std=c++23 -arch arm64e $opt /tmp/t.cpp -o /tmp/t && /tmp/t; done
+        echo "----- diag done -----"; exit 1
