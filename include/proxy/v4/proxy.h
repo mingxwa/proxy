@@ -92,10 +92,18 @@
 #include <ptrauth.h>
 // Signs an `invoker`'s function pointer like an arm64e virtual function: IA key
 // (`ptrauth_key_function_pointer`) with address diversity. The discriminator
-// `disc` distinguishes the kind of pointer; Apple clang only accepts an integer
-// constant expression (not a template-dependent value) here, so it cannot
-// encode the full convention type -- per-storage address diversity provides the
-// rest of the separation. `disc` is supplied at the use site.
+// `disc` distinguishes the kind of pointer; per-storage address diversity
+// provides the rest of the separation. `disc` is supplied at the use site.
+//
+// `disc` cannot encode the full convention type because clang requires the
+// `__ptrauth` discriminator to be constant-evaluable even within templates --
+// a per-convention value is template-dependent and is rejected
+// ("argument to '__ptrauth' must be an integer constant expression"). This is a
+// documented, temporary clang restriction (the qualifier landed in 2025) that
+// "may be lifted ... to allow value-dependent expressions"; once it is, `disc`
+// can be upgraded to e.g. `ptrauth_type_discriminator`. The established idiom
+// today -- WebKit's `PtrTag`, Swift's `SpecialPointerAuthDiscriminators` -- is
+// exactly this: a constant discriminator plus address diversity.
 #define PRO4D_PAC_SIGN_FN(disc)                                                \
   __ptrauth(ptrauth_key_function_pointer, 1, disc)
 // Signs a `meta_storage` v-table pointer like an arm64e v-table pointer: DA key
