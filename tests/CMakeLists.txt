@@ -20,6 +20,7 @@ add_executable(msft_proxy_tests
   proxy_integration_tests.cpp
   proxy_invocation_tests.cpp
   proxy_lifetime_tests.cpp
+  proxy_pac_tests.cpp
   proxy_reflection_tests.cpp
   proxy_regression_tests.cpp
   proxy_rtti_tests.cpp

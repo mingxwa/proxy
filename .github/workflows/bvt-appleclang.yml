@@ -14,36 +14,11 @@ jobs:
     - name: Check toolchain version
       run: c++ --version
 
-    # TEMPORARY Phase-1 experiment: validate the manual sign/auth/resign
-    # sequence (IA key + address diversity + type diversity) at runtime.
-    - name: Probe manual PAC signing sequence (arm64e)
+    # Build and run the test suite as arm64e -- the ABI where v-tables are
+    # signed -- to exercise proxy's manually-signed dispatch metadata (address +
+    # type diversity). proxy_pac_tests static_asserts that PAC is on here.
+    - name: Build and run tests as arm64e (pointer authentication)
       run: |
-        run_variant() {
-          printf '%s\n' "$2" > /tmp/v.cpp
-          if c++ -std=c++23 -arch arm64e -O1 /tmp/v.cpp -o /tmp/v 2>/tmp/v.err; then
-            if /tmp/v; then echo "RUN-OK: $1"; else echo "RUN-FAIL(exit $?): $1"; fi
-          else
-            echo "COMPILE-FAIL: $1"; grep -aE "error:" /tmp/v.err | head -1 | sed 's/^/      /'
-          fi
-        }
-        COMMON='#include <ptrauth.h>
-        #include <cstdio>
-        #include <cstring>
-        static int foo(int x){return x+1;}
-        using FP=int(*)(int);'
-        run_variant "A auth_and_resign via (void*)fp" "$COMMON
-        template<class DT> struct W { void* v;
-          static unsigned long d(const void*a){return ptrauth_blend_discriminator(a,ptrauth_type_discriminator(DT));}
-          explicit W(FP f){ v=ptrauth_auth_and_resign((void*)f,ptrauth_key_function_pointer,ptrauth_function_pointer_type_discriminator(FP),ptrauth_key_function_pointer,d(&v)); }
-          W(const W&r){ if(!r.v)v=nullptr; else v=ptrauth_auth_and_resign(r.v,ptrauth_key_function_pointer,d(&r.v),ptrauth_key_function_pointer,d(&v)); }
-          FP get()const{ return (FP)ptrauth_auth_and_resign(v,ptrauth_key_function_pointer,d(&v),ptrauth_key_function_pointer,ptrauth_function_pointer_type_discriminator(FP)); } };
-        int main(){ W<void(*)(int)> a(foo); W<void(*)(int)> b=a; int ra=a.get()(10),rb=b.get()(20); bool diff=memcmp(&a,&b,sizeof(a))!=0; printf(\"  A ra=%d rb=%d addr_diff=%d\n\",ra,rb,diff); return (ra==11&&rb==21&&diff)?0:1; }"
-        run_variant "B strip + sign_unauthenticated" "$COMMON
-        template<class DT> struct W { void* v;
-          static unsigned long d(const void*a){return ptrauth_blend_discriminator(a,ptrauth_type_discriminator(DT));}
-          explicit W(FP f){ v=ptrauth_sign_unauthenticated(ptrauth_strip((void*)f,ptrauth_key_function_pointer),ptrauth_key_function_pointer,d(&v)); }
-          W(const W&r){ if(!r.v)v=nullptr; else { void*raw=ptrauth_auth_data(r.v,ptrauth_key_function_pointer,d(&r.v)); v=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,d(&v)); } }
-          FP get()const{ void*raw=ptrauth_auth_data(v,ptrauth_key_function_pointer,d(&v)); return (FP)ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_function_pointer_type_discriminator(FP)); } };
-        int main(){ W<void(*)(int)> a(foo); W<void(*)(int)> b=a; int ra=a.get()(10),rb=b.get()(20); bool diff=memcmp(&a,&b,sizeof(a))!=0; printf(\"  B ra=%d rb=%d addr_diff=%d\n\",ra,rb,diff); return (ra==11&&rb==21&&diff)?0:1; }"
-        echo "----- phase-1 probe done; failing to surface log -----"
-        exit 1
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j --target msft_proxy_tests
+        ./build-arm64e/tests/msft_proxy_tests

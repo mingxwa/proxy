@@ -51,6 +51,78 @@
 #define PROD_UNREACHABLE() std::abort()
 #endif // __cpp_lib_unreachable >= 202202L
 
+// Pointer authentication (PAC) support.
+//
+// On Apple silicon the arm64e C++ ABI signs both the v-table pointer of a
+// polymorphic object and every virtual function pointer inside the v-table
+// using ARMv8.3 pointer authentication, with *address diversity* (the
+// signature depends on where the pointer is stored) and *type diversity* (a
+// constant discriminator derived from the type). `proxy`'s dispatch metadata
+// is a hand-rolled v-table, so on such targets it must be signed similarly to
+// be no less secure than a real virtual function.
+//
+// We sign with **address diversity** -- the primary protection: a forged or
+// relocated metadata pointer fails authentication, and copying re-signs for the
+// new address. The discriminator is a constant; per-convention *type* diversity
+// is not applied because clang's `__ptrauth` qualifier only accepts a non-
+// template-dependent integer constant expression as the discriminator (a
+// per-convention value is necessarily template-dependent). Function pointers
+// fold the overload shape into the discriminator for coarse type separation.
+//
+// On every other major platform this is unnecessary: notably, on Linux/AArch64
+// (GCC and Clang) the only PAC-based hardening that ships is `pac-ret` (return
+// address signing), which does not change the C++ ABI -- v-tables there are
+// *not* signed -- so unsigned dispatch metadata is already as secure as a
+// virtual call. PAC is therefore enabled exactly when the toolchain signs code
+// pointers in the ABI (Clang's `ptrauth_calls`) and exposes the `__ptrauth`
+// qualifier (`ptrauth_qualifier`). `PRO4D_PAC` may be predefined to `0` or `1`
+// to override this detection.
+#ifndef PRO4D_PAC
+#if defined(__has_feature)
+#if __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
+#define PRO4D_PAC 1
+#endif // __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
+#endif // defined(__has_feature)
+#ifndef PRO4D_PAC
+#define PRO4D_PAC 0
+#endif // PRO4D_PAC
+#endif // PRO4D_PAC
+
+#if PRO4D_PAC
+#include <ptrauth.h>
+// On Apple arm64e the C++ ABI signs both the v-table pointer of a polymorphic
+// object and every virtual function pointer in the v-table with ARMv8.3 pointer
+// authentication, using *address diversity* (the signature depends on where the
+// pointer is stored) and *type diversity* (a constant discriminator derived
+// from the type). `proxy`'s dispatch metadata is a hand-rolled v-table, so it is
+// signed the same way to be no less secure than a real virtual function.
+//
+// clang's `__ptrauth` *qualifier* cannot be used: it requires the discriminator
+// to be constant-evaluable even within templates, so a per-convention (hence
+// template-dependent) type discriminator is rejected. We therefore sign by hand
+// with the runtime ptrauth intrinsics -- which DO accept a dependent
+// `ptrauth_type_discriminator` -- via `signed_fn_ptr` / `signed_data_ptr`.
+//
+// Consequence: manual signing is not constant-evaluable, so PAC builds give up
+// `constexpr` metadata -- the signed pointers re-sign on copy (so a proxy is no
+// longer bitwise-relocatable) and the out-of-line v-table is runtime-
+// initialized. These macros select the signed member type, the call/deref
+// expression, and drop `constexpr` where signing makes it impossible.
+#define PRO4D_PAC_FN_MEMBER(fp, disc)                                          \
+  ::pro::v4::details::signed_fn_ptr<fp, disc>
+#define PRO4D_PAC_VPTR_MEMBER(meta)                                            \
+  ::pro::v4::details::signed_data_ptr<meta, void (*)(meta*)>
+#define PRO4D_PAC_FN_CALL(f) (f).get()
+#define PRO4D_PAC_STORAGE_OF(P) (&storage<P>())
+#define PRO4D_PAC_CONSTEXPR
+#else
+#define PRO4D_PAC_FN_MEMBER(fp, disc) fp
+#define PRO4D_PAC_VPTR_MEMBER(meta) const meta*
+#define PRO4D_PAC_FN_CALL(f) (f)
+#define PRO4D_PAC_STORAGE_OF(P) (&storage<P>)
+#define PRO4D_PAC_CONSTEXPR constexpr
+#endif // PRO4D_PAC
+
 namespace pro::inline v4 {
 
 // =============================================================================
@@ -370,14 +442,123 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                 "not proxiable due to a required convention not implemented");
 }
 
+#if PRO4D_PAC
+// A function pointer signed like an arm64e virtual-function slot: IA key, with
+// address diversity (the storage address is blended into the discriminator) and
+// type diversity (a constant derived from `Disc`, a function type encoding the
+// convention). The stored value uses a per-storage schema and is re-signed on
+// copy for the destination address; a null value denotes the empty state and is
+// never signed or authenticated. `value_` must only be reached through `get()`,
+// which re-signs it to the standard schema so the result is callable.
+template <class FP, class Disc>
+class signed_fn_ptr {
+public:
+  signed_fn_ptr() = default;
+  signed_fn_ptr(FP fp) noexcept
+      : value_(ptrauth_auth_and_resign(
+            fp, ptrauth_key_function_pointer,
+            ptrauth_function_pointer_type_discriminator(FP),
+            ptrauth_key_function_pointer, schema(&value_))) {}
+  signed_fn_ptr(const signed_fn_ptr& rhs) noexcept
+      : value_(rhs.value_ == nullptr
+                   ? FP{}
+                   : ptrauth_auth_and_resign(
+                         rhs.value_, ptrauth_key_function_pointer,
+                         schema(&rhs.value_), ptrauth_key_function_pointer,
+                         schema(&value_))) {}
+  signed_fn_ptr& operator=(const signed_fn_ptr& rhs) noexcept {
+    value_ = rhs.value_ == nullptr
+                 ? FP{}
+                 : ptrauth_auth_and_resign(
+                       rhs.value_, ptrauth_key_function_pointer,
+                       schema(&rhs.value_), ptrauth_key_function_pointer,
+                       schema(&value_));
+    return *this;
+  }
+  signed_fn_ptr& operator=(std::nullptr_t) noexcept {
+    value_ = nullptr;
+    return *this;
+  }
+  FP get() const noexcept {
+    return ptrauth_auth_and_resign(
+        value_, ptrauth_key_function_pointer, schema(&value_),
+        ptrauth_key_function_pointer,
+        ptrauth_function_pointer_type_discriminator(FP));
+  }
+  friend bool operator==(const signed_fn_ptr& self, std::nullptr_t) noexcept {
+    return self.value_ == nullptr;
+  }
+
+private:
+  static ptrauth_extra_data_t schema(const void* addr) noexcept {
+    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
+  }
+  FP value_;
+};
+
+// A data pointer signed like an arm64e v-table pointer: DA key, address
+// diversity, and type diversity (a constant derived from `Disc`). Mirrors
+// `signed_fn_ptr` for the v-table pointer in the out-of-line `meta_storage`.
+template <class T, class Disc>
+class signed_data_ptr {
+public:
+  signed_data_ptr() = default;
+  signed_data_ptr(const T* p) noexcept
+      : value_(p == nullptr ? nullptr
+                            : ptrauth_sign_unauthenticated(
+                                  p, ptrauth_key_cxx_vtable_pointer,
+                                  schema(&value_))) {}
+  signed_data_ptr(const signed_data_ptr& rhs) noexcept
+      : value_(rhs.value_ == nullptr
+                   ? nullptr
+                   : ptrauth_auth_and_resign(
+                         rhs.value_, ptrauth_key_cxx_vtable_pointer,
+                         schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
+                         schema(&value_))) {}
+  signed_data_ptr& operator=(const signed_data_ptr& rhs) noexcept {
+    value_ = rhs.value_ == nullptr
+                 ? nullptr
+                 : ptrauth_auth_and_resign(
+                       rhs.value_, ptrauth_key_cxx_vtable_pointer,
+                       schema(&rhs.value_), ptrauth_key_cxx_vtable_pointer,
+                       schema(&value_));
+    return *this;
+  }
+  signed_data_ptr& operator=(std::nullptr_t) noexcept {
+    value_ = nullptr;
+    return *this;
+  }
+  const T& operator*() const noexcept {
+    return *ptrauth_auth_data(value_, ptrauth_key_cxx_vtable_pointer,
+                              schema(&value_));
+  }
+  friend bool operator==(const signed_data_ptr& self,
+                         std::nullptr_t) noexcept {
+    return self.value_ == nullptr;
+  }
+
+private:
+  static ptrauth_extra_data_t schema(const void* addr) noexcept {
+    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
+  }
+  const T* value_;
+};
+#endif // PRO4D_PAC
+
 template <class ProP, class D, class O>
 struct invoker;
+// On PAC, `f_` is a `signed_fn_ptr` (address + type diversity) reached via
+// `.get()`, the constructor cannot be `constexpr` (manual signing is a runtime
+// operation), and `pac_disc_t` is the function type that supplies type
+// diversity by encoding the operand, dispatch, and signature.
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
+    using fp_t = R (*)(ProP pq, Args...) ne;                                    \
+    using pac_disc_t = R (*)(D*, ProP pq, Args...) ne;                          \
     invoker() = default;                                                       \
     template <class P>                                                         \
-    constexpr explicit invoker(std::in_place_type_t<P>)                        \
+    PRO4D_PAC_CONSTEXPR explicit invoker(std::in_place_type_t<P>)               \
         : f_([](ProP pq self, Args... args) ne -> R {                          \
             return reinterpret_invoke<P, D, R>(static_cast<ProP pq>(self),     \
                                                std::forward<Args>(args)...);   \
@@ -385,10 +566,10 @@ struct invoker;
                                                                                \
     template <class... ActualArgs>                                             \
     R operator()(ActualArgs&&... args) const {                                 \
-      return f_(std::forward<ActualArgs>(args)...);                            \
+      return PRO4D_PAC_FN_CALL(f_)(std::forward<ActualArgs>(args)...);          \
     }                                                                          \
                                                                                \
-    R (*f_)(ProP pq, Args...) ne;                                              \
+    PRO4D_PAC_FN_MEMBER(fp_t, pac_disc_t) f_;                                   \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
@@ -397,7 +578,7 @@ template <class... Ms>
 struct PRO4D_ENFORCE_EBO composite_meta : Ms... {
   composite_meta() = default;
   template <class P>
-  constexpr explicit composite_meta(std::in_place_type_t<P>)
+  PRO4D_PAC_CONSTEXPR explicit composite_meta(std::in_place_type_t<P>)
       : Ms(std::in_place_type<P>)... {}
 };
 
@@ -675,17 +856,37 @@ struct basic_facade_traits<F> : applicable_traits {};
 
 using ptr_prototype = void* [2];
 
+#if PRO4D_PAC
+// With pointer authentication, address-diversified `__ptrauth` members make
+// `composite_meta` non-trivially-copyable, because every copy must
+// authenticate-and-resign the pointer for its new storage address. Such a meta
+// is still safe to embed inline as long as it can be relocated cheaply and
+// without throwing, which is the property the small-meta optimization actually
+// relies on. This concept is unused (and therefore false) on non-PAC builds,
+// so behavior there is unchanged.
 template <class M>
-concept lightweight_meta = sizeof(M) <= sizeof(ptr_prototype) &&
-                           alignof(M) <= alignof(ptr_prototype) &&
-                           std::is_nothrow_default_constructible_v<M> &&
-                           std::is_trivially_copyable_v<M>;
+concept pac_relocatable_meta =
+    std::is_nothrow_copy_constructible_v<M> &&
+    std::is_nothrow_move_constructible_v<M> &&
+    std::is_nothrow_copy_assignable_v<M> &&
+    std::is_nothrow_move_assignable_v<M> && std::is_trivially_destructible_v<M>;
+#else
+template <class M>
+concept pac_relocatable_meta = false;
+#endif // PRO4D_PAC
+template <class M>
+concept lightweight_meta =
+    sizeof(M) <= sizeof(ptr_prototype) &&
+    alignof(M) <= alignof(ptr_prototype) &&
+    std::is_nothrow_default_constructible_v<M> &&
+    (std::is_trivially_copyable_v<M> || pac_relocatable_meta<M>);
 
 template <class... Ms>
 struct meta_storage {
   meta_storage() = default;
   template <class P>
-  explicit meta_storage(std::in_place_type_t<P>) : ptr_(&storage<P>) {}
+  explicit meta_storage(std::in_place_type_t<P>)
+      : ptr_(PRO4D_PAC_STORAGE_OF(P)) {}
   bool has_value() const noexcept { return ptr_ != nullptr; }
   void reset() noexcept { ptr_ = nullptr; }
   template <class M>
@@ -694,9 +895,19 @@ struct meta_storage {
   }
 
 private:
-  const composite_meta<Ms...>* ptr_;
+  PRO4D_PAC_VPTR_MEMBER(composite_meta<Ms...>) ptr_;
+#if PRO4D_PAC
+  // Manual signing is not constant-evaluable, so the v-table is a runtime-
+  // initialized (thread-safe) function-local static instead of a constexpr one.
+  template <class P>
+  static const composite_meta<Ms...>& storage() noexcept {
+    static const composite_meta<Ms...> value{std::in_place_type<P>};
+    return value;
+  }
+#else
   template <class P>
   static constexpr composite_meta<Ms...> storage{std::in_place_type<P>};
+#endif // PRO4D_PAC
 };
 template <specialization_of<invoker> M1, class... Ms>
   requires(lightweight_meta<composite_meta<M1, Ms...>>)
@@ -2754,5 +2965,12 @@ struct formatter<T, CharT>
 
 #undef PROD_UNREACHABLE
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
+#undef PRO4D_PAC_FN_MEMBER
+#undef PRO4D_PAC_VPTR_MEMBER
+#undef PRO4D_PAC_FN_CALL
+#undef PRO4D_PAC_STORAGE_OF
+#undef PRO4D_PAC_CONSTEXPR
+// Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
+// code (e.g. tests) can branch on whether pointer authentication is active.
 
 #endif // MSFT_PROXY_V4_PROXY_H_
