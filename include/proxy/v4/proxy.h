@@ -448,27 +448,52 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
 // function name); we cannot reach that builtin because it needs a string
 // *literal*, and `ptrauth_type_discriminator` is useless here -- the default
 // arm64e ABI disables function-pointer type discrimination, so it returns the
-// same constant for every function type. Instead hash a per-type string (which
-// embeds `T`) to a value in the discriminator range, the way magic_enum &c.
-// derive type identity. The result is consumed by the runtime ptrauth
-// intrinsics, which (unlike the `__ptrauth` qualifier) accept a value-dependent
-// discriminator.
+// same constant for every function type. Instead FNV-hash the spelling of `T`
+// into the discriminator range, the way magic_enum/nameof derive type identity.
+// The result is consumed by the runtime ptrauth intrinsics, which (unlike the
+// `__ptrauth` qualifier) accept a value-dependent discriminator.
+//
+// Clang spells the instantiation as "...pac_type_disc() [T = <type>]"; hash only
+// the "<type>" payload so the discriminator depends on `T` alone, not on this
+// helper's own signature/namespace. If the markers are absent (an unexpected
+// format), fall back to hashing the whole string so diversity is never lost --
+// the spelling and the whole string distinguish types equally well. The
+// static_assert below fails the build if the parsing ever stops separating
+// types.
 template <class T>
 consteval ptrauth_extra_data_t pac_type_disc() {
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpedantic" // __PRETTY_FUNCTION__
 #endif
-  const char* const name = __PRETTY_FUNCTION__;
+  const char* const sig = __PRETTY_FUNCTION__;
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
+  const char* begin = sig;
+  const char* end = sig;
+  for (const char* p = sig; *p != '\0'; ++p) {
+    if (p[0] == '=' && p[1] == ' ') {
+      begin = p + 2; // start of "<type>" (last "= ")
+    }
+    if (*p == ']') {
+      end = p; // last ']' closes "[T = <type>]"
+    }
+  }
+  if (begin >= end) { // markers absent: hash the whole signature instead
+    begin = sig;
+    for (end = sig; *end != '\0'; ++end) {
+    }
+  }
   unsigned long long hash = 14695981039346656037ull; // FNV-1a, 64-bit
-  for (const char* s = name; *s != '\0'; ++s) {
-    hash = (hash ^ static_cast<unsigned char>(*s)) * 1099511628211ull;
+  for (const char* p = begin; p < end; ++p) {
+    hash = (hash ^ static_cast<unsigned char>(*p)) * 1099511628211ull;
   }
   return static_cast<ptrauth_extra_data_t>(hash % 65535u) + 1u;
 }
+static_assert(pac_type_disc<int>() != pac_type_disc<long>(),
+              "pac_type_disc must map distinct types to distinct discriminators; "
+              "the __PRETTY_FUNCTION__ parsing has regressed");
 
 // A function pointer signed like an arm64e virtual-function slot: IA key, with
 // address diversity (the storage address is blended into the discriminator) and
