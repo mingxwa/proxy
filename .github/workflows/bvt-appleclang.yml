@@ -14,23 +14,11 @@ jobs:
     - name: Check toolchain version
       run: c++ --version
 
-    # TEMPORARY probe: which form gives a signature-distinguishing discriminator?
-    - name: Probe ptrauth_type_discriminator forms (arm64e)
+    # Build and run the test suite as arm64e -- the ABI where v-tables are
+    # signed -- to exercise proxy's manually-signed dispatch metadata (address +
+    # type diversity). proxy_pac_tests static_asserts that PAC is on here.
+    - name: Build and run tests as arm64e (pointer authentication)
       run: |
-        cat > /tmp/d.cpp <<'CPP'
-        #include <ptrauth.h>
-        #include <cstdio>
-        int main() {
-          printf("ptr int(*)(int)   = %llu\n", (unsigned long long)ptrauth_type_discriminator(int(*)(int)));
-          printf("ptr long(*)(long) = %llu\n", (unsigned long long)ptrauth_type_discriminator(long(*)(long)));
-          printf("fn  int(int)      = %llu\n", (unsigned long long)ptrauth_type_discriminator(int(int)));
-          printf("fn  long(long)    = %llu\n", (unsigned long long)ptrauth_type_discriminator(long(long)));
-          printf("fn  int(int)noex  = %llu\n", (unsigned long long)ptrauth_type_discriminator(int(int) noexcept));
-          printf("fnptr-disc int(*)(int)   = %llu\n", (unsigned long long)ptrauth_function_pointer_type_discriminator(int(*)(int)));
-          printf("fnptr-disc long(*)(long) = %llu\n", (unsigned long long)ptrauth_function_pointer_type_discriminator(long(*)(long)));
-          return 0;
-        }
-        CPP
-        c++ -std=c++23 -arch arm64e /tmp/d.cpp -o /tmp/d && /tmp/d
-        echo "----- probe done -----"
-        exit 1
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j --target msft_proxy_tests
+        ./build-arm64e/tests/msft_proxy_tests

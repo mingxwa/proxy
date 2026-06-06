@@ -443,13 +443,40 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
 }
 
 #if PRO4D_PAC
+// A non-zero 16-bit discriminator unique to the type `T` (type diversity). This
+// is what an arm64e v-table uses (`ptrauth_string_discriminator` of the mangled
+// function name); we cannot reach that builtin because it needs a string
+// *literal*, and `ptrauth_type_discriminator` is useless here -- the default
+// arm64e ABI disables function-pointer type discrimination, so it returns the
+// same constant for every function type. Instead hash a per-type string (which
+// embeds `T`) to a value in the discriminator range, the way magic_enum &c.
+// derive type identity. The result is consumed by the runtime ptrauth
+// intrinsics, which (unlike the `__ptrauth` qualifier) accept a value-dependent
+// discriminator.
+template <class T>
+consteval ptrauth_extra_data_t pac_type_disc() {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic" // __PRETTY_FUNCTION__
+#endif
+  const char* const name = __PRETTY_FUNCTION__;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+  unsigned long long hash = 14695981039346656037ull; // FNV-1a, 64-bit
+  for (const char* s = name; *s != '\0'; ++s) {
+    hash = (hash ^ static_cast<unsigned char>(*s)) * 1099511628211ull;
+  }
+  return static_cast<ptrauth_extra_data_t>(hash % 65535u) + 1u;
+}
+
 // A function pointer signed like an arm64e virtual-function slot: IA key, with
 // address diversity (the storage address is blended into the discriminator) and
-// type diversity (a constant derived from `Disc`, a function type encoding the
-// convention). The stored value uses a per-storage schema and is re-signed on
-// copy for the destination address; a null value denotes the empty state and is
-// never signed or authenticated. `value_` must only be reached through `get()`,
-// which re-signs it to the standard schema so the result is callable.
+// type diversity (`pac_type_disc<Disc>()`, where `Disc` is a function type
+// encoding the convention). The stored value uses a per-storage schema and is
+// re-signed on copy for the destination address; a null value denotes the empty
+// state and is never signed or authenticated. `value_` must only be reached
+// through `get()`, which re-signs it to the standard schema so it is callable.
 template <class FP, class Disc>
 class signed_fn_ptr {
 public:
@@ -491,7 +518,7 @@ public:
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
-    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
+    return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
   FP value_;
 };
@@ -539,7 +566,7 @@ public:
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
-    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
+    return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
   const T* value_;
 };

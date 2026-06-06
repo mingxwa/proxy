@@ -194,18 +194,24 @@ TEST(ProxyPacTests, MoveResignsAndDispatches) {
 // two conventions, signed at one fixed address to isolate type diversity from
 // address diversity.
 TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
+  // proxy's per-convention discriminator (used to sign every dispatch pointer)
+  // differs for two different convention types...
+  constexpr ptrauth_extra_data_t da =
+      pro::v4::details::pac_type_disc<int(int)>();
+  constexpr ptrauth_extra_data_t db =
+      pro::v4::details::pac_type_disc<long(long)>();
+  EXPECT_NE(da, db);
+  // ...so signing the same function at the same address with the two
+  // discriminators yields different signatures, isolating type diversity from
+  // address diversity.
   using FP = int (*)(int);
   FP raw = +[](int x) { return x; };
   FP slot;
-  slot = ptrauth_sign_unauthenticated(
-      raw, ptrauth_key_function_pointer,
-      ptrauth_blend_discriminator(&slot,
-                                  ptrauth_type_discriminator(int (*)(int))));
+  slot = ptrauth_sign_unauthenticated(raw, ptrauth_key_function_pointer,
+                                      ptrauth_blend_discriminator(&slot, da));
   FP signed_a = slot;
-  slot = ptrauth_sign_unauthenticated(
-      raw, ptrauth_key_function_pointer,
-      ptrauth_blend_discriminator(&slot,
-                                  ptrauth_type_discriminator(long (*)(long))));
+  slot = ptrauth_sign_unauthenticated(raw, ptrauth_key_function_pointer,
+                                      ptrauth_blend_discriminator(&slot, db));
   FP signed_b = slot;
   EXPECT_NE(std::memcmp(&signed_a, &signed_b, sizeof(FP)), 0);
 }
