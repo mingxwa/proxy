@@ -29,17 +29,17 @@ jobs:
         static int foo(int x){return x;}
         int main(){
           unsigned long da=td<int(int)>(), db=td<long(long)>();
-          FP anchor_obj; void* anchor=&anchor_obj;
-          FP sa=ptrauth_sign_unauthenticated(foo,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,da));
-          FP sb=ptrauth_sign_unauthenticated(foo,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,db));
+          long anchor;
+          auto bda=ptrauth_blend_discriminator(&anchor,da), bdb=ptrauth_blend_discriminator(&anchor,db);
+          printf("da=%lu db=%lu blend_da=%llx blend_db=%llx blend_eq=%d\n",da,db,
+                 (unsigned long long)bda,(unsigned long long)bdb,(int)(bda==bdb));
+          FP raw=foo; FP slot;
+          slot=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(&slot,da));
+          FP sa=slot;
+          slot=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(&slot,db));
+          FP sb=slot;
           unsigned long long ua,ub; memcpy(&ua,&sa,8); memcpy(&ub,&sb,8);
-          printf("da=%lu db=%lu sa=%016llx sb=%016llx eq=%d\n",da,db,ua,ub,(int)(ua==ub));
-          // also: sign foo raw (stripped) instead of the already-signed pointer
-          void* raw=ptrauth_strip((void*)foo,ptrauth_key_function_pointer);
-          void* ra=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,da));
-          void* rb=ptrauth_sign_unauthenticated(raw,ptrauth_key_function_pointer,ptrauth_blend_discriminator(anchor,db));
-          memcpy(&ua,&ra,8); memcpy(&ub,&rb,8);
-          printf("stripped: ra=%016llx rb=%016llx eq=%d\n",ua,ub,(int)(ua==ub));
+          printf("sa=%016llx sb=%016llx sign_eq=%d\n",ua,ub,(int)(ua==ub));
           return 0; }
         CPP
         for opt in -O0 -O2; do echo "[$opt]"; c++ -std=c++23 -arch arm64e $opt /tmp/t.cpp -o /tmp/t && /tmp/t; done
