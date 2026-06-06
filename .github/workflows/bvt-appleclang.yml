@@ -20,37 +20,6 @@ jobs:
         meson --version
         bazel version
 
-    # TEMPORARY: probe workarounds for value-dependent __ptrauth discriminators.
-    - name: Probe __ptrauth template workarounds (arm64e)
-      run: |
-        c++ --version | head -1
-        probe() {
-          printf '%s\n' "$2" > /tmp/w.cpp
-          if c++ -std=c++23 -arch arm64e -fsyntax-only /tmp/w.cpp 2>/tmp/w.err; then
-            echo "PASS: $1"
-          else
-            echo "FAIL: $1"; grep -aE "error:" /tmp/w.err | head -1 | sed 's/^/      /'
-          fi
-        }
-        probe "W1 NTTP discriminator (dependent template arg)" '#include <ptrauth.h>
-        template<unsigned D> struct Sig { using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,D) f; };
-        template<class T> struct S { Sig<ptrauth_type_discriminator(void(*)(T*))> s; };
-        S<int> x;'
-        probe "W2 static-constexpr-member as disc" '#include <ptrauth.h>
-        template<class T> struct S { static constexpr unsigned d=ptrauth_type_discriminator(void(*)(T*)); using FP=void(*)(); FP __ptrauth(ptrauth_key_function_pointer,1,d) f; };
-        S<int> x;'
-        probe "W3 inner sign_constant (constexpr, dependent type-disc)" '#include <ptrauth.h>
-        void g();
-        template<class T> struct S { static constexpr void* C = ptrauth_sign_constant((void*)&g, ptrauth_key_function_pointer, ptrauth_type_discriminator(void(*)(T*))); };
-        template struct S<int>;'
-        probe "W4 auth_and_resign runtime (std fnptr -> type-disc)" '#include <ptrauth.h>
-        template<class T> struct S { using FP=void(*)(); void* v; explicit S(FP p):v(ptrauth_auth_and_resign((void*)p, ptrauth_key_function_pointer, ptrauth_function_pointer_type_discriminator(void(*)()), ptrauth_key_function_pointer, ptrauth_type_discriminator(void(*)(T*)))){} };
-        template struct S<int>;'
-        probe "W5 ptrauth_function_pointer_type_discriminator exists" '#include <ptrauth.h>
-        static_assert(ptrauth_function_pointer_type_discriminator(void(*)(int)) != 0 || true);'
-        echo "----- probe done; failing to surface log -----"
-        exit 1
-
     # The default target on these runners is arm64, which has no pointer
     # authentication. Build and run just the test binary as arm64e -- the ABI
     # where v-tables are signed -- to exercise proxy's signed dispatch metadata.
