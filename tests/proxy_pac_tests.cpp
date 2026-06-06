@@ -8,17 +8,18 @@
 // function pointers and `meta_storage::ptr_` is the v-table pointer. On targets
 // whose C++ ABI signs code pointers (Apple arm64e), real virtual functions and
 // v-table pointers are protected with ARMv8.3 pointer authentication. When
-// `PRO4D_PAC` is on, `proxy` signs its metadata the same way, using *address
-// diversity* (the signature depends on the storage address) -- the primary
-// protection -- plus a constant discriminator. (Per-convention *type* diversity
-// is not used because clang's `__ptrauth` qualifier only accepts a non-template-
-// dependent integer-constant discriminator.)
+// `PRO4D_PAC` is on, `proxy` signs its metadata the same way, matching arm64e
+// virtual functions with both *address diversity* (the signature depends on the
+// storage address) and *type diversity* (a discriminator derived from the
+// convention/meta type).
 //
 // The observable hallmark of address diversity is that copying a non-empty
 // proxy re-signs its metadata for the new address, so a copy holds different
-// raw bytes than the original while still dispatching correctly. On platforms
-// without PAC the copy is bitwise identical. If a target signs code pointers by
-// default but the library failed to enable PAC, these tests fail loudly.
+// raw bytes than the original while still dispatching correctly. Type diversity
+// means signing the same pointer for two different convention types -- even at
+// the same address -- yields different signatures. On platforms without PAC the
+// copy is bitwise identical. If a target signs code pointers by default but the
+// library failed to enable PAC, these tests fail loudly.
 
 #include <cstring>
 #include <type_traits>
@@ -182,5 +183,32 @@ TEST(ProxyPacTests, MoveResignsAndDispatches) {
   EXPECT_TRUE(moved.has_value());
   EXPECT_EQ(moved->GetA(), 42);
 }
+
+#if PRO4D_PAC
+// Type diversity: signing the same function at the *same* storage address with
+// two different convention discriminators must yield different signatures. This
+// is the property -- on top of address diversity -- that makes proxy's signed
+// metadata match an arm64e v-table, which signs each slot with the hash of the
+// mangled function name. proxy derives the discriminator from a function type
+// that encodes the convention; here two distinct function types stand in for
+// two conventions, signed at one fixed address to isolate type diversity from
+// address diversity.
+TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
+  using FP = int (*)(int);
+  FP raw = +[](int x) { return x; };
+  FP slot;
+  slot = ptrauth_sign_unauthenticated(
+      raw, ptrauth_key_function_pointer,
+      ptrauth_blend_discriminator(&slot,
+                                  ptrauth_type_discriminator(int (*)(int))));
+  FP signed_a = slot;
+  slot = ptrauth_sign_unauthenticated(
+      raw, ptrauth_key_function_pointer,
+      ptrauth_blend_discriminator(&slot,
+                                  ptrauth_type_discriminator(long (*)(long))));
+  FP signed_b = slot;
+  EXPECT_NE(std::memcmp(&signed_a, &signed_b, sizeof(FP)), 0);
+}
+#endif // PRO4D_PAC
 
 } // namespace
