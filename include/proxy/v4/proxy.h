@@ -51,14 +51,6 @@
 #define PROD_UNREACHABLE() std::abort()
 #endif // __cpp_lib_unreachable >= 202202L
 
-// `proxy`'s dispatch-metadata pointer types -- `code_ptr` (function slot) and
-// `data_ptr` (pointer to out-of-line metadata) -- with a uniform API: signed
-// with pointer authentication on PAC targets, transparent zero-overhead holders
-// elsewhere. This header also owns the `PRO4D_PAC` detection. The
-// `PRO4D_PAC_CONSTEXPR` macro it defines is `#undef`-ed at the end of this file;
-// `PRO4D_PAC` itself is intentionally left defined for downstream code.
-#include "detail/pac.h"
-
 namespace pro::inline v4 {
 
 // =============================================================================
@@ -103,6 +95,12 @@ struct applicable_traits {
 struct inapplicable_traits {
   static constexpr bool applicable = false;
 };
+template <class T, template <class...> class TT>
+struct specialization_traits : inapplicable_traits {};
+template <template <class...> class TT, class... Args>
+struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
+template <class T, template <class...> class TT>
+concept specialization_of = specialization_traits<T, TT>::applicable;
 
 template <template <class, class> class R, class O, class... Is>
 struct recursive_reduction : std::type_identity<O> {};
@@ -378,44 +376,20 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                 "not proxiable due to a required convention not implemented");
 }
 
-template <class ProP, class D, class O>
-struct invoker;
-// `f_` is a `code_ptr` (a function-pointer slot of the dispatch metadata, hard-
-// ened with pointer authentication on PAC targets and transparent elsewhere),
-// reached via `.get()`. `disc_t` is the function type supplying type diversity by
-// encoding the operand, dispatch, and signature (used on PAC, ignored elsewhere);
-// the constructor is `PRO4D_PAC_CONSTEXPR` because manual signing is not
-// `constexpr`.
-#define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
-  template <class ProP, class D, class R, class... Args>                       \
-  struct invoker<ProP, D, R(Args...) oq ne> {                                  \
-    using fp_t = R (*)(ProP pq, Args...) ne;                                    \
-    using disc_t = R (*)(D*, ProP pq, Args...) ne;                              \
-    invoker() = default;                                                       \
-    template <class P>                                                         \
-    PRO4D_PAC_CONSTEXPR explicit invoker(std::in_place_type_t<P>)               \
-        : f_([](ProP pq self, Args... args) ne -> R {                          \
-            return reinterpret_invoke<P, D, R>(static_cast<ProP pq>(self),     \
-                                               std::forward<Args>(args)...);   \
-          }) {}                                                                \
-                                                                               \
-    template <class... ActualArgs>                                             \
-    R operator()(ActualArgs&&... args) const {                                 \
-      return f_.get()(std::forward<ActualArgs>(args)...);                       \
-    }                                                                          \
-                                                                               \
-    code_ptr<fp_t, disc_t> f_;                                                  \
-  }
-PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
-#undef PROD_DEF_INVOKER
+// `invoker`, `composite_meta`, and `meta_storage` -- proxy's hand-rolled
+// dispatch v-table -- are defined in detail/facade_meta_traits.h, which provides
+// a pointer-authenticated implementation on PAC targets and a plain one
+// elsewhere (and owns the `PRO4D_PAC` detection). That header opens
+// `namespace pro::v4::details` itself, so the enclosing namespaces are closed
+// for the include and reopened afterwards. It depends on `specialization_of`
+// (above) and `reinterpret_invoke` (a dependent name, resolved on use).
+} // namespace details
+} // namespace pro::inline v4
 
-template <class... Ms>
-struct PRO4D_ENFORCE_EBO composite_meta : Ms... {
-  composite_meta() = default;
-  template <class P>
-  PRO4D_PAC_CONSTEXPR explicit composite_meta(std::in_place_type_t<P>)
-      : Ms(std::in_place_type<P>)... {}
-};
+#include "detail/facade_meta_traits.h"
+
+namespace pro::inline v4 {
+namespace details {
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
@@ -603,13 +577,6 @@ concept pointer_like = (std::is_pointer_v<T> ||
     requires { typename T::element_type; } || requires(T val) { *val; }) &&
     requires { typename std::pointer_traits<T>::element_type; };
 
-template <class T, template <class...> class TT>
-struct specialization_traits : inapplicable_traits {};
-template <template <class...> class TT, class... Args>
-struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
-template <class T, template <class...> class TT>
-concept specialization_of = specialization_traits<T, TT>::applicable;
-
 template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
 consteval void diagnose_proxiable_size_too_large() {
   static_assert(ActualSize <= MaxSize, "not proxiable due to size too large");
@@ -689,74 +656,6 @@ template <class F>
                           typename F::reflection_types>::applicable)
 struct basic_facade_traits<F> : applicable_traits {};
 
-using ptr_prototype = void* [2];
-
-#if PRO4D_PAC
-// With pointer authentication, address-diversified `__ptrauth` members make
-// `composite_meta` non-trivially-copyable, because every copy must
-// authenticate-and-resign the pointer for its new storage address. Such a meta
-// is still safe to embed inline as long as it can be relocated cheaply and
-// without throwing, which is the property the small-meta optimization actually
-// relies on. This concept is unused (and therefore false) on non-PAC builds,
-// so behavior there is unchanged.
-template <class M>
-concept pac_relocatable_meta =
-    std::is_nothrow_copy_constructible_v<M> &&
-    std::is_nothrow_move_constructible_v<M> &&
-    std::is_nothrow_copy_assignable_v<M> &&
-    std::is_nothrow_move_assignable_v<M> && std::is_trivially_destructible_v<M>;
-#else
-template <class M>
-concept pac_relocatable_meta = false;
-#endif // PRO4D_PAC
-template <class M>
-concept lightweight_meta =
-    sizeof(M) <= sizeof(ptr_prototype) &&
-    alignof(M) <= alignof(ptr_prototype) &&
-    std::is_nothrow_default_constructible_v<M> &&
-    (std::is_trivially_copyable_v<M> || pac_relocatable_meta<M>);
-
-template <class... Ms>
-struct meta_storage {
-  meta_storage() = default;
-  template <class P>
-  explicit meta_storage(std::in_place_type_t<P>) : ptr_(&storage<P>) {}
-  bool has_value() const noexcept { return ptr_ != nullptr; }
-  void reset() noexcept { ptr_ = nullptr; }
-  template <class M>
-  friend const M& get(const meta_storage& self) noexcept {
-    return static_cast<const M&>(*self.ptr_);
-  }
-
-private:
-  data_ptr<composite_meta<Ms...>, void (*)(composite_meta<Ms...>*)> ptr_;
-#if PRO4D_PAC
-  // Manual signing is not constant-evaluable, so the v-table cannot be a
-  // constexpr object. Make it an `inline` variable signed once during static
-  // initialization rather than a function-local static: the latter is a Meyers
-  // singleton whose thread-safe guard would be re-checked on *every* proxy
-  // construction, whereas this is initialized once at startup and `&storage<P>`
-  // is then as cheap as the constexpr case (just a constant address).
-  template <class P>
-  static inline const composite_meta<Ms...> storage{std::in_place_type<P>};
-#else
-  template <class P>
-  static constexpr composite_meta<Ms...> storage{std::in_place_type<P>};
-#endif // PRO4D_PAC
-};
-template <specialization_of<invoker> M1, class... Ms>
-  requires(lightweight_meta<composite_meta<M1, Ms...>>)
-struct meta_storage<M1, Ms...> : private composite_meta<M1, Ms...> {
-  using composite_meta<M1, Ms...>::composite_meta;
-  bool has_value() const noexcept {
-    return static_cast<const M1&>(*this).f_ != nullptr;
-  }
-  void reset() noexcept { static_cast<M1&>(*this).f_ = nullptr; }
-  template <class M>
-  friend const M& get(const meta_storage& self) noexcept {
-    return static_cast<const M&>(self);
-  }
-};
 
 template <class F, class... Cs>
 struct facade_conv_traits_impl {
@@ -2813,8 +2712,8 @@ struct formatter<T, CharT>
 
 #undef PROD_UNREACHABLE
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
-#undef PRO4D_PAC_CONSTEXPR
-// Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
-// code (e.g. tests) can branch on whether pointer authentication is active.
+// Note: `PRO4D_PAC` (defined by detail/facade_meta_traits.h) is intentionally
+// left defined so that downstream code (e.g. tests) can branch on whether
+// pointer authentication is active.
 
 #endif // MSFT_PROXY_V4_PROXY_H_
