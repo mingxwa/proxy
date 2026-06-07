@@ -717,8 +717,7 @@ template <class... Ms>
 struct meta_storage {
   meta_storage() = default;
   template <class P>
-  explicit meta_storage(std::in_place_type_t<P>)
-      : ptr_(PRO4D_PAC_STORAGE_OF(P)) {}
+  explicit meta_storage(std::in_place_type_t<P>) : ptr_(&storage<P>) {}
   bool has_value() const noexcept { return ptr_ != nullptr; }
   void reset() noexcept { ptr_ = nullptr; }
   template <class M>
@@ -729,13 +728,14 @@ struct meta_storage {
 private:
   PRO4D_PAC_VPTR_MEMBER(composite_meta<Ms...>) ptr_;
 #if PRO4D_PAC
-  // Manual signing is not constant-evaluable, so the v-table is a runtime-
-  // initialized (thread-safe) function-local static instead of a constexpr one.
+  // Manual signing is not constant-evaluable, so the v-table cannot be a
+  // constexpr object. Make it an `inline` variable signed once during static
+  // initialization rather than a function-local static: the latter is a Meyers
+  // singleton whose thread-safe guard would be re-checked on *every* proxy
+  // construction, whereas this is initialized once at startup and `&storage<P>`
+  // is then as cheap as the constexpr case (just a constant address).
   template <class P>
-  static const composite_meta<Ms...>& storage() noexcept {
-    static const composite_meta<Ms...> value{std::in_place_type<P>};
-    return value;
-  }
+  static inline const composite_meta<Ms...> storage{std::in_place_type<P>};
 #else
   template <class P>
   static constexpr composite_meta<Ms...> storage{std::in_place_type<P>};
@@ -2813,7 +2813,6 @@ struct formatter<T, CharT>
 #undef PRO4D_PAC_FN_MEMBER
 #undef PRO4D_PAC_VPTR_MEMBER
 #undef PRO4D_PAC_FN_CALL
-#undef PRO4D_PAC_STORAGE_OF
 #undef PRO4D_PAC_CONSTEXPR
 // Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
 // code (e.g. tests) can branch on whether pointer authentication is active.

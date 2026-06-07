@@ -45,22 +45,21 @@
 //
 // Consequence: manual signing is not constant-evaluable, so PAC builds give up
 // `constexpr` metadata -- the signed pointers re-sign on copy (so a proxy is no
-// longer bitwise-relocatable) and the out-of-line v-table is runtime-
-// initialized. These macros select the signed member type, the call/deref
-// expression, and drop `constexpr` where signing makes it impossible. `proxy.h`
-// uses them and `#undef`s them after use.
+// longer bitwise-relocatable) and the out-of-line v-table is an `inline`
+// variable signed once at static-initialization time (not a constexpr object,
+// but also not a guarded function-local static). These macros select the signed
+// member type and the call/deref expression, and drop `constexpr` where signing
+// makes it impossible. `proxy.h` uses them and `#undef`s them after use.
 #define PRO4D_PAC_FN_MEMBER(fp, disc)                                          \
   ::pro::v4::details::signed_fn_ptr<fp, disc>
 #define PRO4D_PAC_VPTR_MEMBER(meta)                                            \
   ::pro::v4::details::signed_data_ptr<meta, void (*)(meta*)>
 #define PRO4D_PAC_FN_CALL(f) (f).get()
-#define PRO4D_PAC_STORAGE_OF(P) (&storage<P>())
 #define PRO4D_PAC_CONSTEXPR
 #else
 #define PRO4D_PAC_FN_MEMBER(fp, disc) fp
 #define PRO4D_PAC_VPTR_MEMBER(meta) const meta*
 #define PRO4D_PAC_FN_CALL(f) (f)
-#define PRO4D_PAC_STORAGE_OF(P) (&storage<P>)
 #define PRO4D_PAC_CONSTEXPR constexpr
 #endif // PRO4D_PAC
 
