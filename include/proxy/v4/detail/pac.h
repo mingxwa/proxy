@@ -2,8 +2,8 @@
 // Copyright (c) 2026-Present Next Gen C++ Foundation.
 // Licensed under the MIT License.
 
-#ifndef MSFT_PROXY_V4_PROXY_PAC_H_
-#define MSFT_PROXY_V4_PROXY_PAC_H_
+#ifndef MSFT_PROXY_V4_DETAIL_PAC_H_
+#define MSFT_PROXY_V4_DETAIL_PAC_H_
 
 // Pointer authentication (PAC) support for `proxy`'s dispatch metadata.
 //
@@ -240,4 +240,4 @@ private:
 } // namespace pro::inline v4::details
 #endif // PRO4D_PAC
 
-#endif // MSFT_PROXY_V4_PROXY_PAC_H_
+#endif // MSFT_PROXY_V4_DETAIL_PAC_H_

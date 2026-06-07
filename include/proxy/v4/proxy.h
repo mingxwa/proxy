@@ -56,7 +56,7 @@
 // wrapper types (`signed_fn_ptr` / `signed_data_ptr`) live in this header. The
 // `PRO4D_PAC_*` macros it defines are `#undef`-ed at the end of this file;
 // `PRO4D_PAC` itself is intentionally left defined for downstream code.
-#include "proxy_pac.h"
+#include "detail/pac.h"
 
 namespace pro::inline v4 {
 
