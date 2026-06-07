@@ -135,16 +135,20 @@ consteval ptrauth_extra_data_t pac_type_disc() {
 // Storing a *raw* null instead would force the copy to branch to avoid
 // authenticating it; signing the null is what removes the branch.
 //
-// The default constructor is trivial (like `invoker`'s, to avoid emitting
-// signing instructions for a value that is always overwritten before use): a
-// slot is established either by the function-pointer constructor or by
-// `operator=(nullptr)` (the signed null), the latter being how `meta_storage`
-// produces the empty state. A default-constructed slot must be assigned before
-// it is copied or read.
+// The default constructor must establish the signed null (it cannot be
+// `= default`): every slot must always hold an auth-able value, because copying
+// an empty proxy memberwise authenticate-and-resigns *all* of its slots, and the
+// non-sentinel slots of an empty proxy are initialized only here -- `reset()`
+// flips just the single `has_value` sentinel. A trivial default constructor
+// leaves the others as garbage and copying an empty proxy then traps (the
+// `invoker` raw-pointer analogy does not hold for a signed pointer).
 template <class FP, class Disc>
 class signed_fn_ptr {
 public:
-  signed_fn_ptr() = default;
+  signed_fn_ptr() noexcept
+      : value_(ptrauth_sign_unauthenticated(
+            static_cast<FP>(nullptr), ptrauth_key_function_pointer,
+            schema(&value_))) {}
   signed_fn_ptr(FP fp) noexcept
       : value_(ptrauth_auth_and_resign(
             fp, ptrauth_key_function_pointer,
@@ -185,15 +189,18 @@ private:
 // A data pointer signed like an arm64e v-table pointer: DA key, address
 // diversity, and type diversity (a constant derived from `Disc`). Used for the
 // v-table pointer in the out-of-line `meta_storage`. The empty state is a signed
-// null exactly as in `signed_fn_ptr` (and the default constructor is likewise
-// trivial), so copy/assignment and dereference are each a single unconditional
-// sign/authenticate with no null branch; an empty meta round-trips through the
-// resigning copy. `operator==` (and thus `meta_storage::has_value()`) strips the
-// signature to recognize the null, branchlessly.
+// null exactly as in `signed_fn_ptr` (and the default constructor likewise signs
+// it, for the same reason), so copy/assignment and dereference are each a single
+// unconditional sign/authenticate with no null branch; an empty meta round-trips
+// through the resigning copy. `operator==` (and thus `meta_storage::has_value()`)
+// strips the signature to recognize the null, branchlessly.
 template <class T, class Disc>
 class signed_data_ptr {
 public:
-  signed_data_ptr() = default;
+  signed_data_ptr() noexcept
+      : value_(ptrauth_sign_unauthenticated(
+            static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
+            schema(&value_))) {}
   signed_data_ptr(const T* p) noexcept
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
