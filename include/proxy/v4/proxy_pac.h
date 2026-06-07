@@ -79,10 +79,10 @@ namespace pro::inline v4::details {
 // Clang spells the instantiation as "...pac_type_disc() [T = <type>]"; hash only
 // the "<type>" payload so the discriminator depends on `T` alone, not on this
 // helper's own signature/namespace. If the markers are absent (an unexpected
-// format), fall back to hashing the whole string so diversity is never lost --
-// the spelling and the whole string distinguish types equally well. The
-// static_assert below fails the build if the parsing ever stops separating
-// types.
+// format) the parsing is broken, which would silently weaken type diversity, so
+// fail the build hard (a `throw` in this `consteval` function is reached only
+// during constant evaluation -> a compile error). The exact discriminator
+// values are pinned by ABI-stability tests in proxy_pac_tests.cpp.
 template <class T>
 consteval ptrauth_extra_data_t pac_type_disc() {
 #if defined(__clang__)
@@ -103,20 +103,19 @@ consteval ptrauth_extra_data_t pac_type_disc() {
       end = p; // last ']' closes "[T = <type>]"
     }
   }
-  if (begin >= end) { // markers absent: hash the whole signature instead
-    begin = sig;
-    for (end = sig; *end != '\0'; ++end) {
-    }
+  if (begin >= end) {
+    throw "pac_type_disc: could not extract the type name from "
+          "__PRETTY_FUNCTION__; the compiler's format is unexpected";
   }
   unsigned long long hash = 14695981039346656037ull; // FNV-1a, 64-bit
   for (const char* p = begin; p < end; ++p) {
     hash = (hash ^ static_cast<unsigned char>(*p)) * 1099511628211ull;
   }
+  // Map into [1, 65535]: a 16-bit discriminator of 0 means "no discriminator"
+  // (no type diversity) in the ptrauth ABI, so it must be non-zero -- the same
+  // range and mapping `ptrauth_string_discriminator` itself uses.
   return static_cast<ptrauth_extra_data_t>(hash % 65535u) + 1u;
 }
-static_assert(pac_type_disc<int>() != pac_type_disc<long>(),
-              "pac_type_disc must map distinct types to distinct discriminators; "
-              "the __PRETTY_FUNCTION__ parsing has regressed");
 
 // A function pointer signed like an arm64e virtual-function slot: IA key, with
 // address diversity (the storage address is blended into the discriminator) and
@@ -127,19 +126,25 @@ static_assert(pac_type_disc<int>() != pac_type_disc<long>(),
 //
 // The empty state is a *signed* null: a null pointer signed with the slot's own
 // schema, exactly as a real entry is. This keeps every hot path branchless --
-// construction, copy/assignment, and `get()` are each a single unconditional
-// authenticate-and-resign, with no null special-case. An empty slot round-trips
-// through that same resign (authenticating a slot-signed null succeeds and
-// re-signs it for the destination), so copying an empty meta neither branches
-// nor traps. The only place that distinguishes empty is `operator==(nullptr)`
-// (hence `has_value()`), which strips the signature and compares the raw pointer
-// -- still branchless. Storing a *raw* null instead would force the copy to
-// branch to avoid authenticating it; signing the null is what removes the
-// branch.
+// copy/assignment and `get()` are each a single unconditional authenticate-and-
+// resign, with no null special-case. An empty slot round-trips through that same
+// resign (authenticating a slot-signed null succeeds and re-signs it for the
+// destination), so copying an empty meta neither branches nor traps. The only
+// place that distinguishes empty is `operator==(nullptr)` (hence `has_value()`),
+// which strips the signature and compares the raw pointer -- still branchless.
+// Storing a *raw* null instead would force the copy to branch to avoid
+// authenticating it; signing the null is what removes the branch.
+//
+// The default constructor is trivial (like `invoker`'s, to avoid emitting
+// signing instructions for a value that is always overwritten before use): a
+// slot is established either by the function-pointer constructor or by
+// `operator=(nullptr)` (the signed null), the latter being how `meta_storage`
+// produces the empty state. A default-constructed slot must be assigned before
+// it is copied or read.
 template <class FP, class Disc>
 class signed_fn_ptr {
 public:
-  signed_fn_ptr() noexcept : value_(signed_null(&value_)) {}
+  signed_fn_ptr() = default;
   signed_fn_ptr(FP fp) noexcept
       : value_(ptrauth_auth_and_resign(
             fp, ptrauth_key_function_pointer,
@@ -156,7 +161,8 @@ public:
     return *this;
   }
   signed_fn_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = signed_null(&value_);
+    value_ = ptrauth_sign_unauthenticated(
+        static_cast<FP>(nullptr), ptrauth_key_function_pointer, schema(&value_));
     return *this;
   }
   FP get() const noexcept {
@@ -173,26 +179,21 @@ private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
   }
-  static FP signed_null(const void* addr) noexcept {
-    return ptrauth_sign_unauthenticated(static_cast<FP>(nullptr),
-                                        ptrauth_key_function_pointer,
-                                        schema(addr));
-  }
   FP value_;
 };
 
 // A data pointer signed like an arm64e v-table pointer: DA key, address
 // diversity, and type diversity (a constant derived from `Disc`). Used for the
 // v-table pointer in the out-of-line `meta_storage`. The empty state is a signed
-// null exactly as in `signed_fn_ptr`, so construction, copy/assignment, and
-// dereference are each a single unconditional sign/authenticate with no null
-// branch; an empty meta round-trips through the resigning copy. `operator==`
-// (and thus `meta_storage::has_value()`) strips the signature to recognize the
-// null, branchlessly.
+// null exactly as in `signed_fn_ptr` (and the default constructor is likewise
+// trivial), so copy/assignment and dereference are each a single unconditional
+// sign/authenticate with no null branch; an empty meta round-trips through the
+// resigning copy. `operator==` (and thus `meta_storage::has_value()`) strips the
+// signature to recognize the null, branchlessly.
 template <class T, class Disc>
 class signed_data_ptr {
 public:
-  signed_data_ptr() noexcept : value_(signed_null(&value_)) {}
+  signed_data_ptr() = default;
   signed_data_ptr(const T* p) noexcept
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
@@ -207,7 +208,9 @@ public:
     return *this;
   }
   signed_data_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = signed_null(&value_);
+    value_ = ptrauth_sign_unauthenticated(
+        static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
+        schema(&value_));
     return *this;
   }
   const T& operator*() const noexcept {
@@ -223,11 +226,6 @@ public:
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
     return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
-  }
-  static const T* signed_null(const void* addr) noexcept {
-    return ptrauth_sign_unauthenticated(static_cast<const T*>(nullptr),
-                                        ptrauth_key_cxx_vtable_pointer,
-                                        schema(addr));
   }
   const T* value_;
 };

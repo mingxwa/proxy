@@ -261,6 +261,18 @@ TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
   EXPECT_NE(bytes_a, bytes_b);
 }
 
+// ABI stability: the type discriminator derivation (extract `T`'s spelling from
+// __PRETTY_FUNCTION__, FNV-1a hash it, map into [1, 65535]) is part of how
+// metadata is signed, so its output must not change silently. Pin the exact
+// values for a couple of well-known types -- a change to the parsing, the hash,
+// or the range mapping will fail here. (These run only where PAC is active.)
+TEST(ProxyPacTests, TypeDiscriminatorValuesAreStable) {
+  using pro::v4::details::pac_type_disc;
+  EXPECT_EQ(pac_type_disc<int>(), 7885u);
+  EXPECT_EQ(pac_type_disc<long>(), 28572u);
+  EXPECT_NE(pac_type_disc<int>(), pac_type_disc<long>());
+}
+
 // The out-of-line v-table pointer (`signed_data_ptr`) must be copyable while
 // null: an empty out-of-line `meta_storage` *is* exactly this one pointer, and
 // its own null is the empty state, so copying an empty meta must not
