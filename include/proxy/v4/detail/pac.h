@@ -34,38 +34,37 @@
 #endif // PRO4D_PAC
 #endif // PRO4D_PAC
 
-#if PRO4D_PAC
 #include <cstddef> // std::nullptr_t
-#include <ptrauth.h>
-// clang's `__ptrauth` *qualifier* cannot be used: it requires the discriminator
-// to be constant-evaluable even within templates, so a per-convention (hence
-// template-dependent) type discriminator is rejected. We therefore sign by hand
-// with the runtime ptrauth intrinsics -- which DO accept a dependent
-// `ptrauth_type_discriminator` -- via `signed_fn_ptr` / `signed_data_ptr`.
+
+// `code_ptr<FP, Disc>` (a pointer to code -- a dispatched function) and
+// `data_ptr<T, Disc>` (a pointer to data -- the out-of-line metadata) are the
+// pointer members of `proxy`'s hand-rolled v-table. They present a *uniform* API
+// on every platform; only the implementation differs:
 //
-// Consequence: manual signing is not constant-evaluable, so PAC builds give up
-// `constexpr` metadata -- the signed pointers re-sign on copy (so a proxy is no
-// longer bitwise-relocatable) and the out-of-line v-table is an `inline`
-// variable signed once at static-initialization time (not a constexpr object,
-// but also not a guarded function-local static). These macros select the signed
-// member type and the call/deref expression, and drop `constexpr` where signing
-// makes it impossible. `proxy.h` uses them and `#undef`s them after use.
-#define PRO4D_PAC_FN_MEMBER(fp, disc)                                          \
-  ::pro::v4::details::signed_fn_ptr<fp, disc>
-#define PRO4D_PAC_VPTR_MEMBER(meta)                                            \
-  ::pro::v4::details::signed_data_ptr<meta, void (*)(meta*)>
-#define PRO4D_PAC_FN_CALL(f) (f).get()
+//   - On PAC targets they are signed with ARMv8.3 pointer authentication, with
+//     address diversity and type diversity (`Disc`, via `pac_type_disc`), the
+//     same way the arm64e ABI signs a real v-table's pointer (DA key) and its
+//     function entries (IA key) -- `code`/`data` mirrors that IA/DA split.
+//   - Elsewhere they are transparent, zero-overhead holders of a raw pointer
+//     (`constexpr`, trivially copyable, identical layout), so non-PAC dispatch
+//     metadata is unchanged.
+//
+// Because signing is not constant-evaluable, the PAC build cannot make its
+// metadata `constexpr` (the signed pointers re-sign on copy, so a proxy is no
+// longer bitwise-relocatable, and the out-of-line v-table is an `inline`
+// variable signed once at static-initialization time). `PRO4D_PAC_CONSTEXPR`
+// drops `constexpr` where signing makes it impossible; `proxy.h` uses it and
+// `#undef`s it after use.
+#if PRO4D_PAC
+#include <ptrauth.h>
 #define PRO4D_PAC_CONSTEXPR
 #else
-#define PRO4D_PAC_FN_MEMBER(fp, disc) fp
-#define PRO4D_PAC_VPTR_MEMBER(meta) const meta*
-#define PRO4D_PAC_FN_CALL(f) (f)
 #define PRO4D_PAC_CONSTEXPR constexpr
 #endif // PRO4D_PAC
 
-#if PRO4D_PAC
 namespace pro::inline v4::details {
 
+#if PRO4D_PAC
 // A non-zero 16-bit discriminator unique to the type `T` (type diversity). This
 // is what an arm64e v-table uses (`ptrauth_string_discriminator` of the mangled
 // function name); we cannot reach that builtin because it needs a string
@@ -117,54 +116,48 @@ consteval ptrauth_extra_data_t pac_type_disc() {
   return static_cast<ptrauth_extra_data_t>(hash % 65535u) + 1u;
 }
 
-// A function pointer signed like an arm64e virtual-function slot: IA key, with
-// address diversity (the storage address is blended into the discriminator) and
-// type diversity (`pac_type_disc<Disc>()`, where `Disc` is a function type
-// encoding the convention). The stored value uses a per-storage schema and is
-// re-signed on copy for the destination address. `value_` must only be reached
-// through `get()`, which re-signs it to the standard schema so it is callable.
+// PAC implementation of `code_ptr`: a function pointer signed like an arm64e
+// virtual-function slot (IA key) with address diversity (the storage address is
+// blended into the discriminator) and type diversity (`pac_type_disc<Disc>()`).
+// The stored value uses a per-storage schema and is re-signed on copy for the
+// destination address; it is reached only through `get()`, which re-signs it to
+// the standard schema so it is callable.
 //
-// The empty state is a *signed* null: a null pointer signed with the slot's own
-// schema, exactly as a real entry is. This keeps every hot path branchless --
-// copy/assignment and `get()` are each a single unconditional authenticate-and-
-// resign, with no null special-case. An empty slot round-trips through that same
-// resign (authenticating a slot-signed null succeeds and re-signs it for the
-// destination), so copying an empty meta neither branches nor traps. The only
-// place that distinguishes empty is `operator==(nullptr)` (hence `has_value()`),
-// which strips the signature and compares the raw pointer -- still branchless.
-// Storing a *raw* null instead would force the copy to branch to avoid
-// authenticating it; signing the null is what removes the branch.
-//
-// The default constructor must establish the signed null (it cannot be
-// `= default`): every slot must always hold an auth-able value, because copying
-// an empty proxy memberwise authenticate-and-resigns *all* of its slots, and the
-// non-sentinel slots of an empty proxy are initialized only here -- `reset()`
-// flips just the single `has_value` sentinel. A trivial default constructor
-// leaves the others as garbage and copying an empty proxy then traps (the
-// `invoker` raw-pointer analogy does not hold for a signed pointer).
+// The empty state is a *signed* null: a null signed with the slot's own schema,
+// exactly as a real entry is. This keeps every hot path branchless -- copy,
+// assignment, and `get()` are each a single unconditional authenticate-and-
+// resign with no null special-case, and an empty slot round-trips through that
+// same resign. The only place that distinguishes empty is `operator==(nullptr)`
+// (hence `has_value()`), which strips the signature and compares the raw pointer
+// -- still branchless. The default constructor must establish the signed null
+// (it cannot be `= default`): every slot must always hold an auth-able value,
+// because copying an empty proxy memberwise resigns *all* of its slots, and the
+// non-sentinel slots of an empty proxy are initialized only here (`reset()`
+// flips just the single `has_value` sentinel). A trivial default ctor would
+// leave the others as garbage and copying an empty proxy would trap.
 template <class FP, class Disc>
-class signed_fn_ptr {
+class code_ptr {
 public:
-  signed_fn_ptr() noexcept
+  code_ptr() noexcept
       : value_(ptrauth_sign_unauthenticated(
             static_cast<FP>(nullptr), ptrauth_key_function_pointer,
             schema(&value_))) {}
-  signed_fn_ptr(FP fp) noexcept
+  code_ptr(FP fp) noexcept
       : value_(ptrauth_auth_and_resign(
             fp, ptrauth_key_function_pointer,
             ptrauth_function_pointer_type_discriminator(FP),
             ptrauth_key_function_pointer, schema(&value_))) {}
-  signed_fn_ptr(const signed_fn_ptr& rhs) noexcept
+  code_ptr(const code_ptr& rhs) noexcept
       : value_(ptrauth_auth_and_resign(
             rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
             ptrauth_key_function_pointer, schema(&value_))) {}
-  signed_fn_ptr& operator=(const signed_fn_ptr& rhs) noexcept {
+  code_ptr& operator=(const code_ptr& rhs) noexcept {
     value_ = ptrauth_auth_and_resign(
         rhs.value_, ptrauth_key_function_pointer, schema(&rhs.value_),
         ptrauth_key_function_pointer, schema(&value_));
     return *this;
   }
-  signed_fn_ptr& operator=(std::nullptr_t) noexcept {
+  code_ptr& operator=(std::nullptr_t) noexcept {
     value_ = ptrauth_sign_unauthenticated(
         static_cast<FP>(nullptr), ptrauth_key_function_pointer, schema(&value_));
     return *this;
@@ -175,7 +168,7 @@ public:
         ptrauth_key_function_pointer,
         ptrauth_function_pointer_type_discriminator(FP));
   }
-  friend bool operator==(const signed_fn_ptr& self, std::nullptr_t) noexcept {
+  friend bool operator==(const code_ptr& self, std::nullptr_t) noexcept {
     return ptrauth_strip(self.value_, ptrauth_key_function_pointer) == nullptr;
   }
 
@@ -186,35 +179,32 @@ private:
   FP value_;
 };
 
-// A data pointer signed like an arm64e v-table pointer: DA key, address
-// diversity, and type diversity (a constant derived from `Disc`). Used for the
-// v-table pointer in the out-of-line `meta_storage`. The empty state is a signed
-// null exactly as in `signed_fn_ptr` (and the default constructor likewise signs
-// it, for the same reason), so copy/assignment and dereference are each a single
-// unconditional sign/authenticate with no null branch; an empty meta round-trips
-// through the resigning copy. `operator==` (and thus `meta_storage::has_value()`)
-// strips the signature to recognize the null, branchlessly.
+// PAC implementation of `data_ptr`: a pointer signed like an arm64e v-table
+// pointer (DA key) with address and type diversity. Used for the pointer to the
+// out-of-line metadata. Empty state and default ctor follow `code_ptr`'s reasons
+// exactly; `operator==` (hence `meta_storage::has_value()`) strips the signature
+// to recognize the null, branchlessly.
 template <class T, class Disc>
-class signed_data_ptr {
+class data_ptr {
 public:
-  signed_data_ptr() noexcept
+  data_ptr() noexcept
       : value_(ptrauth_sign_unauthenticated(
             static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
             schema(&value_))) {}
-  signed_data_ptr(const T* p) noexcept
+  data_ptr(const T* p) noexcept
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
-  signed_data_ptr(const signed_data_ptr& rhs) noexcept
+  data_ptr(const data_ptr& rhs) noexcept
       : value_(ptrauth_auth_and_resign(
             rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
             ptrauth_key_cxx_vtable_pointer, schema(&value_))) {}
-  signed_data_ptr& operator=(const signed_data_ptr& rhs) noexcept {
+  data_ptr& operator=(const data_ptr& rhs) noexcept {
     value_ = ptrauth_auth_and_resign(
         rhs.value_, ptrauth_key_cxx_vtable_pointer, schema(&rhs.value_),
         ptrauth_key_cxx_vtable_pointer, schema(&value_));
     return *this;
   }
-  signed_data_ptr& operator=(std::nullptr_t) noexcept {
+  data_ptr& operator=(std::nullptr_t) noexcept {
     value_ = ptrauth_sign_unauthenticated(
         static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
         schema(&value_));
@@ -224,8 +214,7 @@ public:
     return *ptrauth_auth_data(value_, ptrauth_key_cxx_vtable_pointer,
                               schema(&value_));
   }
-  friend bool operator==(const signed_data_ptr& self,
-                         std::nullptr_t) noexcept {
+  friend bool operator==(const data_ptr& self, std::nullptr_t) noexcept {
     return ptrauth_strip(self.value_, ptrauth_key_cxx_vtable_pointer) ==
            nullptr;
   }
@@ -237,7 +226,52 @@ private:
   const T* value_;
 };
 
-} // namespace pro::inline v4::details
+#else  // PRO4D_PAC
+
+// Non-PAC implementation: transparent, zero-overhead holders of a raw pointer.
+// `Disc` is part of the uniform signature but unused (no type diversity without
+// signing). These are `constexpr` and trivially copyable, so dispatch metadata
+// keeps its `constexpr` v-table and bitwise-relocatable proxies unchanged.
+template <class FP, class Disc>
+class code_ptr {
+public:
+  code_ptr() = default;
+  constexpr code_ptr(FP fp) noexcept : value_(fp) {}
+  constexpr FP get() const noexcept { return value_; }
+  constexpr code_ptr& operator=(std::nullptr_t) noexcept {
+    value_ = nullptr;
+    return *this;
+  }
+  friend constexpr bool operator==(const code_ptr& self,
+                                   std::nullptr_t) noexcept {
+    return self.value_ == nullptr;
+  }
+
+private:
+  FP value_;
+};
+
+template <class T, class Disc>
+class data_ptr {
+public:
+  data_ptr() = default;
+  constexpr data_ptr(const T* p) noexcept : value_(p) {}
+  constexpr const T& operator*() const noexcept { return *value_; }
+  constexpr data_ptr& operator=(std::nullptr_t) noexcept {
+    value_ = nullptr;
+    return *this;
+  }
+  friend constexpr bool operator==(const data_ptr& self,
+                                   std::nullptr_t) noexcept {
+    return self.value_ == nullptr;
+  }
+
+private:
+  const T* value_;
+};
+
 #endif // PRO4D_PAC
+
+} // namespace pro::inline v4::details
 
 #endif // MSFT_PROXY_V4_DETAIL_PAC_H_

@@ -51,10 +51,11 @@
 #define PROD_UNREACHABLE() std::abort()
 #endif // __cpp_lib_unreachable >= 202202L
 
-// Pointer authentication (PAC) support for `proxy`'s dispatch metadata: the
-// `PRO4D_PAC` detection, the member-selection macros, and the signed-pointer
-// wrapper types (`signed_fn_ptr` / `signed_data_ptr`) live in this header. The
-// `PRO4D_PAC_*` macros it defines are `#undef`-ed at the end of this file;
+// `proxy`'s dispatch-metadata pointer types -- `code_ptr` (function slot) and
+// `data_ptr` (pointer to out-of-line metadata) -- with a uniform API: signed
+// with pointer authentication on PAC targets, transparent zero-overhead holders
+// elsewhere. This header also owns the `PRO4D_PAC` detection. The
+// `PRO4D_PAC_CONSTEXPR` macro it defines is `#undef`-ed at the end of this file;
 // `PRO4D_PAC` itself is intentionally left defined for downstream code.
 #include "detail/pac.h"
 
@@ -379,15 +380,17 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
 
 template <class ProP, class D, class O>
 struct invoker;
-// On PAC, `f_` is a `signed_fn_ptr` (address + type diversity) reached via
-// `.get()`, the constructor cannot be `constexpr` (manual signing is a runtime
-// operation), and `pac_disc_t` is the function type that supplies type
-// diversity by encoding the operand, dispatch, and signature.
+// `f_` is a `code_ptr` (a function-pointer slot of the dispatch metadata, hard-
+// ened with pointer authentication on PAC targets and transparent elsewhere),
+// reached via `.get()`. `disc_t` is the function type supplying type diversity by
+// encoding the operand, dispatch, and signature (used on PAC, ignored elsewhere);
+// the constructor is `PRO4D_PAC_CONSTEXPR` because manual signing is not
+// `constexpr`.
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
     using fp_t = R (*)(ProP pq, Args...) ne;                                    \
-    using pac_disc_t = R (*)(D*, ProP pq, Args...) ne;                          \
+    using disc_t = R (*)(D*, ProP pq, Args...) ne;                              \
     invoker() = default;                                                       \
     template <class P>                                                         \
     PRO4D_PAC_CONSTEXPR explicit invoker(std::in_place_type_t<P>)               \
@@ -398,10 +401,10 @@ struct invoker;
                                                                                \
     template <class... ActualArgs>                                             \
     R operator()(ActualArgs&&... args) const {                                 \
-      return PRO4D_PAC_FN_CALL(f_)(std::forward<ActualArgs>(args)...);          \
+      return f_.get()(std::forward<ActualArgs>(args)...);                       \
     }                                                                          \
                                                                                \
-    PRO4D_PAC_FN_MEMBER(fp_t, pac_disc_t) f_;                                   \
+    code_ptr<fp_t, disc_t> f_;                                                  \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
@@ -726,7 +729,7 @@ struct meta_storage {
   }
 
 private:
-  PRO4D_PAC_VPTR_MEMBER(composite_meta<Ms...>) ptr_;
+  data_ptr<composite_meta<Ms...>, void (*)(composite_meta<Ms...>*)> ptr_;
 #if PRO4D_PAC
   // Manual signing is not constant-evaluable, so the v-table cannot be a
   // constexpr object. Make it an `inline` variable signed once during static
@@ -1004,7 +1007,7 @@ public:
   // address-diversified, so this defaulted copy is non-trivial -- it re-signs
   // each pointer for the destination address -- but it stays correct for the
   // empty state because the signed pointers' copy is total (it carries the null
-  // pointer through unchanged). See `signed_fn_ptr` / `signed_data_ptr`.
+  // pointer through unchanged). See `code_ptr` / `data_ptr`.
   proxy(const proxy&) noexcept
     requires(F::copyability == constraint_level::trivial)
   = default;
@@ -2810,9 +2813,6 @@ struct formatter<T, CharT>
 
 #undef PROD_UNREACHABLE
 #undef PROD_NO_UNIQUE_ADDRESS_ATTRIBUTE
-#undef PRO4D_PAC_FN_MEMBER
-#undef PRO4D_PAC_VPTR_MEMBER
-#undef PRO4D_PAC_FN_CALL
 #undef PRO4D_PAC_CONSTEXPR
 // Note: `PRO4D_PAC` itself is intentionally left defined so that downstream
 // code (e.g. tests) can branch on whether pointer authentication is active.

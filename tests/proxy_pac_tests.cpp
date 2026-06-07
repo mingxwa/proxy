@@ -189,8 +189,8 @@ TEST(ProxyPacTests, MoveResignsAndDispatches) {
 // copyable facade the proxy's copy is the defaulted, memberwise one -- it copies
 // the metadata with no has_value() guard -- so an empty proxy copies its null
 // metadata straight through the signed pointers, whose copy is total. Covers
-// both inline metadata (signed_fn_ptr) and out-of-line metadata
-// (signed_data_ptr), and the empty<->non-empty swap that moves a null around.
+// both inline metadata (code_ptr) and out-of-line metadata (data_ptr), and the
+// empty<->non-empty swap that moves a null around.
 TEST(ProxyPacTests, EmptyProxyAndViewCopyAndSwap) {
   // Inline metadata, trivially-copyable owning proxy.
   pro::proxy<InlineMetaFacade> p;
@@ -241,8 +241,8 @@ TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
   // same function. Address diversity is held fixed, so any byte difference is
   // due to type diversity. Each must also still authenticate and dispatch.
   using FP = int (*)(int);
-  using SignA = pro::v4::details::signed_fn_ptr<FP, int(int)>;
-  using SignB = pro::v4::details::signed_fn_ptr<FP, long(long)>;
+  using SignA = pro::v4::details::code_ptr<FP, int(int)>;
+  using SignB = pro::v4::details::code_ptr<FP, long(long)>;
   static_assert(sizeof(SignA) == sizeof(SignB));
   FP fn = +[](int x) { return x + 1; };
   alignas(SignA) unsigned char buf[sizeof(SignA)];
@@ -273,14 +273,14 @@ TEST(ProxyPacTests, TypeDiscriminatorValuesAreStable) {
   EXPECT_NE(pac_type_disc<int>(), pac_type_disc<long>());
 }
 
-// The out-of-line v-table pointer (`signed_data_ptr`) must be copyable while
-// null: an empty out-of-line `meta_storage` *is* exactly this one pointer, and
-// its own null is the empty state, so copying an empty meta must not
-// authenticate-and-resign a null (which would trap). Unlike the inline
-// convention pointers, there is no separate has_value() bit gating this copy.
-// A non-null pointer is still resigned for its new address and stays usable.
+// The out-of-line v-table pointer (`data_ptr`) must be copyable while null: an
+// empty out-of-line `meta_storage` *is* exactly this one pointer, and its own
+// null is the empty state, so copying an empty meta must not authenticate-and-
+// resign a null (which would trap). Unlike the inline convention pointers, there
+// is no separate has_value() bit gating this copy. A non-null pointer is still
+// resigned for its new address and stays usable.
 TEST(ProxyPacTests, SignedDataPtrCopiesNullAndResigns) {
-  using SDP = pro::v4::details::signed_data_ptr<int, void (*)(int*)>;
+  using SDP = pro::v4::details::data_ptr<int, void (*)(int*)>;
 
   // Null source: default-construct, copy-construct, and copy-assign must not
   // trap, and the result stays a (raw) null.
