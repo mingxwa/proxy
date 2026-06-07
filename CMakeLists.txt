@@ -24,20 +24,18 @@ if(PROJECT_IS_TOP_LEVEL)
   )
 endif()
 
+# Discover the public headers instead of listing each one (Bazel globs them too).
+# CONFIGURE_DEPENDS re-globs on build so new headers are picked up automatically.
+file(GLOB_RECURSE msft_proxy4_headers CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/*.ixx"
+)
 target_sources(msft_proxy4
   INTERFACE
     FILE_SET public_headers
-    TYPE HEADERS 
+    TYPE HEADERS
     BASE_DIRS include
-    FILES
-      include/proxy/proxy.h
-      include/proxy/proxy_macros.h
-      include/proxy/proxy_fmt.h
-      include/proxy/v4/proxy.ixx
-      include/proxy/v4/proxy.h
-      include/proxy/v4/proxy_macros.h
-      include/proxy/v4/proxy_fmt.h
-      include/proxy/v4/detail/pac.h
+    FILES ${msft_proxy4_headers}
 )
 
 target_compile_features(msft_proxy4 INTERFACE cxx_std_20)
