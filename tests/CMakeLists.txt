@@ -3,14 +3,16 @@ project(msft_proxy_tests)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.tar.gz
-  URL_HASH SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
+  URL_HASH
+    SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE) # Disable GMock
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
-add_executable(msft_proxy_tests
+add_executable(
+  msft_proxy_tests
   proxy_creation_tests.cpp
   proxy_details_tests.cpp
   proxy_dispatch_tests.cpp
@@ -27,15 +29,34 @@ add_executable(msft_proxy_tests
   proxy_view_tests.cpp
 )
 target_include_directories(msft_proxy_tests PRIVATE .)
-target_link_libraries(msft_proxy_tests PRIVATE msft_proxy4::proxy gtest_main fmt::fmt)
+target_link_libraries(
+  msft_proxy_tests
+  PRIVATE msft_proxy4::proxy gtest_main fmt::fmt
+)
 target_compile_options(msft_proxy_tests PRIVATE ${PROXY_STRICT_WARNING_FLAGS})
 gtest_discover_tests(msft_proxy_tests)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  add_executable(msft_proxy_freestanding_tests freestanding/proxy_freestanding_tests.cpp)
-  target_compile_options(msft_proxy_freestanding_tests PRIVATE -ffreestanding -fno-exceptions -fno-rtti ${PROXY_STRICT_WARNING_FLAGS})
+if(
+  CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+  OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+)
+  add_executable(
+    msft_proxy_freestanding_tests
+    freestanding/proxy_freestanding_tests.cpp
+  )
+  target_compile_options(
+    msft_proxy_freestanding_tests
+    PRIVATE
+      -ffreestanding
+      -fno-exceptions
+      -fno-rtti
+      ${PROXY_STRICT_WARNING_FLAGS}
+  )
   target_link_options(msft_proxy_freestanding_tests PRIVATE -nodefaultlibs -lc)
-  target_link_libraries(msft_proxy_freestanding_tests PRIVATE msft_proxy4::proxy)
+  target_link_libraries(
+    msft_proxy_freestanding_tests
+    PRIVATE msft_proxy4::proxy
+  )
   add_test(NAME ProxyFreestandingTests COMMAND msft_proxy_freestanding_tests)
 endif()
 

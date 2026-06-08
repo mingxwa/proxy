@@ -7,9 +7,29 @@ on:
 
 jobs:
   build:
-    uses: ./.github/workflows/mkdocs.yml
-    with:
-      upload-artifacts: true
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Fetch all history for .GitInfo and .Lastmod
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r mkdocs/requirements.txt
+
+      - name: Build site
+        run: mkdocs build --strict
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./site
 
   deploy:
     needs: build

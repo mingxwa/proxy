@@ -11,29 +11,36 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+_EXAMPLE_PATTERN = re.compile(
+    r"(?P<prefix>## Example\r?\n\r?\n```cpp\r?\n)"
+    r"(?P<code>.*?)"
+    r"(?P<suffix>\r?\n```)",
+    re.DOTALL,
+)
 
-def try_extract_example_code(md_path: Path) -> Optional[str]:
-    """Return the generated C++ source for *md_path*, or None if it has no example."""
-    example_pattern = re.compile(
-        r"## Example\r?\n\r?\n```cpp\r?\n(.*?)\r?\n```", re.DOTALL
-    )
-    with open(md_path, "r", encoding="utf-8") as f:
-        content = f.read()
 
-    blocks: list[str] = re.findall(example_pattern, content)
-    if len(blocks) == 0:
-        return None
-    if len(blocks) > 1:
-        raise ValueError(f"'{md_path}' has more than one '## Example' C++ block.")
+def try_extract_example_code(content: str) -> Optional["re.Match[str]"]:
+    """Return the sole ## Example cpp block match in *content*, or None.
 
-    code = blocks[0]
-    return f"// This file was auto-generated from:\n// {md_path}\n\n{code}"
+    Raises ValueError if more than one such block exists.
+    """
+    matches = list(_EXAMPLE_PATTERN.finditer(content))
+    if len(matches) > 1:
+        raise ValueError("more than one '## Example' C++ block")
+    return matches[0] if matches else None
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} INPUT.md OUTPUT.cpp", file=sys.stderr)
         sys.exit(1)
-    code = try_extract_example_code(Path(sys.argv[1]))
-    if code is not None:
+    md_path = Path(sys.argv[1])
+    try:
+        m = try_extract_example_code(md_path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise ValueError(f"'{md_path}': {e}") from None
+    if m is not None:
+        code = (
+            f"// This file was auto-generated from:\n// {md_path}\n\n{m.group('code')}"
+        )
         Path(sys.argv[2]).write_text(code, encoding="utf-8")

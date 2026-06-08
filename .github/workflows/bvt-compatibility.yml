@@ -34,10 +34,11 @@ jobs:
     - name: Install clang
       if: ${{ matrix.compiler.family == 'clang' }}
       run: |
-        if [ '${{ matrix.compiler.version }}' -ge 21 ]; then
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- '${{ matrix.compiler.version }}'
+        version='${{ matrix.compiler.version }}'
+        if [ "$version" -ge 21 ]; then
+          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$version"
         fi
-        sudo apt install -y 'clang-${{ matrix.compiler.version }}' 'clang-tools-${{ matrix.compiler.version }}' 'libc++-${{ matrix.compiler.version }}-dev' 'libc++abi-${{ matrix.compiler.version }}-dev'
+        sudo apt install -y "clang-$version" "clang-tools-$version" "libc++-$version-dev" "libc++abi-$version-dev"
         cat <<'EOF' >> "$GITHUB_ENV"
         CC=clang-${{ matrix.compiler.version }}
         CXX=clang++-${{ matrix.compiler.version }}
