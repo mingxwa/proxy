@@ -2,9 +2,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-env:
-  LLVM_VERSION: 23
-
 jobs:
   bvt-apple-pac:
     runs-on: macos-26
@@ -14,28 +11,18 @@ jobs:
     - name: Install meson
       run: pipx install meson
 
-    - name: Install clang ${{ env.LLVM_VERSION }}
-      run: |
-        brew install "llvm@$LLVM_VERSION"
-        LLVM_PREFIX="$(brew --prefix "llvm@$LLVM_VERSION")"
-        {
-          echo "CC=$LLVM_PREFIX/bin/clang"
-          echo "CXX=$LLVM_PREFIX/bin/clang++"
-        } >> "$GITHUB_ENV"
-
     - name: Check toolchain versions
       run: |
-        "$CXX" --version
+        cc --version
         xcodebuild -version
         cmake --version
         ninja --version
         meson --version
 
     # The default runner architecture is arm64, which has no pointer
-    # authentication. Build as arm64e -- the ABI where v-tables are signed -- with
-    # an upstream clang to exercise proxy's signed dispatch metadata (address +
-    # type diversity). proxy_pac_tests static_asserts that PAC is enabled, so this
-    # also verifies the `__PTRAUTH__`-based detection lights up on upstream clang.
+    # authentication. Build as arm64e -- the ABI where v-tables are signed -- to
+    # exercise proxy's signed dispatch metadata (address + type diversity).
+    # proxy_pac_tests static_asserts that PAC is enabled.
     - name: Build and run tests as arm64e (pointer authentication)
       run: |
         cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
@@ -49,7 +36,7 @@ jobs:
         cmake -B build-bench -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
         cmake --build build-bench -j --target msft_proxy_benchmarks
         mkdir build-bench/drop
-        bash ./tools/dump_build_env.sh "$CXX" build-bench/drop/env-info.json
+        bash ./tools/dump_build_env.sh c++ build-bench/drop/env-info.json
 
     - name: Run benchmarks
       run: build-bench/benchmarks/msft_proxy_benchmarks --benchmark_min_warmup_time=0.1 --benchmark_min_time=0.1s --benchmark_repetitions=30 --benchmark_enable_random_interleaving=true --benchmark_report_aggregates_only=true --benchmark_format=json > build-bench/drop/benchmarking-results.json
