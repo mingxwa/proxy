@@ -61,26 +61,25 @@ PRO_DEF_MEM_DISPATCH(MemDiff, Diff);
 // `invoker` that fits in the small buffer and is therefore embedded *inline* in
 // the proxy. This exercises `__ptrauth` on `invoker::f_`.
 struct InlineMetaFacade
-    : pro::facade_builder                                       //
-      ::add_convention<MemGetA, int() const>                    //
-      ::support_copy<pro::constraint_level::trivial>            //
-      ::support_relocation<pro::constraint_level::trivial>      //
-      ::support_destruction<pro::constraint_level::trivial>     //
-      ::restrict_layout<sizeof(void*)>                          //
-      ::add_skill<pro::skills::as_view>                         //
+    : pro::facade_builder                                   //
+      ::add_convention<MemGetA, int() const>                //
+      ::support_copy<pro::constraint_level::trivial>        //
+      ::support_relocation<pro::constraint_level::trivial>  //
+      ::support_destruction<pro::constraint_level::trivial> //
+      ::restrict_layout<sizeof(void*)>                      //
+      ::add_skill<pro::skills::as_view>                     //
       ::build {};
 
 // Many conventions: the metadata no longer fits inline, so it lives in a static
 // v-table referenced through a signed pointer. This exercises `__ptrauth` on
 // `meta_storage::ptr_`.
-struct PointerMetaFacade
-    : pro::facade_builder                    //
-      ::add_convention<MemGetA, int() const> //
-      ::add_convention<MemGetB, int() const> //
-      ::add_convention<MemSum, int() const>  //
-      ::add_convention<MemDiff, int() const> //
-      ::add_skill<pro::skills::as_view>      //
-      ::build {};
+struct PointerMetaFacade : pro::facade_builder                    //
+                           ::add_convention<MemGetA, int() const> //
+                           ::add_convention<MemGetB, int() const> //
+                           ::add_convention<MemSum, int() const>  //
+                           ::add_convention<MemDiff, int() const> //
+                           ::add_skill<pro::skills::as_view>      //
+                           ::build {};
 
 // Compile-time contract: with PAC the metadata is address-diversified, so a
 // proxy over trivially-copyable storage is nothrow- but not *trivially*-
@@ -127,7 +126,8 @@ namespace {
 
 using namespace proxy_pac_tests_details;
 
-// Inline metadata (`invoker::f_`) via an owning proxy whose v-table is embedded.
+// Inline metadata (`invoker::f_`) via an owning proxy whose v-table is
+// embedded.
 TEST(ProxyPacTests, InlineMetaProxyCopyResigns) {
   Widget w{3, 4};
   pro::proxy<InlineMetaFacade> p = &w;
@@ -141,7 +141,8 @@ TEST(ProxyPacTests, InlineMetaProxyCopyResigns) {
 // Inline metadata via a (trivially copyable) proxy view.
 TEST(ProxyPacTests, InlineMetaViewCopyResigns) {
   Widget w{5, 6};
-  pro::proxy_view<InlineMetaFacade> v = pro::make_proxy_view<InlineMetaFacade>(w);
+  pro::proxy_view<InlineMetaFacade> v =
+      pro::make_proxy_view<InlineMetaFacade>(w);
   pro::proxy_view<InlineMetaFacade> v2 = v;
   EXPECT_EQ(v->GetA(), 5);
   EXPECT_EQ(v2->GetA(), 5);
@@ -186,11 +187,11 @@ TEST(ProxyPacTests, MoveResignsAndDispatches) {
 }
 
 // Copying or swapping an EMPTY proxy/view must not trap. For a trivially-
-// copyable facade the proxy's copy is the defaulted, memberwise one -- it copies
-// the metadata with no has_value() guard -- so an empty proxy copies its null
-// metadata straight through the signed pointers, whose copy is total. Covers
-// both inline metadata (code_ptr) and out-of-line metadata (data_ptr), and the
-// empty<->non-empty swap that moves a null around.
+// copyable facade the proxy's copy is the defaulted, memberwise one -- it
+// copies the metadata with no has_value() guard -- so an empty proxy copies its
+// null metadata straight through the signed pointers, whose copy is total.
+// Covers both inline metadata (code_ptr) and out-of-line metadata (data_ptr),
+// and the empty<->non-empty swap that moves a null around.
 TEST(ProxyPacTests, EmptyProxyAndViewCopyAndSwap) {
   // Inline metadata, trivially-copyable owning proxy.
   pro::proxy<InlineMetaFacade> p;
@@ -225,24 +226,19 @@ TEST(ProxyPacTests, EmptyProxyAndViewCopyAndSwap) {
 // Type diversity: signing the same function at the *same* storage address with
 // two different convention discriminators must yield different signatures. This
 // is the property -- on top of address diversity -- that makes proxy's signed
-// metadata match an arm64e v-table, which signs each slot with the hash of the
-// mangled function name. proxy derives the discriminator from a function type
-// that encodes the convention; here two distinct function types stand in for
-// two conventions, signed at one fixed address to isolate type diversity from
-// address diversity.
+// metadata match an arm64e v-table, which signs each slot with the
+// discriminator of its type. proxy derives that discriminator from a function
+// type encoding the convention's dispatch tag (by value); here two dispatch
+// tags stand in for two conventions, signed at one fixed address to isolate
+// type diversity from address diversity.
 TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
-  // The per-convention discriminator differs for two different convention
-  // types.
-  EXPECT_NE(pro::v4::details::pac_type_disc<int(int)>(),
-            pro::v4::details::pac_type_disc<long(long)>());
-
   // Construct two signed function pointers that differ ONLY in their convention
   // type, at the SAME storage address (one buffer, reused), and dispatch the
   // same function. Address diversity is held fixed, so any byte difference is
   // due to type diversity. Each must also still authenticate and dispatch.
   using FP = int (*)(int);
-  using SignA = pro::v4::details::code_ptr<FP, int(int)>;
-  using SignB = pro::v4::details::code_ptr<FP, long(long)>;
+  using SignA = pro::v4::details::code_ptr<FP, void (*)(MemGetA)>;
+  using SignB = pro::v4::details::code_ptr<FP, void (*)(MemGetB)>;
   static_assert(sizeof(SignA) == sizeof(SignB));
   FP fn = +[](int x) { return x + 1; };
   alignas(SignA) unsigned char buf[sizeof(SignA)];
@@ -261,24 +257,24 @@ TEST(ProxyPacTests, TypeDiversityDistinguishesConventions) {
   EXPECT_NE(bytes_a, bytes_b);
 }
 
-// ABI stability: the type discriminator derivation (extract `T`'s spelling from
-// __PRETTY_FUNCTION__, FNV-1a hash it, map into [1, 65535]) is part of how
-// metadata is signed, so its output must not change silently. Pin the exact
-// values for a couple of well-known types -- a change to the parsing, the hash,
-// or the range mapping will fail here. (These run only where PAC is active.)
-TEST(ProxyPacTests, TypeDiscriminatorValuesAreStable) {
-  using pro::v4::details::pac_type_disc;
-  EXPECT_EQ(pac_type_disc<int>(), 7885u);
-  EXPECT_EQ(pac_type_disc<long>(), 28572u);
-  EXPECT_NE(pac_type_disc<int>(), pac_type_disc<long>());
+// The discriminator is `ptrauth_type_discriminator` of a function type that
+// carries the dispatch tag `D` *by value*. That placement is load-bearing: the
+// builtin canonicalizes every pointer parameter to a single token, so encoding
+// `D` as `D*` would give every dispatch the same discriminator. Guard the
+// property the metadata relies on -- two conventions differing only in `D` stay
+// distinct, and the discriminator is non-zero. (Runs only where PAC is active.)
+TEST(ProxyPacTests, TypeDiscriminatorDiversifiesByDispatchTag) {
+  EXPECT_NE(ptrauth_type_discriminator(void (*)(int&, MemGetA)),
+            ptrauth_type_discriminator(void (*)(int&, MemGetB)));
+  EXPECT_NE(ptrauth_type_discriminator(void (*)(int&, MemGetA)), 0u);
 }
 
 // The out-of-line v-table pointer (`data_ptr`) must be copyable while null: an
 // empty out-of-line `meta_storage` *is* exactly this one pointer, and its own
 // null is the empty state, so copying an empty meta must not authenticate-and-
-// resign a null (which would trap). Unlike the inline convention pointers, there
-// is no separate has_value() bit gating this copy. A non-null pointer is still
-// resigned for its new address and stays usable.
+// resign a null (which would trap). Unlike the inline convention pointers,
+// there is no separate has_value() bit gating this copy. A non-null pointer is
+// still resigned for its new address and stays usable.
 TEST(ProxyPacTests, SignedDataPtrCopiesNullAndResigns) {
   using SDP = pro::v4::details::data_ptr<int, void (*)(int*)>;
 

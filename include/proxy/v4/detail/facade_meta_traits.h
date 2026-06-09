@@ -20,10 +20,12 @@
 //     ships only `pac-ret`, which does not change the C++ ABI), so the metadata
 //     is plain `constexpr`, trivially copyable, and lives in `.rodata`.
 //
-// `PRO4D_PAC` selects between them; it is enabled exactly when the toolchain
-// signs code pointers in the ABI (Clang's `ptrauth_calls`) and exposes the
-// `__ptrauth` qualifier (`ptrauth_qualifier`), and may be predefined to `0`/`1`
-// to override. It is left defined for downstream code (e.g. tests).
+// `PRO4D_PAC` selects between them; it is enabled whenever the toolchain
+// exposes the pointer-authentication intrinsics (the `<ptrauth.h>` interface,
+// signaled by the predefined `__PTRAUTH__` macro -- the portable spelling
+// across Apple and upstream Clang; tested with `#ifdef`, as the ABI does not
+// promise a value), and may be predefined to `0`/`1` to override. It is left
+// defined for downstream code (e.g. tests).
 //
 // NOTE: this header is not standalone -- proxy.h `#include`s it (at namespace
 // scope, closing/reopening its namespaces) after defining `specialization_of`
@@ -36,14 +38,11 @@
 #include "../proxy_macros.h"
 
 #ifndef PRO4D_PAC
-#if defined(__has_feature)
-#if __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
+#ifdef __PTRAUTH__
 #define PRO4D_PAC 1
-#endif // __has_feature(ptrauth_qualifier) && __has_feature(ptrauth_calls)
-#endif // defined(__has_feature)
-#ifndef PRO4D_PAC
+#else
 #define PRO4D_PAC 0
-#endif // PRO4D_PAC
+#endif // __PTRAUTH__
 #endif // PRO4D_PAC
 
 #if PRO4D_PAC
@@ -59,8 +58,8 @@ using ptr_prototype = void* [2];
 // `composite_meta` non-trivially-copyable, because every copy must
 // authenticate-and-resign the pointer for its new storage address. Such a meta
 // is still safe to embed inline as long as it can be relocated cheaply and
-// without throwing, which is the property the small-meta optimization relies on.
-// This concept is unused (and therefore false) on non-PAC builds.
+// without throwing, which is the property the small-meta optimization relies
+// on. This concept is unused (and therefore false) on non-PAC builds.
 template <class M>
 concept pac_relocatable_meta =
     std::is_nothrow_copy_constructible_v<M> &&
@@ -83,64 +82,19 @@ struct invoker;
 
 #if PRO4D_PAC
 
-// A non-zero 16-bit discriminator unique to the type `T` (type diversity). This
-// is what an arm64e v-table uses (`ptrauth_string_discriminator` of the mangled
-// function name); we cannot reach that builtin because it needs a string
-// *literal*, and `ptrauth_type_discriminator` is useless here -- the default
-// arm64e ABI disables function-pointer type discrimination, so it returns the
-// same constant for every function type. Instead FNV-hash the spelling of `T`
-// (extracted from __PRETTY_FUNCTION__, the way magic_enum/nameof derive type
-// identity); the result feeds the runtime ptrauth intrinsics, which (unlike the
-// `__ptrauth` qualifier) accept a value-dependent discriminator. A missing
-// marker is a hard error (a `throw` in this `consteval` body) rather than a
-// silent diversity loss; exact values are pinned by proxy_pac_tests.cpp.
-template <class T>
-consteval ptrauth_extra_data_t pac_type_disc() {
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic" // __PRETTY_FUNCTION__
-#endif
-  const char* const sig = __PRETTY_FUNCTION__;
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-  const char* begin = sig;
-  const char* end = sig;
-  for (const char* p = sig; *p != '\0'; ++p) {
-    if (p[0] == '=' && p[1] == ' ') {
-      begin = p + 2; // start of "<type>" (last "= ")
-    }
-    if (*p == ']') {
-      end = p; // last ']' closes "[T = <type>]"
-    }
-  }
-  if (begin >= end) {
-    throw "pac_type_disc: could not extract the type name from "
-          "__PRETTY_FUNCTION__; the compiler's format is unexpected";
-  }
-  unsigned long long hash = 14695981039346656037ull; // FNV-1a, 64-bit
-  for (const char* p = begin; p < end; ++p) {
-    hash = (hash ^ static_cast<unsigned char>(*p)) * 1099511628211ull;
-  }
-  // Map into [1, 65535]: a 16-bit discriminator of 0 means "no discriminator"
-  // (no type diversity) in the ptrauth ABI, so it must be non-zero -- the same
-  // range and mapping `ptrauth_string_discriminator` itself uses.
-  return static_cast<ptrauth_extra_data_t>(hash % 65535u) + 1u;
-}
-
 // Internal helper: a function pointer signed like an arm64e virtual-function
 // slot (IA key, address + type diversity). The empty state is a *signed* null,
 // so copy/get are a single unconditional authenticate-and-resign with no null
 // branch; an empty slot round-trips through it. The default ctor must establish
-// the signed null (not `= default`): copying an empty proxy resigns *all* slots,
-// and the non-sentinel ones are initialized only here.
+// the signed null (not `= default`): copying an empty proxy resigns *all*
+// slots, and the non-sentinel ones are initialized only here.
 template <class FP, class Disc>
 class code_ptr {
 public:
   code_ptr() noexcept
-      : value_(ptrauth_sign_unauthenticated(
-            static_cast<FP>(nullptr), ptrauth_key_function_pointer,
-            schema(&value_))) {}
+      : value_(ptrauth_sign_unauthenticated(static_cast<FP>(nullptr),
+                                            ptrauth_key_function_pointer,
+                                            schema(&value_))) {}
   code_ptr(FP fp) noexcept
       : value_(ptrauth_auth_and_resign(
             fp, ptrauth_key_function_pointer,
@@ -157,8 +111,9 @@ public:
     return *this;
   }
   code_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = ptrauth_sign_unauthenticated(
-        static_cast<FP>(nullptr), ptrauth_key_function_pointer, schema(&value_));
+    value_ = ptrauth_sign_unauthenticated(static_cast<FP>(nullptr),
+                                          ptrauth_key_function_pointer,
+                                          schema(&value_));
     return *this;
   }
   FP get() const noexcept {
@@ -173,7 +128,7 @@ public:
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
-    return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
+    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
   }
   FP value_;
 };
@@ -184,9 +139,9 @@ template <class T, class Disc>
 class data_ptr {
 public:
   data_ptr() noexcept
-      : value_(ptrauth_sign_unauthenticated(
-            static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
-            schema(&value_))) {}
+      : value_(ptrauth_sign_unauthenticated(static_cast<const T*>(nullptr),
+                                            ptrauth_key_cxx_vtable_pointer,
+                                            schema(&value_))) {}
   data_ptr(const T* p) noexcept
       : value_(ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
                                             schema(&value_))) {}
@@ -201,9 +156,9 @@ public:
     return *this;
   }
   data_ptr& operator=(std::nullptr_t) noexcept {
-    value_ = ptrauth_sign_unauthenticated(
-        static_cast<const T*>(nullptr), ptrauth_key_cxx_vtable_pointer,
-        schema(&value_));
+    value_ = ptrauth_sign_unauthenticated(static_cast<const T*>(nullptr),
+                                          ptrauth_key_cxx_vtable_pointer,
+                                          schema(&value_));
     return *this;
   }
   const T& operator*() const noexcept {
@@ -217,20 +172,24 @@ public:
 
 private:
   static ptrauth_extra_data_t schema(const void* addr) noexcept {
-    return ptrauth_blend_discriminator(addr, pac_type_disc<Disc>());
+    return ptrauth_blend_discriminator(addr, ptrauth_type_discriminator(Disc));
   }
   const T* value_;
 };
 
 // `f_` holds the dispatched function in a signed `code_ptr` (reached via
-// `.get()`); `disc_t` is the function type supplying type diversity by encoding
-// the operand, dispatch, and signature. Signing is not constant-evaluable, so
-// the constructor is not `constexpr`.
+// `.get()`). `disc_t` is a function type whose `ptrauth_type_discriminator`
+// supplies the type-diversity discriminator; it encodes the dispatch `D`, the
+// proxy type/qualifier, and the call signature. `D` is passed *by value* (not
+// as `D*`) on purpose: `ptrauth_type_discriminator` canonicalizes every pointer
+// parameter to a single token, so a `D*` would collapse all dispatches to the
+// same discriminator and silently lose type diversity. Signing is not constant-
+// evaluable, so the constructor is not `constexpr`.
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
-    using fp_t = R (*)(ProP pq, Args...) ne;                                    \
-    using disc_t = R (*)(D*, ProP pq, Args...) ne;                              \
+    using fp_t = R (*)(ProP pq, Args...) ne;                                   \
+    using disc_t = R (*)(ProP pq, D, Args...) ne;                              \
     invoker() = default;                                                       \
     template <class P>                                                         \
     explicit invoker(std::in_place_type_t<P>)                                  \
@@ -240,9 +199,9 @@ private:
           }) {}                                                                \
     template <class... ActualArgs>                                             \
     R operator()(ActualArgs&&... args) const {                                 \
-      return f_.get()(std::forward<ActualArgs>(args)...);                       \
+      return f_.get()(std::forward<ActualArgs>(args)...);                      \
     }                                                                          \
-    code_ptr<fp_t, disc_t> f_;                                                  \
+    code_ptr<fp_t, disc_t> f_;                                                 \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
@@ -268,7 +227,11 @@ struct meta_storage {
   }
 
 private:
-  data_ptr<composite_meta<Ms...>, void (*)(composite_meta<Ms...>*)> ptr_;
+  // The out-of-line v-table pointer. Its type-diversity discriminator is
+  // `ptrauth_type_discriminator(void(*)(Ms...))`, encoding the v-table's exact
+  // composition with each member meta `Ms` by value (a `composite_meta<Ms...>*`
+  // would collapse, as in `invoker`).
+  data_ptr<composite_meta<Ms...>, void (*)(Ms...)> ptr_;
   // Manual signing is not constant-evaluable, so the v-table cannot be a
   // constexpr object. Make it an `inline` variable signed once during static
   // initialization rather than a function-local static: the latter is a Meyers
@@ -295,11 +258,12 @@ struct meta_storage<M1, Ms...> : private composite_meta<M1, Ms...> {
 #else // PRO4D_PAC
 
 // `f_` holds the dispatched function as a plain pointer; everything is
-// `constexpr` and trivially copyable, so the metadata is a compile-time constant.
+// `constexpr` and trivially copyable, so the metadata is a compile-time
+// constant.
 #define PROD_DEF_INVOKER(oq, pq, ne, ...)                                      \
   template <class ProP, class D, class R, class... Args>                       \
   struct invoker<ProP, D, R(Args...) oq ne> {                                  \
-    using fp_t = R (*)(ProP pq, Args...) ne;                                    \
+    using fp_t = R (*)(ProP pq, Args...) ne;                                   \
     invoker() = default;                                                       \
     template <class P>                                                         \
     constexpr explicit invoker(std::in_place_type_t<P>)                        \
@@ -311,7 +275,7 @@ struct meta_storage<M1, Ms...> : private composite_meta<M1, Ms...> {
     R operator()(ActualArgs&&... args) const {                                 \
       return f_(std::forward<ActualArgs>(args)...);                            \
     }                                                                          \
-    fp_t f_;                                                                    \
+    fp_t f_;                                                                   \
   }
 PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PROD_DEF_INVOKER)
 #undef PROD_DEF_INVOKER
