@@ -20,7 +20,7 @@
 #include <mdspan>
 #endif // __cpp_lib_mdspan >= 202207L
 
-namespace proxy_dispatch_tests_details {
+namespace proxy_dispatch_tests_detail {
 
 struct CommaTester {
 public:
@@ -48,9 +48,9 @@ struct TestFacadeBase : pro::facade_builder //
 
 PRO_DEF_FREE_AS_MEM_DISPATCH(FreeMemToString, std::to_string, ToString);
 
-} // namespace proxy_dispatch_tests_details
+} // namespace proxy_dispatch_tests_detail
 
-namespace details = proxy_dispatch_tests_details;
+namespace detail = proxy_dispatch_tests_detail;
 
 TEST(ProxyDispatchTests, TestOpPlus) {
   struct TestFacade
@@ -391,7 +391,7 @@ TEST(ProxyDispatchTests, TestOpComma) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<",">,
                                             int(int val)>::build {};
-  details::CommaTester v{3};
+  detail::CommaTester v{3};
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ((*p, 6), 9);
 }
@@ -768,7 +768,7 @@ TEST(ProxyDispatchTests, TestRhsOpComma) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<",", true>,
                                             int(int val)>::build {};
-  details::CommaTester v{3};
+  detail::CommaTester v{3};
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ((7, *p), 21);
 }
@@ -777,7 +777,7 @@ TEST(ProxyDispatchTests, TestRhsOpPtrToMem) {
   struct TestFacade
       : pro::facade_builder::add_convention<pro::operator_dispatch<"->*", true>,
                                             int(int val)>::build {};
-  details::PtrToMemTester v{3};
+  detail::PtrToMemTester v{3};
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(2->**p, 6);
 }
@@ -796,15 +796,15 @@ TEST(ProxyDispatchTests, TestIndirectConversion) {
 TEST(ProxyDispatchTests, TestDirectConversion) {
   struct TestFacade
       : pro::facade_builder                                           //
-        ::add_facade<details::TestFacadeBase>                         //
+        ::add_facade<detail::TestFacadeBase>                          //
         ::add_convention<pro::operator_dispatch<"+=">, void(int val)> //
         ::add_direct_convention<pro::conversion_dispatch,
-                                pro::proxy<details::TestFacadeBase>() &&> //
+                                pro::proxy<detail::TestFacadeBase>() &&> //
         ::build {};
   pro::proxy<TestFacade> p1 = std::make_unique<int>(123);
   *p1 += 3;
-  pro::proxy<details::TestFacadeBase> p2 =
-      static_cast<pro::proxy<details::TestFacadeBase>>(std::move(p1));
+  pro::proxy<detail::TestFacadeBase> p2 =
+      static_cast<pro::proxy<detail::TestFacadeBase>>(std::move(p1));
   ASSERT_FALSE(p1.has_value());
   std::ostringstream stream;
   stream << *p2;
@@ -824,7 +824,7 @@ TEST(ProxyDispatchTests, TestImplciitConversion) {
 
 TEST(ProxyDispatchTests, TestFreeAsMemDispatch) {
   struct TestFacade
-      : pro::facade_builder::add_convention<details::FreeMemToString,
+      : pro::facade_builder::add_convention<detail::FreeMemToString,
                                             std::string() const>::build {};
   int v = 123;
   pro::proxy<TestFacade> p = &v;

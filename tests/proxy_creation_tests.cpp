@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <proxy/proxy.h>
 
-namespace proxy_creation_tests_details {
+namespace proxy_creation_tests_detail {
 
 enum LifetimeModelType {
   kNone,
@@ -21,30 +21,30 @@ enum LifetimeModelType {
 struct LifetimeModelReflector {
   template <class T>
   constexpr explicit LifetimeModelReflector(
-      std::in_place_type_t<pro::details::inplace_ptr<T>>)
+      std::in_place_type_t<pro::detail::inplace_ptr<T>>)
       : Type(LifetimeModelType::kInplace) {}
   template <class T, class Alloc>
   constexpr explicit LifetimeModelReflector(
-      std::in_place_type_t<pro::details::allocated_ptr<T, Alloc>>)
+      std::in_place_type_t<pro::detail::allocated_ptr<T, Alloc>>)
       : Type(LifetimeModelType::kAllocated) {}
   template <class T, class Alloc>
   constexpr explicit LifetimeModelReflector(
-      std::in_place_type_t<pro::details::compact_ptr<T, Alloc>>)
+      std::in_place_type_t<pro::detail::compact_ptr<T, Alloc>>)
       : Type(LifetimeModelType::kCompact) {
-    static_assert(sizeof(pro::details::compact_ptr<T, Alloc>) == sizeof(void*));
+    static_assert(sizeof(pro::detail::compact_ptr<T, Alloc>) == sizeof(void*));
   }
   template <class T, class Alloc>
   constexpr explicit LifetimeModelReflector(
-      std::in_place_type_t<pro::details::shared_compact_ptr<T, Alloc>>)
+      std::in_place_type_t<pro::detail::shared_compact_ptr<T, Alloc>>)
       : Type(LifetimeModelType::kSharedCompact) {
-    static_assert(sizeof(pro::details::shared_compact_ptr<T, Alloc>) ==
+    static_assert(sizeof(pro::detail::shared_compact_ptr<T, Alloc>) ==
                   sizeof(void*));
   }
   template <class T, class Alloc>
   constexpr explicit LifetimeModelReflector(
-      std::in_place_type_t<pro::details::strong_compact_ptr<T, Alloc>>)
+      std::in_place_type_t<pro::detail::strong_compact_ptr<T, Alloc>>)
       : Type(LifetimeModelType::kStrongCompact) {
-    static_assert(sizeof(pro::details::strong_compact_ptr<T, Alloc>) ==
+    static_assert(sizeof(pro::detail::strong_compact_ptr<T, Alloc>) ==
                   sizeof(void*));
   }
   template <class T>
@@ -176,9 +176,9 @@ struct TestWeakSharedStringable
 static_assert(pro::proxiable<int*, TestSharedStringable>);
 static_assert(!pro::proxiable<int*, TestWeakSharedStringable>);
 
-} // namespace proxy_creation_tests_details
+} // namespace proxy_creation_tests_detail
 
-namespace details = proxy_creation_tests_details;
+namespace detail = proxy_creation_tests_detail;
 
 TEST(ProxyCreationTests, TestMakeProxyInplace_FromValue) {
   utils::LifetimeTracker tracker;
@@ -187,10 +187,10 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::make_proxy_inplace<details::TestLargeStringable>(session);
+    auto p = pro::make_proxy_inplace<detail::TestLargeStringable>(session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -203,11 +203,11 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_inplace<details::TestLargeStringable,
+    auto p = pro::make_proxy_inplace<detail::TestLargeStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -220,12 +220,12 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_InPlaceInitializerList) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_inplace<details::TestLargeStringable,
+    auto p = pro::make_proxy_inplace<detail::TestLargeStringable,
                                      utils::LifetimeTracker::Session>({1, 2, 3},
                                                                       &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -239,17 +239,17 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_Lifetime_Copy) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     auto p1 =
-        pro::make_proxy_inplace<details::TestLargeStringable,
+        pro::make_proxy_inplace<detail::TestLargeStringable,
                                 utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -264,7 +264,7 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_Lifetime_Move) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     auto p1 =
-        pro::make_proxy_inplace<details::TestLargeStringable,
+        pro::make_proxy_inplace<detail::TestLargeStringable,
                                 utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -272,7 +272,7 @@ TEST(ProxyCreationTests, TestMakeProxyInplace_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kMoveConstruction);
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -289,11 +289,11 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::allocate_proxy<details::TestSmallStringable>(
+    auto p = pro::allocate_proxy<detail::TestSmallStringable>(
         std::allocator<void>{}, session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -306,12 +306,12 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::allocate_proxy<details::TestSmallStringable,
+    auto p = pro::allocate_proxy<detail::TestSmallStringable,
                                  utils::LifetimeTracker::Session>(
         std::allocator<void>{}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -325,12 +325,12 @@ TEST(ProxyCreationTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::allocate_proxy<details::TestSmallStringable,
+    auto p = pro::allocate_proxy<detail::TestSmallStringable,
                                  utils::LifetimeTracker::Session>(
         std::allocator<void>{}, {1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -343,7 +343,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_Lifetime_Copy) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::allocate_proxy<details::TestSmallStringable,
+    auto p1 = pro::allocate_proxy<detail::TestSmallStringable,
                                   utils::LifetimeTracker::Session>(
         std::allocator<void>{}, &tracker);
     expected_ops.emplace_back(1,
@@ -351,10 +351,10 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_Lifetime_Copy) {
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -368,7 +368,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_Lifetime_Move) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::allocate_proxy<details::TestSmallStringable,
+    auto p1 = pro::allocate_proxy<detail::TestSmallStringable,
                                   utils::LifetimeTracker::Session>(
         std::allocator<void>{}, &tracker);
     expected_ops.emplace_back(1,
@@ -377,7 +377,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_DirectAllocator_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -392,11 +392,11 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_FromValue) {
                             utils::LifetimeOperationType::kValueConstruction);
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy<details::TestSmallStringable>(
+    auto p = pro::allocate_proxy<detail::TestSmallStringable>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -410,12 +410,12 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_InPlace) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy<details::TestSmallStringable,
+    auto p = pro::allocate_proxy<detail::TestSmallStringable,
                                  utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -430,12 +430,12 @@ TEST(ProxyCreationTests,
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy<details::TestSmallStringable,
+    auto p = pro::allocate_proxy<detail::TestSmallStringable,
                                  utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, {1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -449,7 +449,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_Lifetime_Copy) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy<details::TestSmallStringable,
+    auto p1 = pro::allocate_proxy<detail::TestSmallStringable,
                                   utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -457,10 +457,10 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_Lifetime_Copy) {
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -475,7 +475,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_Lifetime_Move) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy<details::TestSmallStringable,
+    auto p1 = pro::allocate_proxy<detail::TestSmallStringable,
                                   utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -484,7 +484,7 @@ TEST(ProxyCreationTests, TestAllocateProxy_IndirectAllocator_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -498,10 +498,10 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::make_proxy<details::TestLargeStringable>(session);
+    auto p = pro::make_proxy<detail::TestLargeStringable>(session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -514,11 +514,11 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy<details::TestLargeStringable,
+    auto p = pro::make_proxy<detail::TestLargeStringable,
                              utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -532,11 +532,11 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_InPlaceInitializerList) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     auto p =
-        pro::make_proxy<details::TestLargeStringable,
+        pro::make_proxy<detail::TestLargeStringable,
                         utils::LifetimeTracker::Session>({1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -549,17 +549,17 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_Lifetime_Copy) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy<details::TestLargeStringable,
+    auto p1 = pro::make_proxy<detail::TestLargeStringable,
                               utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -573,7 +573,7 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_Lifetime_Move) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy<details::TestLargeStringable,
+    auto p1 = pro::make_proxy<detail::TestLargeStringable,
                               utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -581,7 +581,7 @@ TEST(ProxyCreationTests, TestMakeProxy_WithSBO_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kInplace);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kInplace);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kMoveConstruction);
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -598,10 +598,10 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::make_proxy<details::TestSmallStringable>(session);
+    auto p = pro::make_proxy<detail::TestSmallStringable>(session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -614,11 +614,11 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy<details::TestSmallStringable,
+    auto p = pro::make_proxy<detail::TestSmallStringable,
                              utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -632,11 +632,11 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_InPlaceInitializerList) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     auto p =
-        pro::make_proxy<details::TestSmallStringable,
+        pro::make_proxy<detail::TestSmallStringable,
                         utils::LifetimeTracker::Session>({1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -649,17 +649,17 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_Lifetime_Copy) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy<details::TestSmallStringable,
+    auto p1 = pro::make_proxy<detail::TestSmallStringable,
                               utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -673,7 +673,7 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_Lifetime_Move) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy<details::TestSmallStringable,
+    auto p1 = pro::make_proxy<detail::TestSmallStringable,
                               utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -681,7 +681,7 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kAllocated);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kAllocated);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -689,8 +689,8 @@ TEST(ProxyCreationTests, TestMakeProxy_WithoutSBO_Lifetime_Move) {
 }
 
 TEST(ProxyCreationTests, TestMakeProxy_SfinaeUnsafe) {
-  pro::proxy<details::SfinaeUnsafeFacade> p =
-      pro::make_proxy<details::SfinaeUnsafeFacade, int>();
+  pro::proxy<detail::SfinaeUnsafeFacade> p =
+      pro::make_proxy<detail::SfinaeUnsafeFacade, int>();
   Increment(*p);
   ASSERT_EQ(proxy_cast<int>(*p), 1);
 }
@@ -703,11 +703,11 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_FromValue) {
                             utils::LifetimeOperationType::kValueConstruction);
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestSharedStringable>(
+    auto p = pro::allocate_proxy_shared<detail::TestSharedStringable>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -721,12 +721,12 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_InPlace) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestSharedStringable,
+    auto p = pro::allocate_proxy_shared<detail::TestSharedStringable,
                                         utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -741,12 +741,12 @@ TEST(ProxyCreationTests,
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestSharedStringable,
+    auto p = pro::allocate_proxy_shared<detail::TestSharedStringable,
                                         utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, {1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -760,7 +760,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_Lifetime_Copy) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy_shared<details::TestSharedStringable,
+    auto p1 = pro::allocate_proxy_shared<detail::TestSharedStringable,
                                          utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -768,10 +768,10 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_Lifetime_Copy) {
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -783,7 +783,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_Lifetime_Move) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy_shared<details::TestSharedStringable,
+    auto p1 = pro::allocate_proxy_shared<detail::TestSharedStringable,
                                          utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -792,7 +792,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_SharedCompact_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -807,11 +807,11 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_FromValue) {
                             utils::LifetimeOperationType::kValueConstruction);
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestWeakSharedStringable>(
+    auto p = pro::allocate_proxy_shared<detail::TestWeakSharedStringable>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -825,12 +825,12 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_InPlace) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestWeakSharedStringable,
+    auto p = pro::allocate_proxy_shared<detail::TestWeakSharedStringable,
                                         utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -845,12 +845,12 @@ TEST(ProxyCreationTests,
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p = pro::allocate_proxy_shared<details::TestWeakSharedStringable,
+    auto p = pro::allocate_proxy_shared<detail::TestWeakSharedStringable,
                                         utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, {1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -864,7 +864,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_Lifetime_Copy) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::allocate_proxy_shared<detail::TestWeakSharedStringable,
                                          utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -872,10 +872,10 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_Lifetime_Copy) {
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -887,7 +887,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_Lifetime_Move) {
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::allocate_proxy_shared<detail::TestWeakSharedStringable,
                                          utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
@@ -896,7 +896,7 @@ TEST(ProxyCreationTests, TestAllocateProxyShared_StrongCompact_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -909,18 +909,18 @@ TEST(ProxyCreationTests,
   std::vector<utils::LifetimeOperation> expected_ops;
   {
     std::pmr::unsynchronized_pool_resource memory_pool;
-    auto p1 = pro::allocate_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::allocate_proxy_shared<detail::TestWeakSharedStringable,
                                          utils::LifetimeTracker::Session>(
         std::pmr::polymorphic_allocator<>{&memory_pool}, &tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::weak_proxy<details::TestWeakSharedStringable> p2 = p1;
+    pro::weak_proxy<detail::TestWeakSharedStringable> p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     auto p3 = p2.lock();
     ASSERT_TRUE(p3.has_value());
     ASSERT_EQ(ToString(*p3), "Session 1");
-    ASSERT_EQ(p3.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p3.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     p3.reset();
     p1.reset();
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -938,10 +938,10 @@ TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::make_proxy_shared<details::TestSharedStringable>(session);
+    auto p = pro::make_proxy_shared<detail::TestSharedStringable>(session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -954,11 +954,11 @@ TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_shared<details::TestSharedStringable,
+    auto p = pro::make_proxy_shared<detail::TestSharedStringable,
                                     utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -972,12 +972,12 @@ TEST(ProxyCreationTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_shared<details::TestSharedStringable,
+    auto p = pro::make_proxy_shared<detail::TestSharedStringable,
                                     utils::LifetimeTracker::Session>({1, 2, 3},
                                                                      &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -990,17 +990,17 @@ TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_Lifetime_Copy) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1011,7 +1011,7 @@ TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_Lifetime_Move) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1019,7 +1019,7 @@ TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kSharedCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kSharedCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1033,10 +1033,10 @@ TEST(ProxyCreationTests, TestMakeProxyShared_StrongCompact_FromValue) {
   expected_ops.emplace_back(1,
                             utils::LifetimeOperationType::kValueConstruction);
   {
-    auto p = pro::make_proxy_shared<details::TestWeakSharedStringable>(session);
+    auto p = pro::make_proxy_shared<detail::TestWeakSharedStringable>(session);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kCopyConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -1049,11 +1049,11 @@ TEST(ProxyCreationTests, TestMakeProxyShared_StrongCompact_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                     utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -1067,12 +1067,12 @@ TEST(ProxyCreationTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                     utils::LifetimeTracker::Session>({1, 2, 3},
                                                                      &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
-    ASSERT_EQ(p.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     expected_ops.emplace_back(
         1, utils::LifetimeOperationType::kInitializerListConstruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -1085,17 +1085,17 @@ TEST(ProxyCreationTests, TestMakeProxyShared_StrongCompact_Lifetime_Copy) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
     auto p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
-    ASSERT_EQ(p1.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p1.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1106,7 +1106,7 @@ TEST(ProxyCreationTests, TestMakeProxyShared_StrongCompact_Lifetime_Move) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1114,7 +1114,7 @@ TEST(ProxyCreationTests, TestMakeProxyShared_StrongCompact_Lifetime_Move) {
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 1");
-    ASSERT_EQ(p2.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p2.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
   }
   expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1126,17 +1126,17 @@ TEST(ProxyCreationTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::weak_proxy<details::TestWeakSharedStringable> p2 = p1;
+    pro::weak_proxy<detail::TestWeakSharedStringable> p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     auto p3 = p2.lock();
     ASSERT_TRUE(p3.has_value());
     ASSERT_EQ(ToString(*p3), "Session 1");
-    ASSERT_EQ(p3.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p3.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     p3.reset();
     p1.reset();
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1152,19 +1152,19 @@ TEST(ProxyCreationTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    auto p1 = pro::make_proxy_shared<details::TestWeakSharedStringable,
+    auto p1 = pro::make_proxy_shared<detail::TestWeakSharedStringable,
                                      utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::weak_proxy<details::TestWeakSharedStringable> p2 = p1;
-    pro::weak_proxy<details::TestSharedStringable> p3 = std::move(p2);
+    pro::weak_proxy<detail::TestWeakSharedStringable> p2 = p1;
+    pro::weak_proxy<detail::TestSharedStringable> p3 = std::move(p2);
     ASSERT_TRUE(p1.has_value());
     ASSERT_FALSE(p2.has_value());
     ASSERT_TRUE(p3.has_value());
     auto p4 = p3.lock();
     ASSERT_TRUE(p4.has_value());
     ASSERT_EQ(ToString(*p4), "Session 1");
-    ASSERT_EQ(p4.GetLifetimeType(), details::LifetimeModelType::kStrongCompact);
+    ASSERT_EQ(p4.GetLifetimeType(), detail::LifetimeModelType::kStrongCompact);
     p4.reset();
     p1.reset();
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
@@ -1179,11 +1179,11 @@ TEST(ProxyCreationTests, TestStdWeakPtrCompatibility) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestWeakSharedStringable> p1 =
+    pro::proxy<detail::TestWeakSharedStringable> p1 =
         std::make_shared<utils::LifetimeTracker::Session>(&tracker);
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::weak_proxy<details::TestWeakSharedStringable> p2 = p1;
+    pro::weak_proxy<detail::TestWeakSharedStringable> p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     auto p3 = p2.lock();

@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace proxy_traits_tests_details {
+namespace proxy_traits_tests_detail {
 
 template <bool kNothrowRelocatable, bool kCopyable, bool kTrivial,
           std::size_t kSize, std::size_t kAlignment>
@@ -42,19 +42,19 @@ using MockCopyableSmallPtr =
 using MockTrivialPtr = MockPtr<true, true, true, sizeof(void*), alignof(void*)>;
 using MockFunctionPtr = void (*)();
 
-} // namespace proxy_traits_tests_details
+} // namespace proxy_traits_tests_detail
 
 namespace pro {
 
 template <bool kNothrowRelocatable, bool kCopyable, bool kTrivial,
           std::size_t kSize, std::size_t kAlignment>
-struct is_bitwise_trivially_relocatable<proxy_traits_tests_details::MockPtr<
+struct is_bitwise_trivially_relocatable<proxy_traits_tests_detail::MockPtr<
     kNothrowRelocatable, kCopyable, kTrivial, kSize, kAlignment>>
     : std::true_type {};
 
 } // namespace pro
 
-namespace proxy_traits_tests_details {
+namespace proxy_traits_tests_detail {
 
 struct DefaultFacade : pro::facade_builder::build {};
 static_assert(
@@ -328,57 +328,57 @@ static_assert(!pro::facade<BadFacade_BadConstraints_UnexpectedType>);
 
 // Well-formed facade_impl specialization
 static_assert(
-    pro::facade<pro::details::facade_impl<
+    pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 8, 4, pro::constraint_level::none,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad size (max_size should be positive)
 static_assert(
-    !pro::facade<pro::details::facade_impl<
+    !pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 0, 4, pro::constraint_level::none,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad size (max_size should be a multiple of max_align)
 static_assert(
-    !pro::facade<pro::details::facade_impl<
+    !pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 10, 4, pro::constraint_level::none,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad alignment (max_align should be a power of 2)
 static_assert(
-    !pro::facade<pro::details::facade_impl<
+    !pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 6, 6, pro::constraint_level::none,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad copyability (less than constraint_level::none)
 static_assert(
-    !pro::facade<pro::details::facade_impl<
+    !pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 8, 4, (pro::constraint_level)-1,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad copyability (greater than constraint_level::trivial)
 static_assert(
-    !pro::facade<pro::details::facade_impl<
+    !pro::facade<pro::detail::facade_impl<
         std::tuple<>, std::tuple<>, 8, 4, (pro::constraint_level)100,
         pro::constraint_level::trivial, pro::constraint_level::nothrow>>);
 
 // Bad relocatability (less than constraint_level::none)
-static_assert(!pro::facade<pro::details::facade_impl<
+static_assert(!pro::facade<pro::detail::facade_impl<
                   std::tuple<>, std::tuple<>, 8, 4, pro::constraint_level::none,
                   (pro::constraint_level)-1, pro::constraint_level::nothrow>>);
 
 // Bad relocatability (greater than constraint_level::trivial)
-static_assert(!pro::facade<pro::details::facade_impl<
+static_assert(!pro::facade<pro::detail::facade_impl<
                   std::tuple<>, std::tuple<>, 8, 4, pro::constraint_level::none,
                   (pro::constraint_level)100, pro::constraint_level::nothrow>>);
 
 // Bad destructibility (less than constraint_level::none)
-static_assert(!pro::facade<pro::details::facade_impl<
+static_assert(!pro::facade<pro::detail::facade_impl<
                   std::tuple<>, std::tuple<>, 8, 4, pro::constraint_level::none,
                   pro::constraint_level::trivial, (pro::constraint_level)-1>>);
 
 // Bad destructibility (greater than constraint_level::trivial)
-static_assert(!pro::facade<pro::details::facade_impl<
+static_assert(!pro::facade<pro::detail::facade_impl<
                   std::tuple<>, std::tuple<>, 8, 4, pro::constraint_level::none,
                   pro::constraint_level::trivial, (pro::constraint_level)100>>);
 
@@ -501,4 +501,4 @@ static_assert(std::is_move_constructible_v<ProxyWrapperTemplate<void>>);
 // proxiable shall not reject a specialization of proxy.
 static_assert(pro::proxiable<pro::proxy_view<DefaultFacade>, DefaultFacade>);
 
-} // namespace proxy_traits_tests_details
+} // namespace proxy_traits_tests_detail

@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace proxy_integration_tests_details {
+namespace proxy_integration_tests_detail {
 
 PRO_DEF_MEM_DISPATCH(MemDraw, Draw);
 PRO_DEF_MEM_DISPATCH(MemArea, Area);
@@ -133,28 +133,28 @@ private:
   std::ostream* out_;
 };
 
-} // namespace proxy_integration_tests_details
+} // namespace proxy_integration_tests_detail
 
-namespace details = proxy_integration_tests_details;
+namespace detail = proxy_integration_tests_detail;
 
 TEST(ProxyIntegrationTests, TestDrawable) {
-  pro::proxy<details::Drawable> p =
-      details::MakeDrawableFromCommand("Rectangle 2 3");
-  std::string s = details::PrintDrawableToString(std::move(p));
+  pro::proxy<detail::Drawable> p =
+      detail::MakeDrawableFromCommand("Rectangle 2 3");
+  std::string s = detail::PrintDrawableToString(std::move(p));
   ASSERT_EQ(
       s,
       "shape = {Rectangle: width = 2.00000, height = 3.00000}, area = 6.00000");
 
-  p = details::MakeDrawableFromCommand("Circle 1");
-  s = details::PrintDrawableToString(std::move(p));
+  p = detail::MakeDrawableFromCommand("Circle 1");
+  s = detail::PrintDrawableToString(std::move(p));
   ASSERT_EQ(s, "shape = {Circle: radius = 1.00000}, area = 3.14159");
 
-  p = details::MakeDrawableFromCommand("Point");
-  s = details::PrintDrawableToString(std::move(p));
+  p = detail::MakeDrawableFromCommand("Point");
+  s = detail::PrintDrawableToString(std::move(p));
   ASSERT_EQ(s, "shape = {Point}, area = 0.00000");
 
   try {
-    p = details::MakeDrawableFromCommand("Triangle 2 3");
+    p = detail::MakeDrawableFromCommand("Triangle 2 3");
   } catch (const std::runtime_error& e) {
     ASSERT_STREQ(e.what(), "Invalid command");
   }
@@ -162,7 +162,7 @@ TEST(ProxyIntegrationTests, TestDrawable) {
 
 TEST(ProxyIntegrationTests, TestLogger) {
   std::ostringstream out;
-  auto logger = pro::make_proxy<details::Logger, details::StreamLogger>(out);
+  auto logger = pro::make_proxy<detail::Logger, detail::StreamLogger>(out);
   logger->Log("hello");
   try {
     throw std::runtime_error{"runtime error!"};

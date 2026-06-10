@@ -25,7 +25,7 @@
 #endif // defined(_MSC_VER) && !defined(__clang__)
 #include "utils.h"
 
-namespace proxy_invocation_tests_details {
+namespace proxy_invocation_tests_detail {
 
 template <class... Os>
 struct MovableCallable
@@ -165,9 +165,9 @@ PRO_DEF_FREE_DISPATCH(FreeDump, Dump);
 PRO_DEF_FREE_DISPATCH(FreeInvoke, std::invoke, Invoke);
 PRO_DEF_FREE_AS_MEM_DISPATCH(MemInvoke, std::invoke, Invoke);
 
-} // namespace proxy_invocation_tests_details
+} // namespace proxy_invocation_tests_detail
 
-namespace details = proxy_invocation_tests_details;
+namespace detail = proxy_invocation_tests_detail;
 
 TEST(ProxyInvocationTests, TestArgumentForwarding) {
   std::string arg1 = "My string";
@@ -181,7 +181,7 @@ TEST(ProxyInvocationTests, TestArgumentForwarding) {
     arg2_received = std::move(v);
     return expected_result;
   };
-  pro::proxy<details::Callable<int(std::string, std::vector<int>)>> p = &f;
+  pro::proxy<detail::Callable<int(std::string, std::vector<int>)>> p = &f;
   int result = (*p)(arg1, std::move(arg2));
   ASSERT_TRUE(p.has_value());
   ASSERT_EQ(arg1_received, arg1);
@@ -194,7 +194,7 @@ TEST(ProxyInvocationTests, TestThrow) {
   const char* expected_error_message = "My exception";
   auto f = [&] { throw std::runtime_error{expected_error_message}; };
   bool exception_thrown = false;
-  pro::proxy<details::Callable<void()>> p = &f;
+  pro::proxy<detail::Callable<void()>> p = &f;
   try {
     (*p)();
   } catch (const std::runtime_error& e) {
@@ -207,7 +207,7 @@ TEST(ProxyInvocationTests, TestThrow) {
 
 TEST(ProxyInvocationTests, TestMultipleDispatches_Unique) {
   std::list<int> l = {1, 2, 3};
-  pro::proxy<details::Iterable<int>> p = &l;
+  pro::proxy<detail::Iterable<int>> p = &l;
   ASSERT_EQ(Size(*p), std::size_t{3});
   int sum = 0;
   auto accumulate_sum = [&](int x) { sum += x; };
@@ -218,15 +218,15 @@ TEST(ProxyInvocationTests, TestMultipleDispatches_Unique) {
 TEST(ProxyInvocationTests, TestMultipleDispatches_Duplicated) {
   struct DuplicatedIterable
       : pro::facade_builder //
-        ::add_convention<details::FreeForEach,
-                         void(std::function<void(int&)>)>  //
-        ::add_convention<details::FreeSize, std::size_t()> //
-        ::add_convention<details::FreeForEach,
+        ::add_convention<detail::FreeForEach,
+                         void(std::function<void(int&)>)> //
+        ::add_convention<detail::FreeSize, std::size_t()> //
+        ::add_convention<detail::FreeForEach,
                          void(std::function<void(int&)>)> //
         ::build {};
   static_assert(
-      sizeof(pro::details::facade_traits<DuplicatedIterable>::meta) ==
-      sizeof(pro::details::facade_traits<details::Iterable<int>>::meta));
+      sizeof(pro::detail::facade_traits<DuplicatedIterable>::meta) ==
+      sizeof(pro::detail::facade_traits<detail::Iterable<int>>::meta));
   std::list<int> l = {1, 2, 3};
   pro::proxy<DuplicatedIterable> p = &l;
   ASSERT_EQ(Size(*p), std::size_t{3});
@@ -238,7 +238,7 @@ TEST(ProxyInvocationTests, TestMultipleDispatches_Duplicated) {
 
 TEST(ProxyInvocationTests, TestRecursiveDefinition) {
   std::list<int> l = {1, 2, 3};
-  pro::proxy<details::Container<int>> p = &l;
+  pro::proxy<detail::Container<int>> p = &l;
   ASSERT_EQ(Size(*p), std::size_t{3});
   int sum = 0;
   auto accumulate_sum = [&](int x) { sum += x; };
@@ -260,97 +260,96 @@ TEST(ProxyInvocationTests, TestOverloadResolution_Member) {
         ::build {};
   std::vector<std::type_index> side_effect;
   auto p = pro::make_proxy<OverloadedCallable>([&](auto&&... args) {
-    side_effect = details::GetTypeIndices<std::decay_t<decltype(args)>...>();
+    side_effect = detail::GetTypeIndices<std::decay_t<decltype(args)>...>();
   });
   (*p)(123);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<int>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<int>());
   (*p)(1.23);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<double>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<double>());
   char foo[2];
   (*p)(foo);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<char*>());
   (*p)("lalala");
-  ASSERT_EQ(side_effect, details::GetTypeIndices<const char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<const char*>());
   (*p)("lalala", 0);
-  ASSERT_EQ(side_effect, (details::GetTypeIndices<std::string, int>()));
+  ASSERT_EQ(side_effect, (detail::GetTypeIndices<std::string, int>()));
   ASSERT_FALSE((std::is_invocable_v<decltype(*p), std::vector<int>>));
 }
 
 TEST(ProxyInvocationTests, TestOverloadResolution_Free) {
   struct OverloadedCallable
       : pro::facade_builder //
-        ::add_convention<details::FreeInvoke, void(int), void(double),
+        ::add_convention<detail::FreeInvoke, void(int), void(double),
                          void(const char*), void(char*),
                          void(std::string, int)> //
         ::build {};
   std::vector<std::type_index> side_effect;
   auto p = pro::make_proxy<OverloadedCallable>([&](auto&&... args) {
-    side_effect = details::GetTypeIndices<std::decay_t<decltype(args)>...>();
+    side_effect = detail::GetTypeIndices<std::decay_t<decltype(args)>...>();
   });
   Invoke(*p, 123);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<int>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<int>());
   Invoke(*p, 1.23);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<double>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<double>());
   char foo[2];
   Invoke(*p, foo);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<char*>());
   Invoke(*p, "lalala");
-  ASSERT_EQ(side_effect, details::GetTypeIndices<const char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<const char*>());
   Invoke(*p, "lalala", 0);
-  ASSERT_EQ(side_effect, (details::GetTypeIndices<std::string, int>()));
+  ASSERT_EQ(side_effect, (detail::GetTypeIndices<std::string, int>()));
 }
 
 TEST(ProxyInvocationTests, TestOverloadResolution_FreeAsMem) {
   struct OverloadedInvocable
       : pro::facade_builder //
-        ::add_convention<details::MemInvoke, void(int), void(double),
+        ::add_convention<detail::MemInvoke, void(int), void(double),
                          void(const char*), void(char*),
                          void(std::string, int)> //
         ::build {};
   std::vector<std::type_index> side_effect;
   auto p = pro::make_proxy<OverloadedInvocable>([&](auto&&... args) {
-    side_effect = details::GetTypeIndices<std::decay_t<decltype(args)>...>();
+    side_effect = detail::GetTypeIndices<std::decay_t<decltype(args)>...>();
   });
   p->Invoke(123);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<int>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<int>());
   p->Invoke(1.23);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<double>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<double>());
   char foo[2];
   p->Invoke(foo);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<char*>());
   p->Invoke("lalala");
-  ASSERT_EQ(side_effect, details::GetTypeIndices<const char*>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<const char*>());
   p->Invoke("lalala", 0);
-  ASSERT_EQ(side_effect, (details::GetTypeIndices<std::string, int>()));
+  ASSERT_EQ(side_effect, (detail::GetTypeIndices<std::string, int>()));
 }
 
 TEST(ProxyInvocationTests, TestNoexcept) {
   std::vector<std::type_index> side_effect;
-  auto p = pro::make_proxy<details::Callable<void(int) noexcept, void(double)>>(
+  auto p = pro::make_proxy<detail::Callable<void(int) noexcept, void(double)>>(
       [&](auto&&... args) noexcept {
-        side_effect =
-            details::GetTypeIndices<std::decay_t<decltype(args)>...>();
+        side_effect = detail::GetTypeIndices<std::decay_t<decltype(args)>...>();
       });
   static_assert(noexcept((*p)(123)));
   (*p)(123);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<int>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<int>());
   static_assert(!noexcept((*p)(1.23)));
   (*p)(1.23);
-  ASSERT_EQ(side_effect, details::GetTypeIndices<double>());
+  ASSERT_EQ(side_effect, detail::GetTypeIndices<double>());
   ASSERT_FALSE((std::is_invocable_v<decltype(*p), char*>));
 }
 
 TEST(ProxyInvocationTests, TestFunctionPointer) {
-  struct TestFacade : details::Callable<std::vector<std::type_index>()> {};
-  pro::proxy<TestFacade> p{&details::GetTypeIndices<int, double>};
+  struct TestFacade : detail::Callable<std::vector<std::type_index>()> {};
+  pro::proxy<TestFacade> p{&detail::GetTypeIndices<int, double>};
   auto ret = (*p)();
-  ASSERT_EQ(ret, (details::GetTypeIndices<int, double>()));
+  ASSERT_EQ(ret, (detail::GetTypeIndices<int, double>()));
 }
 
 TEST(ProxyInvocationTests, TestMemberDispatchDefault) {
   std::vector<std::string> container1{"hello", "world", "!"};
   std::list<std::string> container2{"hello", "world"};
-  pro::proxy<details::ResourceDictionary> p = &container1;
+  pro::proxy<detail::ResourceDictionary> p = &container1;
   ASSERT_EQ(p->at(0), "hello");
   p = &container2;
   {
@@ -367,14 +366,14 @@ TEST(ProxyInvocationTests, TestMemberDispatchDefault) {
 TEST(ProxyInvocationTests, TestFreeDispatchDefault) {
   {
     int side_effect = 0;
-    auto p = pro::make_proxy<details::WeakCallable<void()>>(
-        [&] { side_effect = 1; });
+    auto p =
+        pro::make_proxy<detail::WeakCallable<void()>>([&] { side_effect = 1; });
     (*p)();
     ASSERT_EQ(side_effect, 1);
   }
   {
     bool exception_thrown = false;
-    auto p = pro::make_proxy<details::WeakCallable<void()>>(123);
+    auto p = pro::make_proxy<detail::WeakCallable<void()>>(123);
     try {
       (*p)();
     } catch (const pro::not_implemented&) {
@@ -386,7 +385,7 @@ TEST(ProxyInvocationTests, TestFreeDispatchDefault) {
 
 TEST(ProxyInvocationTests, TestObserverDispatch) {
   int test_val = 123;
-  pro::proxy<details::SharedStringable> p{std::make_shared<int>(test_val)};
+  pro::proxy<detail::SharedStringable> p{std::make_shared<int>(test_val)};
   auto weak = GetWeak(p);
   ASSERT_TRUE(weak.has_value());
   {
@@ -428,7 +427,7 @@ TEST(ProxyInvocationTests, TestQualifiedConvention_Member) {
 TEST(ProxyInvocationTests, TestQualifiedConvention_Free) {
   struct TestFacade
       : pro::facade_builder //
-        ::add_convention<details::FreeDump, std::string() &,
+        ::add_convention<detail::FreeDump, std::string() &,
                          std::string() const&, std::string() && noexcept,
                          std::string() const&&> //
         ::build {};

@@ -15,7 +15,7 @@ cc_test(
     name = "proxy_tests",
     srcs = [
         "proxy_creation_tests.cpp",
-        "proxy_details_tests.cpp",
+        "proxy_detail_tests.cpp",
         "proxy_dispatch_tests.cpp",
         "proxy_fmt_format_no_wchar_tests.cpp",
         "proxy_fmt_format_tests.cpp",

@@ -6,7 +6,7 @@
 #include <proxy/proxy.h>
 
 #ifdef PRO4D_HAS_FORMAT
-namespace proxy_format_tests_details {
+namespace proxy_format_tests_detail {
 
 struct NonFormattable : pro::facade_builder::build {};
 
@@ -28,15 +28,15 @@ static_assert(
     std::is_default_constructible_v<
         std::formatter<pro::proxy_indirect_accessor<Formattable>, wchar_t>>);
 
-} // namespace proxy_format_tests_details
+} // namespace proxy_format_tests_detail
 
-namespace details = proxy_format_tests_details;
+namespace detail = proxy_format_tests_detail;
 #endif // PRO4D_HAS_FORMAT
 
 TEST(ProxyFormatTests, TestFormat) {
 #ifdef PRO4D_HAS_FORMAT
   int v = 123;
-  pro::proxy<details::Formattable> p = &v;
+  pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(std::format("{}", *p), "123");
   ASSERT_EQ(std::format("{:*<6}", *p), "123***");
 #else
@@ -47,7 +47,7 @@ TEST(ProxyFormatTests, TestFormat) {
 TEST(ProxyFormatTests, TestWformat) {
 #ifdef PRO4D_HAS_FORMAT
   int v = 123;
-  pro::proxy<details::Formattable> p = &v;
+  pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(std::format(L"{}", *p), L"123");
   ASSERT_EQ(std::format(L"{:*<6}", *p), L"123***");
 #else
