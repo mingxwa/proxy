@@ -6,6 +6,7 @@
 #define MSFT_PROXY_V4_DETAIL_SKILLS_H_
 
 #include <memory>
+#include <version>
 
 #if __STDC_HOSTED__
 // LLVM libc++ 17 has usable <format> despite lacking __cpp_lib_format until 19.
