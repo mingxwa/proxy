@@ -51,10 +51,10 @@ jobs:
       - name: Bump dependencies
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python3 tools/bump_dependencies.py --summary-file "$RUNNER_TEMP/summary.md"
-          echo "SUMMARY=$RUNNER_TEMP/summary.md" >> "$GITHUB_ENV"
-          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+        # The script prints each change (and ::warning:: annotations) to stdout; tee shows
+        # that on the run's job summary while keeping it on stdout so the runner still
+        # picks up the annotations.
+        run: python3 tools/bump_dependencies.py | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run pre-commit hooks
         # Hooks auto-fix formatting (gersemi, buildifier, ruff, eof-fixer, ...); the
@@ -74,18 +74,15 @@ jobs:
           fi
 
           git checkout -B "$BRANCH"
-          git commit -F - <<EOF
-          chore(deps): weekly dependency bump
-
-          $(cat "$SUMMARY")
-          EOF
+          git commit -m "chore(deps): weekly dependency bump"
           git push --force origin "$BRANCH"
 
           title="chore(deps): weekly dependency bump"
+          body="Automated weekly dependency bump. See the run's job summary for the list of updates and the file diff for details."
           if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
-            gh pr edit "$BRANCH" --title "$title" --body-file "$SUMMARY"
+            gh pr edit "$BRANCH" --title "$title" --body "$body"
             echo "Updated existing pull request for $BRANCH."
           else
-            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$SUMMARY"
+            gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
             echo "Opened a new pull request for $BRANCH."
           fi

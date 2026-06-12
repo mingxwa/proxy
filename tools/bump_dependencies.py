@@ -4,9 +4,9 @@
 """Bump every in-scope dependency of the proxy repo to its latest version.
 
 This is the engine behind the weekly ``pipeline-bump-dependencies.yml`` workflow. It
-updates each dependency family in place and prints (and optionally writes) a Markdown
-summary of what changed. It never touches git; the workflow decides whether anything
-changed and opens the pull request.
+updates each dependency family in place, printing each change to stdout (``- name: old →
+new``) as it goes. It never touches git; the workflow decides whether anything changed
+and opens the pull request.
 
 Domains handled (each can be turned off with ``--skip``):
 
@@ -20,8 +20,7 @@ Domains handled (each can be turned off with ``--skip``):
   bazelversion  .bazelversion (latest bazelbuild/bazel release)
 
 Run from the repository root:
-  python3 tools/bump_dependencies.py [--dry-run] [--skip meson,bazel] \
-      [--summary-file dep-bump-summary.md]
+  python3 tools/bump_dependencies.py [--skip meson,bazel]
 
 When a bazel-side declaration changes, the script also refreshes MODULE.bazel.lock with
 `bazel mod graph --lockfile_mode=update` (registry metadata only -- no source downloads,
@@ -59,16 +58,6 @@ _ALL_DOMAINS = (
     "proxy_deps",
     "bazelversion",
 )
-
-
-@dataclass(frozen=True)
-class Change:
-    """A single old -> new version bump, used to build the summary."""
-
-    domain: str  # one of _ALL_DOMAINS; groups the summary
-    name: str  # human-readable dependency name
-    old: str
-    new: str
 
 
 def _log(msg: str) -> None:
@@ -214,17 +203,16 @@ def _pypi_latest(package: str) -> str | None:
 
 @dataclass
 class Updater:
-    dry_run: bool
     skip: set[str]
-    changes: list[Change] = field(default_factory=list)
+    # Domains that produced a change -- the only state we carry past a single bump, used
+    # to decide whether MODULE.bazel.lock needs refreshing.
+    changed_domains: set[str] = field(default_factory=set)
 
     def _record(self, domain: str, name: str, old: str, new: str) -> None:
-        self.changes.append(Change(domain, name, old, new))
-        _log(f"  - {name}: {old} -> {new}")
+        self.changed_domains.add(domain)
+        print(f"- {name}: {old} → {new}", flush=True)  # the change log -> stdout
 
     def _write(self, path: Path, content: str) -> None:
-        if self.dry_run:
-            return
         path.write_text(content, encoding="utf-8")
 
     def _sha256_of_url(self, url: str) -> str | None:
@@ -386,11 +374,6 @@ class Updater:
         for wrap in wraps:
             name = wrap.stem
             before = _wrap_version(wrap)
-            if self.dry_run:
-                _log(
-                    f"  - {name}: would run `meson wrap update {name}` (current {before})"
-                )
-                continue
             result = subprocess.run(
                 ["meson", "wrap", "update", name],
                 cwd=_REPO_ROOT,
@@ -514,14 +497,9 @@ class Updater:
         # Bumping any bazel-side declaration (MODULE.bazel / proxy_deps.bzl /
         # .bazelversion) invalidates MODULE.bazel.lock. Refresh it from registry metadata
         # only -- no source downloads and no build; the PR's CI does the actual build.
-        if not any(
-            c.domain in {"bazel", "proxy_deps", "bazelversion"} for c in self.changes
-        ):
+        if not self.changed_domains & {"bazel", "proxy_deps", "bazelversion"}:
             return
         _log("Refreshing MODULE.bazel.lock ...")
-        if self.dry_run:
-            _log("  - would run `bazel mod graph --lockfile_mode=update`")
-            return
         if shutil.which("bazel") is None:
             _warn("bazel not found on PATH; MODULE.bazel.lock not refreshed")
             return
@@ -536,37 +514,6 @@ class Updater:
             _warn(
                 f"`bazel mod graph` failed; MODULE.bazel.lock may be stale: {result.stderr.strip()}"
             )
-
-    def summary(self) -> str:
-        titles = {
-            "actions": "GitHub Actions",
-            "precommit": "Pre-commit hooks",
-            "mkdocs": "mkdocs (PyPI)",
-            "cpp": "C++ libraries (CMake / Meson / Bazel)",
-            "meson": "Meson wraps",
-            "bazel": "Bazel modules",
-            "proxy_deps": "Bazel WORKSPACE shim (proxy_deps.bzl)",
-            "bazelversion": "Bazel version",
-        }
-        lines = ["## Dependency bump summary", ""]
-        if not self.changes:
-            lines.append("No dependency updates were available.")
-            return "\n".join(lines) + "\n"
-        for domain in _ALL_DOMAINS:
-            seen: set[tuple[str, str, str]] = set()
-            group: list[Change] = []
-            for c in self.changes:
-                key = (c.name, c.old, c.new)
-                if c.domain == domain and key not in seen:
-                    seen.add(key)
-                    group.append(c)
-            if not group:
-                continue
-            lines.append(f"### {titles[domain]}")
-            for c in group:
-                lines.append(f"- `{c.name}`: {c.old} → {c.new}")
-            lines.append("")
-        return "\n".join(lines).rstrip() + "\n"
 
 
 def _format_pin(old_ref: str, latest: tuple[int, int, int]) -> str | None:
@@ -625,19 +572,9 @@ def _bcr_latest_version(module: str) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="compute and report bumps without modifying any files",
-    )
-    parser.add_argument(
         "--skip",
         default="",
         help=f"comma-separated domains to skip (any of: {', '.join(_ALL_DOMAINS)})",
-    )
-    parser.add_argument(
-        "--summary-file",
-        type=Path,
-        help="also write the Markdown summary to this path",
     )
     args = parser.parse_args()
 
@@ -646,13 +583,7 @@ def main() -> int:
     if unknown:
         parser.error(f"unknown --skip domains: {', '.join(sorted(unknown))}")
 
-    updater = Updater(dry_run=args.dry_run, skip=skip)
-    updater.run()
-
-    summary = updater.summary()
-    print(summary)
-    if args.summary_file is not None:
-        args.summary_file.write_text(summary, encoding="utf-8")
+    Updater(skip=skip).run()
     return 0
 
 
