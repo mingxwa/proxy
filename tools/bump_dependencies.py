@@ -27,6 +27,10 @@ When a bazel-side declaration changes, the script also refreshes MODULE.bazel.lo
 `bazel mod graph --lockfile_mode=update` (registry metadata only -- no source downloads,
 no build); the PR's CI performs the actual build.
 
+Actionable warnings (a dependency left unbumped, a step skipped) are emitted as GitHub
+Actions ``::warning::`` workflow commands, so they surface as annotations on the run and
+the PR instead of only in the log (and are inert plain text anywhere else).
+
 Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHub API
 rate limit (the workflow passes the built-in token automatically).
 """
@@ -69,6 +73,19 @@ class Change:
 
 def _log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
+
+
+def _warn(msg: str) -> None:
+    """Log an actionable warning and emit a GitHub Actions ``::warning::`` command.
+
+    On GitHub Actions this renders as an annotation at the top of the run and on the PR
+    (so a skipped/failed dependency isn't buried in the log); anywhere else it's just
+    inert text, so it's emitted unconditionally. Reserved for cases worth a human's
+    attention (a dependency left unbumped, a step skipped), not benign retries.
+    """
+    _log(f"  ! {msg}")
+    # Workflow command: must be its own stdout line and single-line to be parsed.
+    print(f"::warning::{msg.replace(chr(10), ' ')}", flush=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -347,9 +364,7 @@ class Updater:
             new_url = f"https://github.com/{repo}/archive/refs/tags/{tag}.tar.gz"
             new_sha = self._sha256_of_url(new_url)
             if new_sha is None:
-                _log(
-                    f"  ! could not download {new_url}; leaving {dep['name']} unchanged"
-                )
+                _warn(f"could not download {new_url}; leaving {dep['name']} unchanged")
                 continue
             self._record("cpp", dep["name"], old_version, new_version)
             dep["url"], dep["sha256"] = new_url, new_sha
@@ -366,7 +381,7 @@ class Updater:
         if not wraps:
             return
         if shutil.which("meson") is None:
-            _log("  ! meson not found on PATH; skipping wraps")
+            _warn("meson not found on PATH; skipping wraps")
             return
         for wrap in wraps:
             name = wrap.stem
@@ -383,8 +398,18 @@ class Updater:
                 text=True,
                 check=False,
             )
-            if result.returncode != 0:
-                _log(f"  ! `meson wrap update {name}` failed: {result.stderr.strip()}")
+            # `meson wrap update` exits 0 even when a wrap fails (e.g. a hand-maintained
+            # / non-wrapdb wrap whose version it can't determine), so inspect the output
+            # too -- otherwise an unmanaged wrap is skipped with no signal at all.
+            output = f"{result.stdout}\n{result.stderr}".lower()
+            if (
+                result.returncode != 0
+                or "command failed" in output
+                or "could not determine" in output
+            ):
+                _warn(
+                    f"could not update wrap '{name}' (not a managed wrapdb wrap?); left unchanged"
+                )
                 continue
             after = _wrap_version(wrap)
             if after != before:
@@ -434,7 +459,7 @@ class Updater:
             )
             new_sha = self._sha256_of_url(new_url)
             if new_sha is None:
-                _log(f"  ! could not download {new_url}; leaving {repo} unchanged")
+                _warn(f"could not download {new_url}; leaving {repo} unchanged")
                 continue
             # The http_archive's sha256 is the last one declared before its url block.
             old_sha: str | None = None
@@ -498,7 +523,7 @@ class Updater:
             _log("  - would run `bazel mod graph --lockfile_mode=update`")
             return
         if shutil.which("bazel") is None:
-            _log("  ! bazel not found on PATH; skipping lockfile refresh")
+            _warn("bazel not found on PATH; MODULE.bazel.lock not refreshed")
             return
         result = subprocess.run(
             ["bazel", "mod", "graph", "--lockfile_mode=update"],
@@ -508,7 +533,9 @@ class Updater:
             check=False,
         )
         if result.returncode != 0:
-            _log(f"  ! `bazel mod graph` failed: {result.stderr.strip()}")
+            _warn(
+                f"`bazel mod graph` failed; MODULE.bazel.lock may be stale: {result.stderr.strip()}"
+            )
 
     def summary(self) -> str:
         titles = {
