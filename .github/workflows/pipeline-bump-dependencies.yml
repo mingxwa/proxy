@@ -1,0 +1,91 @@
+name: Bump-Dependencies
+
+# Weekly automation that bumps every in-scope dependency (GitHub Actions, pre-commit
+# hooks, mkdocs packages, the CMake/Meson/Bazel C++ libraries, .bazelversion and the
+# Bazel lockfile) and opens a single pull request when anything changed. It never
+# pushes to a protected branch directly -- it only files a PR for review.
+#
+# Prerequisite: enable "Allow GitHub Actions to create and approve pull requests" under
+# Settings -> Actions -> General so the built-in GITHUB_TOKEN may open the PR.
+#
+# Note: a PR opened by GITHUB_TOKEN does not itself trigger the CI workflows (GitHub's
+# loop-prevention). Re-run CI by closing/reopening the PR, or wire in a PAT later if the
+# bump PR should validate automatically.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-dependencies
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: chore/bump-dependencies
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install tooling
+        run: |
+          python3 -m pip install --upgrade pip pre-commit meson
+          curl -fsSL -o /usr/local/bin/bazel \
+            https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
+          chmod +x /usr/local/bin/bazel
+
+      - name: Bump dependencies
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/bump_dependencies.py --summary-file "$RUNNER_TEMP/summary.md"
+          echo "SUMMARY=$RUNNER_TEMP/summary.md" >> "$GITHUB_ENV"
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run pre-commit hooks
+        # Hooks auto-fix formatting (gersemi, buildifier, ruff, eof-fixer, ...); the
+        # non-zero exit on fixes is expected, so we stage the result afterwards.
+        run: pre-commit run --all-files --color always || true
+
+      - name: Open or update pull request
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No dependency updates available; nothing to do."
+            exit 0
+          fi
+
+          git checkout -B "$BRANCH"
+          git commit -F - <<EOF
+          chore(deps): weekly dependency bump
+
+          $(cat "$SUMMARY")
+          EOF
+          git push --force origin "$BRANCH"
+
+          title="chore(deps): weekly dependency bump"
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr edit "$BRANCH" --title "$title" --body-file "$SUMMARY"
+            echo "Updated existing pull request for $BRANCH."
+          else
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$SUMMARY"
+            echo "Opened a new pull request for $BRANCH."
+          fi

@@ -106,6 +106,26 @@ install(
 if(BUILD_TESTING)
   include(CTest)
 
+  # Read the C++ dependency registry (single source of truth: dependencies.json) and
+  # expose PROXY_<NAME>_URL / PROXY_<NAME>_SHA256 for the FetchContent_Declare calls
+  # here and in tests/ and benchmarks/. Adding a dependency only touches the JSON.
+  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dependencies.json" _proxy_deps_json)
+  set_property(
+    DIRECTORY
+    APPEND
+    PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies.json"
+  )
+  string(JSON _proxy_deps_count LENGTH "${_proxy_deps_json}")
+  math(EXPR _proxy_deps_last "${_proxy_deps_count} - 1")
+  foreach(_i RANGE 0 ${_proxy_deps_last})
+    string(JSON _proxy_dep_name GET "${_proxy_deps_json}" ${_i} "name")
+    string(JSON _proxy_dep_url GET "${_proxy_deps_json}" ${_i} "url")
+    string(JSON _proxy_dep_sha GET "${_proxy_deps_json}" ${_i} "sha256")
+    string(TOUPPER "${_proxy_dep_name}" _proxy_dep_name)
+    set("PROXY_${_proxy_dep_name}_URL" "${_proxy_dep_url}")
+    set("PROXY_${_proxy_dep_name}_SHA256" "${_proxy_dep_sha}")
+  endforeach()
+
   include(FetchContent)
   # The policy uses the download time for timestamp, instead of the timestamp in the archive. This
   # allows for proper rebuilds when a projects URL changes.
@@ -115,9 +135,8 @@ if(BUILD_TESTING)
 
   FetchContent_Declare(
     fmt
-    URL https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
-    URL_HASH
-      SHA256=ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea
+    URL ${PROXY_FMT_URL}
+    URL_HASH SHA256=${PROXY_FMT_SHA256}
     SYSTEM
   )
   FetchContent_MakeAvailable(fmt)
