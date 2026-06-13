@@ -58,5 +58,5 @@ jobs:
           # TEMP (validation only): GITHUB_TOKEN can't push workflow-file edits; skip them so a
           # real PR is created. Production uses a workflow-scoped PAT and drops this line.
           RENOVATE_IGNORE_PATHS: '[".github/workflows/**"]'
-          LOG_LEVEL: info
+          LOG_LEVEL: debug
         run: npx --yes renovate
