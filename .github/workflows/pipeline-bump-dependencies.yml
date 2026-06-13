@@ -10,10 +10,12 @@ name: Bump-Dependencies
 # Renovate runs directly on the runner (not its container) so the post-upgrade task has
 # python, meson and bazelisk available.
 #
-# Token: Renovate needs a token with the `workflow` scope to update the `uses:` pins inside
-# .github/workflows/*.yml -- the built-in GITHUB_TOKEN does not have it. Set a RENOVATE_TOKEN
-# secret: a classic PAT with `repo` + `workflow`, a fine-grained PAT with Contents +
-# Pull requests + Workflows (read/write), or a GitHub App token. The job fails fast if unset.
+# Auth: updating the `uses:` pins inside .github/workflows/*.yml needs a token with the
+# `workflow` scope, which GITHUB_TOKEN cannot have. We mint a short-lived, repo-scoped token
+# from a GitHub App each run, so the only stored secrets are the App ID + private key (no
+# personal-account access). Create a GitHub App with repository permissions Contents,
+# Pull requests and Workflows (read & write), install it on this repo, and set the
+# RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY secrets. The job fails fast if they are unset.
 
 on:
   schedule:
@@ -21,8 +23,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   bump:
@@ -30,14 +31,32 @@ jobs:
     # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
     if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
     steps:
-      - name: Require RENOVATE_TOKEN
+      - name: Require Renovate App credentials
         env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          RENOVATE_APP_ID: ${{ secrets.RENOVATE_APP_ID }}
+          RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$RENOVATE_TOKEN" ]; then
-            echo "::error::RENOVATE_TOKEN secret is not set. Renovate needs a token with the 'workflow' scope to update action pins in .github/workflows/*.yml. Add a classic PAT (repo + workflow), a fine-grained PAT (Contents + Pull requests + Workflows), or a GitHub App token as the RENOVATE_TOKEN secret."
+          if [ -z "$RENOVATE_APP_ID" ] || [ -z "$RENOVATE_APP_PRIVATE_KEY" ]; then
+            echo "::error::RENOVATE_APP_ID / RENOVATE_APP_PRIVATE_KEY secrets are not set. Create a GitHub App (Contents, Pull requests, Workflows: read & write), install it on this repo, and add its App ID and a private key as those secrets. See the workflow header."
             exit 1
           fi
+
+      - name: Mint a GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+      - name: Resolve the App's bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          slug='${{ steps.app-token.outputs.app-slug }}'
+          uid=$(gh api "/users/${slug}[bot]" --jq '.id')
+          echo "username=${slug}[bot]" >> "$GITHUB_OUTPUT"
+          echo "git-author=${slug}[bot] <${uid}+${slug}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v6
 
@@ -58,7 +77,9 @@ jobs:
 
       - name: Run Renovate
         env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
+          RENOVATE_USERNAME: ${{ steps.bot.outputs.username }}
+          RENOVATE_GIT_AUTHOR: ${{ steps.bot.outputs.git-author }}
           RENOVATE_PLATFORM: github
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_AUTODISCOVER: "false"
