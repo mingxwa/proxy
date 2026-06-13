@@ -8,33 +8,32 @@ updates each dependency family in place, printing each change to stdout (``- nam
 new``) as it goes. It never touches git; the workflow decides whether anything changed
 and opens the pull request.
 
-Domains handled (each can be turned off with ``--skip``):
+Domains handled:
 
   actions       GitHub Action pins in .github/workflows/*.yml (and the bazelisk binary)
   precommit     hook ``rev``s and local-hook tool pins in .pre-commit-config.yaml
   mkdocs        pinned PyPI packages in mkdocs/requirements.txt
-  cpp           fmt / googletest / benchmark in dependencies.json (the CMake registry)
+  cpp           fmt / googletest / benchmark in cmake/dependencies.json
   meson         subprojects/*.wrap via ``meson wrap update``
   bazel         bazel_dep versions in MODULE.bazel (from the Bazel Central Registry)
   proxy_deps    http_archive pins in proxy_deps.bzl (legacy WORKSPACE shim)
   bazelversion  .bazelversion (latest bazelbuild/bazel release)
 
 Run from the repository root:
-  python3 tools/bump_dependencies.py [--skip meson,bazel]
+  python3 tools/bump_dependencies.py
 
-When a bazel-side declaration changes, the script also refreshes MODULE.bazel.lock with
-`bazel mod graph --lockfile_mode=update` (registry metadata only -- no source downloads,
-no build); the PR's CI performs the actual build.
+When done, MODULE.bazel.lock is refreshed with ``bazel mod graph --lockfile_mode=update``
+(registry metadata only -- no source downloads, no build); the PR's CI does the actual
+build.
 
 Actionable warnings (a dependency left unbumped, a step skipped) are emitted as GitHub
-Actions ``::warning::`` workflow commands, so they surface as annotations on the run and
-the PR instead of only in the log (and are inert plain text anywhere else).
+Actions ``::warning::`` workflow commands so they surface as annotations on the run and
+the PR (and are inert plain text anywhere else).
 
 Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHub API
 rate limit (the workflow passes the built-in token automatically).
 """
 
-import argparse
 import hashlib
 import json
 import os
@@ -44,20 +43,9 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_ALL_DOMAINS = (
-    "actions",
-    "precommit",
-    "mkdocs",
-    "cpp",
-    "meson",
-    "bazel",
-    "proxy_deps",
-    "bazelversion",
-)
 
 
 def _log(msg: str) -> None:
@@ -65,16 +53,17 @@ def _log(msg: str) -> None:
 
 
 def _warn(msg: str) -> None:
-    """Log an actionable warning and emit a GitHub Actions ``::warning::`` command.
+    """Emit a human-readable warning to stderr and a ``::warning::`` annotation to stdout.
 
-    On GitHub Actions this renders as an annotation at the top of the run and on the PR
-    (so a skipped/failed dependency isn't buried in the log); anywhere else it's just
-    inert text, so it's emitted unconditionally. Reserved for cases worth a human's
-    attention (a dependency left unbumped, a step skipped), not benign retries.
+    The annotation surfaces on the GitHub Actions run page and the PR; it is inert plain
+    text outside Actions, so it is emitted unconditionally.
     """
     _log(f"  ! {msg}")
-    # Workflow command: must be its own stdout line and single-line to be parsed.
     print(f"::warning::{msg.replace(chr(10), ' ')}", flush=True)
+
+
+def _record(name: str, old: str, new: str) -> None:
+    print(f"- {name}: {old} → {new}", flush=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -85,7 +74,6 @@ def _warn(msg: str) -> None:
 def _http_get(
     url: str, *, accept: str | None = None, auth: bool = False
 ) -> bytes | None:
-    """GET a URL, returning the body or None on error (errors are logged, not raised)."""
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "proxy-bump-dependencies")
     if accept is not None:
@@ -137,7 +125,7 @@ def _version_tuple(tag: str) -> tuple[int, ...] | None:
 
 
 def _is_newer(old: str, new: str) -> bool:
-    """True if ``new`` is a strict version upgrade over ``old`` (guards downgrades)."""
+    """True if ``new`` is a strict upgrade over ``old`` (guards against downgrades)."""
     nt = _version_tuple(new)
     if nt is None:
         return False
@@ -147,37 +135,40 @@ def _is_newer(old: str, new: str) -> bool:
     return nt > ot
 
 
-_github_tag_cache: dict[str, str | None] = {}
-
-
 def _github_latest_tag(repo: str) -> str | None:
-    """Latest stable release tag for ``owner/repo`` (cached), with a tags fallback."""
-    if repo in _github_tag_cache:
-        return _github_tag_cache[repo]
-    tag: str | None = None
+    """Latest stable release tag for ``owner/repo``.
+
+    Tries ``releases/latest`` first (excludes pre-releases and drafts by definition).
+    Falls back to the newest tag for repos that publish no GitHub Releases.
+    """
     data = _http_json(f"https://api.github.com/repos/{repo}/releases/latest", auth=True)
-    if isinstance(data, dict):
-        raw = data.get("tag_name")
-        if isinstance(raw, str):
-            tag = raw
-    if tag is None:
-        # No published "latest" release: pick the highest clean-semver tag instead.
-        tags = _http_json(
-            f"https://api.github.com/repos/{repo}/tags?per_page=100", auth=True
-        )
-        best: tuple[int, int, int] | None = None
-        if isinstance(tags, list):
-            for entry in tags:
-                if not isinstance(entry, dict):
-                    continue
-                name = entry.get("name")
-                if not isinstance(name, str):
-                    continue
-                parsed = _parse_semver(name)
-                if parsed is not None and (best is None or parsed > best):
-                    best, tag = parsed, name
-    _github_tag_cache[repo] = tag
-    return tag
+    if data is not None:
+        if not isinstance(data, dict):
+            _warn(
+                f"{repo}/releases/latest: unexpected response type {type(data).__name__}"
+            )
+        else:
+            name = data.get("tag_name")
+            if not isinstance(name, str):
+                _warn(f"{repo}/releases/latest: missing tag_name in response")
+            else:
+                return name
+
+    data = _http_json(f"https://api.github.com/repos/{repo}/tags?per_page=1", auth=True)
+    if data is None:
+        return None
+    if not isinstance(data, list) or len(data) == 0:
+        _warn(f"{repo}/tags: unexpected response")
+        return None
+    entry = data[0]
+    if not isinstance(entry, dict):
+        _warn(f"{repo}/tags: malformed entry")
+        return None
+    name = entry.get("name")
+    if not isinstance(name, str) or _version_tuple(name) is None:
+        _warn(f"{repo}/tags: latest tag {name!r} is not a version tag")
+        return None
+    return name
 
 
 def _pypi_latest(package: str) -> str | None:
@@ -192,332 +183,31 @@ def _pypi_latest(package: str) -> str | None:
     if not isinstance(version, str):
         return None
     if re.search(r"(a|b|rc|dev|alpha|beta)\d", version):
-        return None  # skip pre-releases
+        return None
     return version
 
 
-# --------------------------------------------------------------------------- #
-# Updater
-# --------------------------------------------------------------------------- #
+def _sha256_of_url(url: str) -> str | None:
+    body = _http_get(url)
+    return hashlib.sha256(body).hexdigest() if body is not None else None
 
 
-@dataclass
-class Updater:
-    skip: set[str]
-    # Domains that produced a change -- the only state we carry past a single bump, used
-    # to decide whether MODULE.bazel.lock needs refreshing.
-    changed_domains: set[str] = field(default_factory=set)
+def _bump_pypi_pins(text: str, label: str) -> str:
+    pin_re = re.compile(r"([A-Za-z0-9_.-]+)==([0-9][A-Za-z0-9_.+!-]*)")
 
-    def _record(self, domain: str, name: str, old: str, new: str) -> None:
-        self.changed_domains.add(domain)
-        print(f"- {name}: {old} → {new}", flush=True)  # the change log -> stdout
+    def repl(m: re.Match[str]) -> str:
+        name, ver = m.group(1), m.group(2)
+        latest = _pypi_latest(name)
+        if latest is None or latest == ver:
+            return m.group(0)
+        _record(f"{label}/{name}", ver, latest)
+        return f"{name}=={latest}"
 
-    def _write(self, path: Path, content: str) -> None:
-        path.write_text(content, encoding="utf-8")
-
-    def _sha256_of_url(self, url: str) -> str | None:
-        body = _http_get(url)
-        if body is None:
-            return None
-        return hashlib.sha256(body).hexdigest()
-
-    # ----- GitHub Actions + bazelisk ---------------------------------------- #
-
-    def update_actions(self) -> None:
-        _log("Checking GitHub Action pins ...")
-        workflows = sorted((_REPO_ROOT / ".github" / "workflows").glob("*.yml"))
-        uses_re = re.compile(r"(uses:\s*)([^@\s/]+/[^@\s]+?)@(\S+)")
-
-        def resolve(repo_path: str, ref: str) -> str | None:
-            if _parse_semver(ref) is None:
-                return None  # SHA pin or branch ref: leave alone
-            repo = "/".join(repo_path.split("/")[:2])
-            tag = _github_latest_tag(repo)
-            parsed = _parse_semver(tag) if tag else None
-            if parsed is None:
-                return None
-            new_ref = _format_pin(ref, parsed)
-            if new_ref is None or not _is_newer(ref, new_ref):
-                return None  # already current, or would be a downgrade
-            return new_ref
-
-        for wf in workflows:
-            text = wf.read_text(encoding="utf-8")
-
-            def repl(m: re.Match[str]) -> str:
-                prefix, repo_path, ref = m.group(1), m.group(2), m.group(3)
-                new_ref = resolve(repo_path, ref)
-                if new_ref is None or new_ref == ref:
-                    return m.group(0)
-                self._record("actions", repo_path, ref, new_ref)
-                return f"{prefix}{repo_path}@{new_ref}"
-
-            new_text = uses_re.sub(repl, text)
-            new_text = self._bump_bazelisk(new_text)
-            if new_text != text:
-                self._write(wf, new_text)
-
-    def _bump_bazelisk(self, text: str) -> str:
-        m = re.search(r"bazelisk/releases/download/(v[0-9][^/]*)/", text)
-        if m is None:
-            return text
-        old = m.group(1)
-        tag = _github_latest_tag("bazelbuild/bazelisk")
-        if not tag or not _is_newer(old, tag):
-            return text
-        self._record("actions", "bazelbuild/bazelisk", old, tag)
-        return text.replace(
-            f"bazelisk/releases/download/{old}/",
-            f"bazelisk/releases/download/{tag}/",
-        )
-
-    # ----- pre-commit ------------------------------------------------------- #
-
-    def update_precommit(self) -> None:
-        _log("Checking pre-commit hooks ...")
-        path = _REPO_ROOT / ".pre-commit-config.yaml"
-        text = path.read_text(encoding="utf-8")
-
-        # Bump each `- repo: <github-url>` block's `rev:` to the latest tag.
-        block_re = re.compile(
-            r"(- repo:\s*https://github\.com/(\S+?)/?\n\s*rev:\s*)(\S+)",
-        )
-
-        def repl_rev(m: re.Match[str]) -> str:
-            # Pre-commit pins an exact tag (any format, e.g. buildifier's 8.5.1.1), so
-            # take the latest tag verbatim rather than reformatting it.
-            head, repo, rev = m.group(1), m.group(2), m.group(3)
-            tag = _github_latest_tag(repo)
-            if tag is None or not _is_newer(rev, tag):
-                return m.group(0)
-            self._record("precommit", repo, rev, tag)
-            return f"{head}{tag}"
-
-        text = block_re.sub(repl_rev, text)
-
-        # Bump local-hook `additional_dependencies` PyPI pins ("name==version").
-        text = self._bump_pypi_pins(text, "precommit")
-        if text != path.read_text(encoding="utf-8"):
-            self._write(path, text)
-
-    def _bump_pypi_pins(self, text: str, domain: str) -> str:
-        pin_re = re.compile(r"([A-Za-z0-9_.-]+)==([0-9][A-Za-z0-9_.+!-]*)")
-
-        def repl(m: re.Match[str]) -> str:
-            name, ver = m.group(1), m.group(2)
-            latest = _pypi_latest(name)
-            if latest is None or latest == ver:
-                return m.group(0)
-            self._record(domain, name, ver, latest)
-            return f"{name}=={latest}"
-
-        return pin_re.sub(repl, text)
-
-    # ----- mkdocs ----------------------------------------------------------- #
-
-    def update_mkdocs(self) -> None:
-        _log("Checking mkdocs requirements ...")
-        path = _REPO_ROOT / "mkdocs" / "requirements.txt"
-        text = path.read_text(encoding="utf-8")
-        new_text = self._bump_pypi_pins(text, "mkdocs")
-        if new_text != text:
-            self._write(path, new_text)
-
-    # ----- C++ libraries (dependencies.json) -------------------------------- #
-
-    def update_cpp(self) -> None:
-        _log("Checking C++ libraries (dependencies.json) ...")
-        path = _REPO_ROOT / "dependencies.json"
-        deps = json.loads(path.read_text(encoding="utf-8"))
-        # The owner/repo and the current tag are both encoded in each entry's GitHub
-        # tarball URL, so name + url + sha256 is all the metadata an entry needs.
-        url_re = re.compile(
-            r"https://github\.com/([^/]+/[^/]+)/archive/refs/tags/(.+)\.tar\.gz"
-        )
-        changed = False
-        for dep in deps:
-            m = url_re.fullmatch(dep["url"])
-            if m is None:
-                continue
-            repo, old_tag = m.group(1), m.group(2)
-            tag = _github_latest_tag(repo)
-            if tag is None:
-                continue
-            old_version, new_version = (
-                re.sub(r"^v", "", old_tag),
-                re.sub(r"^v", "", tag),
-            )
-            if not _is_newer(old_version, new_version):
-                continue
-            new_url = f"https://github.com/{repo}/archive/refs/tags/{tag}.tar.gz"
-            new_sha = self._sha256_of_url(new_url)
-            if new_sha is None:
-                _warn(f"could not download {new_url}; leaving {dep['name']} unchanged")
-                continue
-            self._record("cpp", dep["name"], old_version, new_version)
-            dep["url"], dep["sha256"] = new_url, new_sha
-            changed = True
-        if changed:
-            self._write(path, json.dumps(deps, indent=2) + "\n")
-
-    # ----- Meson wraps ------------------------------------------------------ #
-
-    def update_meson(self) -> None:
-        _log("Checking Meson wraps ...")
-        subprojects = _REPO_ROOT / "subprojects"
-        wraps = sorted(subprojects.glob("*.wrap"))
-        if not wraps:
-            return
-        if shutil.which("meson") is None:
-            _warn("meson not found on PATH; skipping wraps")
-            return
-        for wrap in wraps:
-            name = wrap.stem
-            before = _wrap_version(wrap)
-            result = subprocess.run(
-                ["meson", "wrap", "update", name],
-                cwd=_REPO_ROOT,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            # `meson wrap update` exits 0 even when a wrap fails (e.g. a hand-maintained
-            # / non-wrapdb wrap whose version it can't determine), so inspect the output
-            # too -- otherwise an unmanaged wrap is skipped with no signal at all.
-            output = f"{result.stdout}\n{result.stderr}".lower()
-            if (
-                result.returncode != 0
-                or "command failed" in output
-                or "could not determine" in output
-            ):
-                _warn(
-                    f"could not update wrap '{name}' (not a managed wrapdb wrap?); left unchanged"
-                )
-                continue
-            after = _wrap_version(wrap)
-            if after != before:
-                self._record("meson", name, before, after)
-
-    # ----- Bazel modules (MODULE.bazel) ------------------------------------- #
-
-    def update_bazel(self) -> None:
-        _log("Checking Bazel modules (MODULE.bazel) ...")
-        path = _REPO_ROOT / "MODULE.bazel"
-        text = path.read_text(encoding="utf-8")
-        dep_re = re.compile(r'(bazel_dep\(name = "([^"]+)", version = ")([^"]+)(")')
-
-        def repl(m: re.Match[str]) -> str:
-            head, name, version, tail = m.group(1), m.group(2), m.group(3), m.group(4)
-            latest = _bcr_latest_version(name)
-            if latest is None or latest == version:
-                return m.group(0)
-            self._record("bazel", name, version, latest)
-            return f"{head}{latest}{tail}"
-
-        new_text = dep_re.sub(repl, text)
-        if new_text != text:
-            self._write(path, new_text)
-
-    # ----- proxy_deps.bzl (WORKSPACE shim) ---------------------------------- #
-
-    def update_proxy_deps(self) -> None:
-        _log("Checking proxy_deps.bzl http_archive pins ...")
-        path = _REPO_ROOT / "proxy_deps.bzl"
-        original = path.read_text(encoding="utf-8")
-        text = original
-        url_re = re.compile(
-            r'https://github\.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^"]+?\.tar\.gz)'
-        )
-        for m in url_re.finditer(original):
-            repo, old_ver, asset = m.group(1), m.group(2), m.group(3)
-            tag = _github_latest_tag(repo)
-            if tag is None or tag == old_ver:
-                continue
-            base = (
-                asset[: asset.index(f"-{old_ver}")] if f"-{old_ver}" in asset else None
-            )
-            new_url = (
-                f"https://github.com/{repo}/releases/download/{tag}/"
-                f"{asset.replace(old_ver, tag)}"
-            )
-            new_sha = self._sha256_of_url(new_url)
-            if new_sha is None:
-                _warn(f"could not download {new_url}; leaving {repo} unchanged")
-                continue
-            # The http_archive's sha256 is the last one declared before its url block.
-            old_sha: str | None = None
-            for sm in re.finditer(r'sha256 = "([0-9a-f]{64})"', original[: m.start()]):
-                old_sha = sm.group(1)
-            text = text.replace(
-                f"/releases/download/{old_ver}/", f"/releases/download/{tag}/"
-            )
-            if base is not None:
-                text = text.replace(f"{base}-{old_ver}", f"{base}-{tag}")
-            if old_sha is not None:
-                text = text.replace(old_sha, new_sha)
-            self._record("proxy_deps", repo, old_ver, tag)
-        if text != original:
-            self._write(path, text)
-
-    # ----- .bazelversion ---------------------------------------------------- #
-
-    def update_bazelversion(self) -> None:
-        _log("Checking .bazelversion ...")
-        path = _REPO_ROOT / ".bazelversion"
-        current = path.read_text(encoding="utf-8").strip()
-        tag = _github_latest_tag("bazelbuild/bazel")
-        if tag is None:
-            return
-        latest = re.sub(r"^v", "", tag)
-        if _is_newer(current, latest):
-            self._record("bazelversion", "bazel", current, latest)
-            self._write(path, latest + "\n")
-
-    # ----- orchestration ---------------------------------------------------- #
-
-    def run(self) -> None:
-        dispatch = {
-            "actions": self.update_actions,
-            "precommit": self.update_precommit,
-            "mkdocs": self.update_mkdocs,
-            "cpp": self.update_cpp,
-            "meson": self.update_meson,
-            "bazel": self.update_bazel,
-            "proxy_deps": self.update_proxy_deps,
-            "bazelversion": self.update_bazelversion,
-        }
-        for domain in _ALL_DOMAINS:
-            if domain in self.skip:
-                _log(f"Skipping {domain}")
-                continue
-            dispatch[domain]()
-        self._refresh_bazel_lock()
-
-    def _refresh_bazel_lock(self) -> None:
-        # Bumping any bazel-side declaration (MODULE.bazel / proxy_deps.bzl /
-        # .bazelversion) invalidates MODULE.bazel.lock. Refresh it from registry metadata
-        # only -- no source downloads and no build; the PR's CI does the actual build.
-        if not self.changed_domains & {"bazel", "proxy_deps", "bazelversion"}:
-            return
-        _log("Refreshing MODULE.bazel.lock ...")
-        if shutil.which("bazel") is None:
-            _warn("bazel not found on PATH; MODULE.bazel.lock not refreshed")
-            return
-        result = subprocess.run(
-            ["bazel", "mod", "graph", "--lockfile_mode=update"],
-            cwd=_REPO_ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            _warn(
-                f"`bazel mod graph` failed; MODULE.bazel.lock may be stale: {result.stderr.strip()}"
-            )
+    return pin_re.sub(repl, text)
 
 
 def _format_pin(old_ref: str, latest: tuple[int, int, int]) -> str | None:
-    """Format ``latest`` to match the precision/prefix of ``old_ref`` (e.g. v4 -> v6)."""
+    """Format ``latest`` to match the precision/prefix of ``old_ref`` (e.g. v4 → v6)."""
     m = re.match(r"^(v?)(\d+)(\.\d+)?(\.\d+)?$", old_ref)
     if m is None:
         return None
@@ -531,7 +221,6 @@ def _format_pin(old_ref: str, latest: tuple[int, int, int]) -> str | None:
 
 
 def _wrap_version(wrap: Path) -> str:
-    """Return a wrap file's ``directory = ...`` value (encodes the resolved version)."""
     m = re.search(r"^directory\s*=\s*(.+)$", wrap.read_text(encoding="utf-8"), re.M)
     return m.group(1).strip() if m else "?"
 
@@ -541,17 +230,15 @@ def _bazel_version_key(version: str) -> tuple[tuple[int, ...], int] | None:
     m = re.match(r"^(\d+(?:\.\d+)*)(?:\.bcr\.(\d+))?$", version)
     if m is None:
         return None
-    release = tuple(int(p) for p in m.group(1).split("."))
-    return (release, int(m.group(2) or 0))
+    return (tuple(int(p) for p in m.group(1).split(".")), int(m.group(2) or 0))
 
 
 def _bcr_latest_version(module: str) -> str | None:
     """Highest non-yanked version of a module in the Bazel Central Registry."""
-    url = (
+    data = _http_json(
         "https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/"
         f"main/modules/{module}/metadata.json"
     )
-    data = _http_json(url)
     if not isinstance(data, dict):
         return None
     versions = data.get("versions")
@@ -569,23 +256,244 @@ def _bcr_latest_version(module: str) -> str | None:
     return best_str
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--skip",
-        default="",
-        help=f"comma-separated domains to skip (any of: {', '.join(_ALL_DOMAINS)})",
+# --------------------------------------------------------------------------- #
+# Updaters
+# --------------------------------------------------------------------------- #
+
+
+def update_actions() -> None:
+    _log("Checking GitHub Action pins ...")
+    workflows = sorted((_REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    uses_re = re.compile(r"(uses:\s*)([^@\s/]+/[^@\s]+?)@(\S+)")
+
+    def resolve(repo_path: str, ref: str) -> str | None:
+        if _parse_semver(ref) is None:
+            return None  # SHA pin or branch ref: leave alone
+        repo = "/".join(repo_path.split("/")[:2])
+        tag = _github_latest_tag(repo)
+        parsed = _parse_semver(tag) if tag else None
+        if parsed is None:
+            return None
+        new_ref = _format_pin(ref, parsed)
+        if new_ref is None or not _is_newer(ref, new_ref):
+            return None
+        return new_ref
+
+    for wf in workflows:
+        text = wf.read_text(encoding="utf-8")
+
+        def repl(m: re.Match[str]) -> str:
+            prefix, repo_path, ref = m.group(1), m.group(2), m.group(3)
+            new_ref = resolve(repo_path, ref)
+            if new_ref is None or new_ref == ref:
+                return m.group(0)
+            _record(repo_path, ref, new_ref)
+            return f"{prefix}{repo_path}@{new_ref}"
+
+        new_text = uses_re.sub(repl, text)
+
+        # Bump the bazelisk binary pin in the same pass.
+        bz = re.search(r"bazelisk/releases/download/(v[0-9][^/]*)/", new_text)
+        if bz:
+            old = bz.group(1)
+            tag = _github_latest_tag("bazelbuild/bazelisk")
+            if tag and _is_newer(old, tag):
+                _record("bazelbuild/bazelisk", old, tag)
+                new_text = new_text.replace(
+                    f"bazelisk/releases/download/{old}/",
+                    f"bazelisk/releases/download/{tag}/",
+                )
+
+        if new_text != text:
+            wf.write_text(new_text, encoding="utf-8")
+
+
+def update_precommit() -> None:
+    _log("Checking pre-commit hooks ...")
+    path = _REPO_ROOT / ".pre-commit-config.yaml"
+    text = path.read_text(encoding="utf-8")
+
+    block_re = re.compile(r"(- repo:\s*https://github\.com/(\S+?)/?\n\s*rev:\s*)(\S+)")
+
+    def repl_rev(m: re.Match[str]) -> str:
+        head, repo, rev = m.group(1), m.group(2), m.group(3)
+        tag = _github_latest_tag(repo)
+        if tag is None or not _is_newer(rev, tag):
+            return m.group(0)
+        _record(repo, rev, tag)
+        return f"{head}{tag}"
+
+    text = block_re.sub(repl_rev, text)
+    text = _bump_pypi_pins(text, "precommit")
+    if text != path.read_text(encoding="utf-8"):
+        path.write_text(text, encoding="utf-8")
+
+
+def update_mkdocs() -> None:
+    _log("Checking mkdocs requirements ...")
+    path = _REPO_ROOT / "mkdocs" / "requirements.txt"
+    text = path.read_text(encoding="utf-8")
+    new_text = _bump_pypi_pins(text, "mkdocs")
+    if new_text != text:
+        path.write_text(new_text, encoding="utf-8")
+
+
+def update_cpp() -> None:
+    _log("Checking C++ libraries (cmake/dependencies.json) ...")
+    path = _REPO_ROOT / "cmake" / "dependencies.json"
+    deps = json.loads(path.read_text(encoding="utf-8"))
+    url_re = re.compile(
+        r"https://github\.com/([^/]+/[^/]+)/archive/refs/tags/(.+)\.tar\.gz"
     )
-    args = parser.parse_args()
+    changed = False
+    for dep in deps:
+        m = url_re.fullmatch(dep["url"])
+        if m is None:
+            continue
+        repo, old_tag = m.group(1), m.group(2)
+        tag = _github_latest_tag(repo)
+        if tag is None:
+            continue
+        old_version, new_version = re.sub(r"^v", "", old_tag), re.sub(r"^v", "", tag)
+        if not _is_newer(old_version, new_version):
+            continue
+        new_url = f"https://github.com/{repo}/archive/refs/tags/{tag}.tar.gz"
+        new_sha = _sha256_of_url(new_url)
+        if new_sha is None:
+            _warn(f"could not download {new_url}; leaving {dep['name']} unchanged")
+            continue
+        _record(dep["name"], old_version, new_version)
+        dep["url"], dep["sha256"] = new_url, new_sha
+        changed = True
+    if changed:
+        path.write_text(json.dumps(deps, indent=2) + "\n", encoding="utf-8")
 
-    skip = {s.strip() for s in args.skip.split(",") if s.strip()}
-    unknown = skip - set(_ALL_DOMAINS)
-    if unknown:
-        parser.error(f"unknown --skip domains: {', '.join(sorted(unknown))}")
 
-    Updater(skip=skip).run()
-    return 0
+def update_meson() -> None:
+    _log("Checking Meson wraps ...")
+    wraps = sorted((_REPO_ROOT / "subprojects").glob("*.wrap"))
+    if not wraps:
+        return
+    if shutil.which("meson") is None:
+        _warn("meson not found on PATH; skipping wraps")
+        return
+    for wrap in wraps:
+        name = wrap.stem
+        if not re.search(
+            r"^wrapdb_version\s*=", wrap.read_text(encoding="utf-8"), re.MULTILINE
+        ):
+            _log(f"  - {name}: not wrapdb-managed; skipping")
+            continue
+        before = _wrap_version(wrap)
+        result = subprocess.run(
+            ["meson", "wrap", "update", name],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            _warn(f"`meson wrap update {name}` failed; left unchanged")
+            continue
+        after = _wrap_version(wrap)
+        if after != before:
+            _record(name, before, after)
+
+
+def update_bazel() -> None:
+    _log("Checking Bazel modules (MODULE.bazel) ...")
+    path = _REPO_ROOT / "MODULE.bazel"
+    text = path.read_text(encoding="utf-8")
+    dep_re = re.compile(r'(bazel_dep\(name = "([^"]+)", version = ")([^"]+)(")')
+
+    def repl(m: re.Match[str]) -> str:
+        head, name, version, tail = m.group(1), m.group(2), m.group(3), m.group(4)
+        latest = _bcr_latest_version(name)
+        if latest is None or latest == version:
+            return m.group(0)
+        _record(name, version, latest)
+        return f"{head}{latest}{tail}"
+
+    new_text = dep_re.sub(repl, text)
+    if new_text != text:
+        path.write_text(new_text, encoding="utf-8")
+
+
+def update_proxy_deps() -> None:
+    _log("Checking proxy_deps.bzl http_archive pins ...")
+    path = _REPO_ROOT / "proxy_deps.bzl"
+    original = path.read_text(encoding="utf-8")
+    text = original
+    url_re = re.compile(
+        r'https://github\.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^"]+?\.tar\.gz)'
+    )
+    for m in url_re.finditer(original):
+        repo, old_ver, asset = m.group(1), m.group(2), m.group(3)
+        tag = _github_latest_tag(repo)
+        if tag is None or tag == old_ver:
+            continue
+        new_url = (
+            f"https://github.com/{repo}/releases/download/{tag}/"
+            f"{asset.replace(old_ver, tag)}"
+        )
+        new_sha = _sha256_of_url(new_url)
+        if new_sha is None:
+            _warn(f"could not download {new_url}; leaving {repo} unchanged")
+            continue
+        old_sha: str | None = None
+        for sm in re.finditer(r'sha256 = "([0-9a-f]{64})"', original[: m.start()]):
+            old_sha = sm.group(1)
+        text = text.replace(
+            f"/releases/download/{old_ver}/", f"/releases/download/{tag}/"
+        )
+        base = asset[: asset.index(f"-{old_ver}")] if f"-{old_ver}" in asset else None
+        if base is not None:
+            text = text.replace(f"{base}-{old_ver}", f"{base}-{tag}")
+        if old_sha is not None:
+            text = text.replace(old_sha, new_sha)
+        _record(repo, old_ver, tag)
+    if text != original:
+        path.write_text(text, encoding="utf-8")
+
+
+def update_bazelversion() -> None:
+    _log("Checking .bazelversion ...")
+    path = _REPO_ROOT / ".bazelversion"
+    current = path.read_text(encoding="utf-8").strip()
+    tag = _github_latest_tag("bazelbuild/bazel")
+    if tag is None:
+        return
+    latest = re.sub(r"^v", "", tag)
+    if _is_newer(current, latest):
+        _record("bazel", current, latest)
+        path.write_text(latest + "\n", encoding="utf-8")
+
+
+def refresh_bazel_lock() -> None:
+    _log("Refreshing MODULE.bazel.lock ...")
+    if shutil.which("bazel") is None:
+        _warn("bazel not found on PATH; MODULE.bazel.lock not refreshed")
+        return
+    result = subprocess.run(
+        ["bazel", "mod", "graph", "--lockfile_mode=update"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        _warn(
+            f"`bazel mod graph` failed; MODULE.bazel.lock may be stale: {result.stderr.strip()}"
+        )
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    update_actions()
+    update_precommit()
+    update_mkdocs()
+    update_cpp()
+    update_meson()
+    update_bazel()
+    update_proxy_deps()
+    update_bazelversion()
+    refresh_bazel_lock()
