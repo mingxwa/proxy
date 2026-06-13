@@ -21,7 +21,7 @@ consistent with the versions already on disk.
 Output channels:
   * ``_log``    progress -> stderr.
   * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr, and -- when
-                ``BUMP_WARNINGS_FILE`` is set -- appended to that file. Renovate captures this
+                ``--warnings-file`` is given -- appended to that file. Renovate captures this
                 script's stdout/stderr instead of forwarding it to the runner, so a printed
                 ``::warning::`` would be swallowed; the workflow re-emits the file instead.
   * ``_record`` a regenerated artifact -> stdout as a markdown bullet for the PR/job summary.
@@ -30,6 +30,7 @@ Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHu
 rate limit (the workflow passes the built-in token automatically).
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -42,6 +43,9 @@ import urllib.request
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Set from --warnings-file; warnings are appended here for the workflow to re-emit (see _warn).
+_WARNINGS_FILE: str | None = None
 
 # A Meson wrap's resolved version, read from its "directory = <name>-<version>" line.
 _WRAP_DIR_RE = re.compile(r"^directory\s*=\s*(.+)$", re.MULTILINE)
@@ -59,14 +63,13 @@ def _warn(msg: str) -> None:
 
     This script runs as a Renovate post-upgrade task whose stdout/stderr Renovate captures
     rather than forwarding to the Actions runner, so a printed ``::warning::`` would never
-    become an annotation. Instead we append to ``BUMP_WARNINGS_FILE`` (set by the workflow),
-    which a later step re-emits as ``::warning::`` lines.
+    become an annotation. Instead we append to the ``--warnings-file`` path (passed by the
+    workflow), which a later step re-emits as ``::warning::`` lines.
     """
     line = msg.replace("\n", " ")
     _log(f"  ! {line}")
-    warn_file = os.environ.get("BUMP_WARNINGS_FILE")
-    if warn_file:
-        with open(warn_file, "a", encoding="utf-8") as f:
+    if _WARNINGS_FILE is not None:
+        with open(_WARNINGS_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
 
@@ -164,6 +167,14 @@ def refresh_bazel_lock() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Regenerate the artifacts Renovate cannot compute."
+    )
+    parser.add_argument(
+        "--warnings-file",
+        help="append warnings here for the workflow to re-emit as ::warning:: annotations",
+    )
+    _WARNINGS_FILE = parser.parse_args().warnings_file
     refresh_registry_hashes("cmake/dependencies.json", "cmake")
     refresh_registry_hashes(
         "tools/report_generator/dependencies.json", "report_generator"
