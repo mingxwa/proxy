@@ -106,25 +106,11 @@ install(
 if(BUILD_TESTING)
   include(CTest)
 
-  # Read the C++ dependency registry (single source of truth: dependencies.json) and
-  # expose PROXY_<NAME>_URL / PROXY_<NAME>_SHA256 for the FetchContent_Declare calls
-  # here and in tests/ and benchmarks/. Adding a dependency only touches the JSON.
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dependencies.json" _proxy_deps_json)
-  set_property(
-    DIRECTORY
-    APPEND
-    PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies.json"
-  )
-  string(JSON _proxy_deps_count LENGTH "${_proxy_deps_json}")
-  math(EXPR _proxy_deps_last "${_proxy_deps_count} - 1")
-  foreach(_i RANGE 0 ${_proxy_deps_last})
-    string(JSON _proxy_dep_name GET "${_proxy_deps_json}" ${_i} "name")
-    string(JSON _proxy_dep_url GET "${_proxy_deps_json}" ${_i} "url")
-    string(JSON _proxy_dep_sha GET "${_proxy_deps_json}" ${_i} "sha256")
-    string(TOUPPER "${_proxy_dep_name}" _proxy_dep_name)
-    set("PROXY_${_proxy_dep_name}_URL" "${_proxy_dep_url}")
-    set("PROXY_${_proxy_dep_name}_SHA256" "${_proxy_dep_sha}")
-  endforeach()
+  # Read the C++ dependency registry (single source of truth: cmake/dependencies.json) and
+  # expose PROXY_<NAME>_URL / PROXY_<NAME>_SHA256 for the FetchContent_Declare calls here and
+  # in tests/ and benchmarks/. Adding or bumping a dependency only touches the JSON.
+  include(cmake/read_dependencies.cmake)
+  proxy_read_dependencies("${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.json")
 
   include(FetchContent)
   # The policy uses the download time for timestamp, instead of the timestamp in the archive. This

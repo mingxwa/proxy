@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": [
+    "github-actions",
+    "pre-commit",
+    "pip_requirements",
+    "bazel-module",
+    "bazelisk",
+    "custom.regex"
+  ],
+  "pre-commit": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "description": "CMake FetchContent registries: bump the tag in each archive URL.",
+      "customType": "regex",
+      "fileMatch": ["(^|/)dependencies\\.json$"],
+      "matchStrings": [
+        "https://github\\.com/(?<depName>[^/]+/[^/\"]+)/archive/refs/tags/(?<currentValue>.+?)\\.tar\\.gz"
+      ],
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Collect every bump into a single weekly PR.",
+      "matchManagers": [
+        "github-actions",
+        "pre-commit",
+        "pip_requirements",
+        "bazel-module",
+        "bazelisk",
+        "custom.regex"
+      ],
+      "groupName": "dependencies"
+    }
+  ],
+  "postUpgradeTasks": {
+    "description": "Regenerate the artifacts Renovate cannot compute (hashes, wraps, lockfile).",
+    "commands": ["python3 tools/bump_dependencies.py"],
+    "fileFilters": [
+      "cmake/dependencies.json",
+      "tools/report_generator/dependencies.json",
+      "subprojects/*.wrap",
+      "MODULE.bazel.lock"
+    ],
+    "executionMode": "branch"
+  }
+}

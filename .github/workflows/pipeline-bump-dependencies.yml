@@ -1,16 +1,14 @@
 name: Bump-Dependencies
 
-# Weekly automation that bumps every in-scope dependency (GitHub Actions, pre-commit
-# hooks, mkdocs packages, the CMake/Meson/Bazel C++ libraries, .bazelversion and the
-# Bazel lockfile) and opens a single pull request when anything changed. It never
-# pushes to a protected branch directly -- it only files a PR for review.
+# Weekly dependency automation, all in a single pull request. Self-hosted Renovate
+# (renovate.json) discovers every version bump -- GitHub Actions, pre-commit hooks, the
+# mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry), .bazelversion, and the CMake
+# FetchContent registry (via a customManager). Renovate then runs tools/bump_dependencies.py
+# as a post-upgrade task, on the same branch, to regenerate the artifacts it cannot compute:
+# the CMake tarball hashes, the Meson wraps, and MODULE.bazel.lock. Everything lands in one PR.
 #
-# Prerequisite: enable "Allow GitHub Actions to create and approve pull requests" under
-# Settings -> Actions -> General so the built-in GITHUB_TOKEN may open the PR.
-#
-# Note: a PR opened by GITHUB_TOKEN does not itself trigger the CI workflows (GitHub's
-# loop-prevention). Re-run CI by closing/reopening the PR, or wire in a PAT later if the
-# bump PR should validate automatically.
+# Renovate runs directly on the runner (not its container) so the post-upgrade task has
+# python, meson and bazelisk available.
 
 on:
   schedule:
@@ -21,68 +19,39 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: bump-dependencies
-  cancel-in-progress: false
-
 jobs:
   bump:
     runs-on: ubuntu-24.04
-    env:
-      GH_TOKEN: ${{ github.token }}
-      BRANCH: chore/bump-dependencies
+    # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
+    if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Install tooling
+      - name: Install Meson and Bazelisk
         run: |
-          python3 -m pip install --upgrade pip pre-commit meson
+          python3 -m pip install --upgrade pip meson
           curl -fsSL -o /usr/local/bin/bazel \
             https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
           chmod +x /usr/local/bin/bazel
 
-      - name: Bump dependencies
+      - name: Run Renovate
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        # The script prints each change (and ::warning:: annotations) to stdout; tee shows
-        # that on the run's job summary while keeping it on stdout so the runner still
-        # picks up the annotations.
-        run: python3 tools/bump_dependencies.py | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Run pre-commit hooks
-        # Hooks auto-fix formatting (gersemi, buildifier, ruff, eof-fixer, ...); the
-        # non-zero exit on fixes is expected, so we stage the result afterwards.
-        run: pre-commit run --all-files --color always || true
-
-      - name: Open or update pull request
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No dependency updates available; nothing to do."
-            exit 0
-          fi
-
-          git checkout -B "$BRANCH"
-          git commit -m "chore(deps): weekly dependency bump"
-          git push --force origin "$BRANCH"
-
-          title="chore(deps): weekly dependency bump"
-          body="Automated weekly dependency bump. See the run's job summary for the list of updates and the file diff for details."
-          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
-            gh pr edit "$BRANCH" --title "$title" --body "$body"
-            echo "Updated existing pull request for $BRANCH."
-          else
-            gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
-            echo "Opened a new pull request for $BRANCH."
-          fi
+          RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_AUTODISCOVER: "false"
+          RENOVATE_ONBOARDING: "false"
+          # Manage whichever branch the workflow runs on (the default branch for the cron).
+          RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
+          # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/bump_dependencies\\.py$"]'
+          LOG_LEVEL: info
+        run: npx --yes renovate
