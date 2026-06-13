@@ -142,22 +142,16 @@ def _github_latest_tag(repo: str) -> str | None:
     Falls back to the newest tag for repos that publish no GitHub Releases.
     """
     data = _http_json(f"https://api.github.com/repos/{repo}/releases/latest", auth=True)
-    if data is not None:
-        if not isinstance(data, dict):
-            _warn(
-                f"{repo}/releases/latest: unexpected response type {type(data).__name__}"
-            )
-        else:
-            name = data.get("tag_name")
-            if not isinstance(name, str):
-                _warn(f"{repo}/releases/latest: missing tag_name in response")
-            else:
-                return name
+    if isinstance(data, dict):
+        name = data.get("tag_name")
+        if isinstance(name, str):
+            return name
+        _warn(f"{repo}/releases/latest: missing tag_name in response")
+    elif data is not None:
+        _warn(f"{repo}/releases/latest: unexpected response type {type(data).__name__}")
 
     data = _http_json(f"https://api.github.com/repos/{repo}/tags?per_page=1", auth=True)
-    if data is None:
-        return None
-    if not isinstance(data, list) or len(data) == 0:
+    if not isinstance(data, list) or not data:
         _warn(f"{repo}/tags: unexpected response")
         return None
     entry = data[0]
@@ -194,16 +188,20 @@ def _sha256_of_url(url: str) -> str | None:
 
 def _bump_pypi_pins(text: str, label: str) -> str:
     pin_re = re.compile(r"([A-Za-z0-9_.-]+)==([0-9][A-Za-z0-9_.+!-]*)")
-
-    def repl(m: re.Match[str]) -> str:
+    parts: list[str] = []
+    last = 0
+    for m in pin_re.finditer(text):
         name, ver = m.group(1), m.group(2)
         latest = _pypi_latest(name)
-        if latest is None or latest == ver:
-            return m.group(0)
-        _record(f"{label}/{name}", ver, latest)
-        return f"{name}=={latest}"
-
-    return pin_re.sub(repl, text)
+        parts.append(text[last : m.start()])
+        last = m.end()
+        if latest is not None and latest != ver:
+            _record(f"{label}/{name}", ver, latest)
+            parts.append(f"{name}=={latest}")
+        else:
+            parts.append(m.group(0))
+    parts.append(text[last:])
+    return "".join(parts)
 
 
 def _format_pin(old_ref: str, latest: tuple[int, int, int]) -> str | None:
@@ -242,13 +240,14 @@ def _bcr_latest_version(module: str) -> str | None:
     if not isinstance(data, dict):
         return None
     versions = data.get("versions")
-    yanked = data.get("yanked_versions") or {}
+    yanked_raw = data.get("yanked_versions")
+    yanked = yanked_raw if isinstance(yanked_raw, dict) else {}
     if not isinstance(versions, list):
         return None
     best: tuple[tuple[int, ...], int] | None = None
     best_str: str | None = None
     for v in versions:
-        if not isinstance(v, str) or (isinstance(yanked, dict) and v in yanked):
+        if not isinstance(v, str) or v in yanked:
             continue
         key = _bazel_version_key(v)
         if key is not None and (best is None or key > best):
@@ -263,36 +262,30 @@ def _bcr_latest_version(module: str) -> str | None:
 
 def update_actions() -> None:
     _log("Checking GitHub Action pins ...")
-    workflows = sorted((_REPO_ROOT / ".github" / "workflows").glob("*.yml"))
     uses_re = re.compile(r"(uses:\s*)([^@\s/]+/[^@\s]+?)@(\S+)")
-
-    def resolve(repo_path: str, ref: str) -> str | None:
-        if _parse_semver(ref) is None:
-            return None  # SHA pin or branch ref: leave alone
-        repo = "/".join(repo_path.split("/")[:2])
-        tag = _github_latest_tag(repo)
-        parsed = _parse_semver(tag) if tag else None
-        if parsed is None:
-            return None
-        new_ref = _format_pin(ref, parsed)
-        if new_ref is None or not _is_newer(ref, new_ref):
-            return None
-        return new_ref
-
-    for wf in workflows:
+    for wf in sorted((_REPO_ROOT / ".github" / "workflows").glob("*.yml")):
         text = wf.read_text(encoding="utf-8")
-
-        def repl(m: re.Match[str]) -> str:
+        parts: list[str] = []
+        last = 0
+        for m in uses_re.finditer(text):
             prefix, repo_path, ref = m.group(1), m.group(2), m.group(3)
-            new_ref = resolve(repo_path, ref)
-            if new_ref is None or new_ref == ref:
-                return m.group(0)
+            parts.append(text[last : m.start()])
+            last = m.end()
+            parsed_ref = _parse_semver(ref)
+            if parsed_ref is None:
+                parts.append(m.group(0))
+                continue
+            tag = _github_latest_tag("/".join(repo_path.split("/")[:2]))
+            parsed_tag = _parse_semver(tag) if tag else None
+            new_ref = _format_pin(ref, parsed_tag) if parsed_tag else None
+            if new_ref is None or not _is_newer(ref, new_ref):
+                parts.append(m.group(0))
+                continue
             _record(repo_path, ref, new_ref)
-            return f"{prefix}{repo_path}@{new_ref}"
+            parts.append(f"{prefix}{repo_path}@{new_ref}")
+        parts.append(text[last:])
+        new_text = "".join(parts)
 
-        new_text = uses_re.sub(repl, text)
-
-        # Bump the bazelisk binary pin in the same pass.
         bz = re.search(r"bazelisk/releases/download/(v[0-9][^/]*)/", new_text)
         if bz:
             old = bz.group(1)
@@ -311,21 +304,23 @@ def update_actions() -> None:
 def update_precommit() -> None:
     _log("Checking pre-commit hooks ...")
     path = _REPO_ROOT / ".pre-commit-config.yaml"
-    text = path.read_text(encoding="utf-8")
-
+    original = path.read_text(encoding="utf-8")
     block_re = re.compile(r"(- repo:\s*https://github\.com/(\S+?)/?\n\s*rev:\s*)(\S+)")
-
-    def repl_rev(m: re.Match[str]) -> str:
+    parts: list[str] = []
+    last = 0
+    for m in block_re.finditer(original):
         head, repo, rev = m.group(1), m.group(2), m.group(3)
+        parts.append(original[last : m.start()])
+        last = m.end()
         tag = _github_latest_tag(repo)
-        if tag is None or not _is_newer(rev, tag):
-            return m.group(0)
-        _record(repo, rev, tag)
-        return f"{head}{tag}"
-
-    text = block_re.sub(repl_rev, text)
-    text = _bump_pypi_pins(text, "precommit")
-    if text != path.read_text(encoding="utf-8"):
+        if tag is not None and _is_newer(rev, tag):
+            _record(repo, rev, tag)
+            parts.append(f"{head}{tag}")
+        else:
+            parts.append(m.group(0))
+    parts.append(original[last:])
+    text = _bump_pypi_pins("".join(parts), "precommit")
+    if text != original:
         path.write_text(text, encoding="utf-8")
 
 
@@ -403,19 +398,23 @@ def update_meson() -> None:
 def update_bazel() -> None:
     _log("Checking Bazel modules (MODULE.bazel) ...")
     path = _REPO_ROOT / "MODULE.bazel"
-    text = path.read_text(encoding="utf-8")
+    original = path.read_text(encoding="utf-8")
     dep_re = re.compile(r'(bazel_dep\(name = "([^"]+)", version = ")([^"]+)(")')
-
-    def repl(m: re.Match[str]) -> str:
+    parts: list[str] = []
+    last = 0
+    for m in dep_re.finditer(original):
         head, name, version, tail = m.group(1), m.group(2), m.group(3), m.group(4)
         latest = _bcr_latest_version(name)
-        if latest is None or latest == version:
-            return m.group(0)
-        _record(name, version, latest)
-        return f"{head}{latest}{tail}"
-
-    new_text = dep_re.sub(repl, text)
-    if new_text != text:
+        parts.append(original[last : m.start()])
+        last = m.end()
+        if latest is not None and latest != version:
+            _record(name, version, latest)
+            parts.append(f"{head}{latest}{tail}")
+        else:
+            parts.append(m.group(0))
+    parts.append(original[last:])
+    new_text = "".join(parts)
+    if new_text != original:
         path.write_text(new_text, encoding="utf-8")
 
 
