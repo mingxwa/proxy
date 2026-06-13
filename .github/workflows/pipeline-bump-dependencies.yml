@@ -11,6 +11,8 @@ name: Bump-Dependencies
 # python, meson and bazelisk available.
 
 on:
+  push:
+    branches: [test/bump-validate] # TEMP: validation only, removed before merge
   schedule:
     - cron: "0 6 * * 1" # Mondays at 06:00 UTC
   workflow_dispatch:
