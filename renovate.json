@@ -2,7 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "enabledManagers": [
-    "github-actions",
     "pre-commit",
     "pip_requirements",
     "bazel-module",
@@ -13,6 +12,7 @@
     "enabled": true
   },
   "separateMajorMinor": false,
+  "updateLockFiles": false,
   "customManagers": [
     {
       "description": "CMake FetchContent registries: bump the tag in each archive URL.",
@@ -28,7 +28,6 @@
     {
       "description": "Collect every bump into a single weekly PR.",
       "matchManagers": [
-        "github-actions",
         "pre-commit",
         "pip_requirements",
         "bazel-module",
