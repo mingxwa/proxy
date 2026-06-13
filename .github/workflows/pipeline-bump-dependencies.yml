@@ -55,5 +55,5 @@ jobs:
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
           # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
           RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/bump_dependencies\\.py$"]'
-          LOG_LEVEL: info
+          LOG_LEVEL: debug
         run: npx --yes renovate
