@@ -20,8 +20,10 @@ consistent with the versions already on disk.
 
 Output channels:
   * ``_log``    progress -> stderr.
-  * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr plus a
-                GitHub Actions ``::warning::`` annotation on stdout.
+  * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr, and -- when
+                ``BUMP_WARNINGS_FILE`` is set -- appended to that file. Renovate captures this
+                script's stdout/stderr instead of forwarding it to the runner, so a printed
+                ``::warning::`` would be swallowed; the workflow re-emits the file instead.
   * ``_record`` a regenerated artifact -> stdout as a markdown bullet for the PR/job summary.
 
 Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHub download
@@ -53,13 +55,19 @@ def _log(msg: str) -> None:
 
 
 def _warn(msg: str) -> None:
-    """Emit a human-readable warning to stderr and a ``::warning::`` annotation to stdout.
+    """Record an actionable problem to stderr and, if configured, to the warnings file.
 
-    The annotation surfaces on the GitHub Actions run page and the PR; it is inert plain
-    text outside Actions, so it is emitted unconditionally.
+    This script runs as a Renovate post-upgrade task whose stdout/stderr Renovate captures
+    rather than forwarding to the Actions runner, so a printed ``::warning::`` would never
+    become an annotation. Instead we append to ``BUMP_WARNINGS_FILE`` (set by the workflow),
+    which a later step re-emits as ``::warning::`` lines.
     """
-    _log(f"  ! {msg}")
-    print(f"::warning::{msg.replace(chr(10), ' ')}", flush=True)
+    line = msg.replace("\n", " ")
+    _log(f"  ! {line}")
+    warn_file = os.environ.get("BUMP_WARNINGS_FILE")
+    if warn_file:
+        with open(warn_file, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
 
 
 def _record(name: str, old: str, new: str) -> None:

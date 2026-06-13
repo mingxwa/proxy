@@ -88,5 +88,20 @@ jobs:
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
           # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
           RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/bump_dependencies\\.py$"]'
+          # Renovate captures the post-upgrade task's output, so the script writes warnings to
+          # this file (injected into the task's env) and the next step re-emits them.
+          RENOVATE_CUSTOM_ENV_VARIABLES: '{"BUMP_WARNINGS_FILE": "${{ runner.temp }}/bump-warnings.txt"}'
           LOG_LEVEL: info
         run: npx --yes renovate
+
+      - name: Surface post-upgrade warnings
+        if: always()
+        run: |
+          f="${{ runner.temp }}/bump-warnings.txt"
+          if [ -s "$f" ]; then
+            while IFS= read -r line; do
+              echo "::warning title=bump_dependencies::$line"
+            done < "$f"
+          else
+            echo "No post-upgrade warnings."
+          fi
