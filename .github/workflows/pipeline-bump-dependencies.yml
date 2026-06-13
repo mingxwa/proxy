@@ -55,5 +55,8 @@ jobs:
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
           # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
           RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/bump_dependencies\\.py$"]'
-          LOG_LEVEL: debug
+          # TEMP (validation only): GITHUB_TOKEN can't push workflow-file edits; skip them so a
+          # real PR is created. Production uses a workflow-scoped PAT and drops this line.
+          RENOVATE_IGNORE_PATHS: '[".github/workflows/**"]'
+          LOG_LEVEL: info
         run: npx --yes renovate

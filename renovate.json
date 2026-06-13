@@ -12,6 +12,7 @@
   "pre-commit": {
     "enabled": true
   },
+  "separateMajorMinor": false,
   "customManagers": [
     {
       "description": "CMake FetchContent registries: bump the tag in each archive URL.",
@@ -35,6 +36,16 @@
         "custom.regex"
       ],
       "groupName": "dependencies"
+    },
+    {
+      "description": "Leave compiler/runner images (gcc, clang, ...) to humans.",
+      "matchDatasources": ["docker"],
+      "enabled": false
+    },
+    {
+      "description": "Leave the pinned Python toolchain to humans.",
+      "matchDepNames": ["python"],
+      "enabled": false
     }
   ],
   "postUpgradeTasks": {
