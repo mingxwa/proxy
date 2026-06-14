@@ -3,12 +3,12 @@ name: Bump-Dependencies
 # Weekly dependency automation, all in a single pull request. Self-hosted Renovate
 # (renovate.json) bumps everything with a standard manager -- GitHub Actions, pre-commit
 # hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry) and .bazelversion. It
-# then runs tools/bump_dependencies.py as a post-upgrade task, on the same branch, to bump
-# what Renovate doesn't: the CMake FetchContent registries, the Meson wraps, MODULE.bazel.lock,
-# and the CLANG/NVHPC version pins in the bvt workflows. Everything lands in one PR.
+# then refreshes MODULE.bazel.lock as a post-upgrade step (`bazel mod graph`) so the lock
+# tracks the bazel_dep versions just bumped. Everything lands in one PR.
 #
-# Renovate runs directly on the runner (not its container) so the post-upgrade task has python,
-# meson and bazel available. Bazel ships preinstalled (as bazelisk) on the GitHub-hosted image.
+# The CMake FetchContent registries and Meson wraps -- which no Renovate manager can discover --
+# live in their own pipeline (pipeline-bump-cmake-meson.yml). Bazel ships preinstalled (as
+# bazelisk) on the GitHub-hosted image, so the post step needs no extra setup.
 #
 # Auth: updating the `uses:` pins inside .github/workflows/*.yml needs a token with the
 # `workflow` scope, which GITHUB_TOKEN cannot have. A GitHub App's installation token can, but
@@ -59,14 +59,6 @@ jobs:
         with:
           node-version: lts/*
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      # Bazel is already on the runner (as bazelisk); only Meson needs installing.
-      - name: Install Meson
-        run: python3 -m pip install --upgrade pip meson
-
       - name: Run Renovate
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -79,8 +71,7 @@ jobs:
           # Manage whichever branch the workflow runs on (the default branch for the cron).
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
           # Self-hosted safety gate: Renovate runs a postUpgradeTasks command only if it matches
-          # this allowlist. Scope it to a python script in tools/ (no path traversal, no shell
-          # metacharacters) rather than one filename, so renaming the script needs no edit here.
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/[\\w-]+\\.py$"]'
+          # this allowlist. The only post step is the bazel lockfile refresh.
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^bazel mod graph --lockfile_mode=update$"]'
           LOG_LEVEL: info
         run: npx --yes renovate

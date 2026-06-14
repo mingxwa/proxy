@@ -1,0 +1,59 @@
+name: Bump-CMake-Meson
+
+# Weekly bump of the C++ dependencies no Renovate manager can discover: the CMake FetchContent
+# registries (cmake/dependencies.json, tools/report_generator/dependencies.json) and the Meson
+# wraps (subprojects/*.wrap). tools/bump_dependencies.py finds the latest releases, rewrites the
+# pins (recomputing each CMake sha256) and refreshes the wraps; this workflow then opens one PR
+# with the result. These live apart from the Renovate pipeline (pipeline-bump-dependencies.yml)
+# precisely because Renovate has no manager for them, so they can't ride its branch -- here the
+# schedule itself is the trigger.
+#
+# Auth reuses the same GitHub App as the Renovate pipeline (RENOVATE_APP_ID /
+# RENOVATE_APP_PRIVATE_KEY). The PR must be opened by the App, not GITHUB_TOKEN, so that CI runs
+# on it; Contents + Pull requests (write) is all this one needs.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
+    if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
+    steps:
+      - name: Mint a GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Meson
+        run: python3 -m pip install --upgrade pip meson
+
+      - name: Bump CMake and Meson dependencies
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: python3 tools/bump_dependencies.py
+
+      - name: Open or update the pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: bump/cmake-meson
+          title: Bump CMake and Meson dependencies
+          commit-message: Bump CMake and Meson dependencies
+          body: |
+            Automated bump of the CMake FetchContent registries and the Meson wraps
+            (`tools/bump_dependencies.py`). The Renovate pipeline handles everything else.
