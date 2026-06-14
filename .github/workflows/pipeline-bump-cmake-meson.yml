@@ -1,16 +1,19 @@
 name: Bump-CMake-Meson
 
-# Weekly bump of the C++ dependencies no Renovate manager can discover: the CMake FetchContent
+# Weekly bump of the C++ library pins that Renovate has no manager for: the CMake FetchContent
 # registries (cmake/dependencies.json, tools/report_generator/dependencies.json) and the Meson
-# wraps (subprojects/*.wrap). tools/bump_dependencies.py finds the latest releases, rewrites the
-# pins (recomputing each CMake sha256) and refreshes the wraps; this workflow then opens one PR
-# with the result. These live apart from the Renovate pipeline (pipeline-bump-dependencies.yml)
-# precisely because Renovate has no manager for them, so they can't ride its branch -- here the
-# schedule itself is the trigger.
+# wraps (subprojects/*.wrap). tools/bump_cmake_meson_deps.py finds the latest releases, rewrites
+# the pins (recomputing each CMake sha256) and refreshes the wraps; this workflow then opens one
+# PR with the result. The schedule itself is the trigger -- with no Renovate manager, these can't
+# ride its branch.
+#
+# The Bazel versions of the same libraries (fmt, googletest, google_benchmark in MODULE.bazel)
+# *do* have a manager, so Renovate bumps them via the Bazel Central Registry over in
+# pipeline-bump-dependencies.yml -- this pipeline only covers what Renovate can't.
 #
 # Auth reuses the same GitHub App as the Renovate pipeline (DEPENDENCY_MANAGER_APP_ID /
-# DEPENDENCY_MANAGER_APP_PRIVATE_KEY). The PR must be opened by the App, not GITHUB_TOKEN, so CI runs
-# on it; Contents + Pull requests (write) is all this one needs.
+# DEPENDENCY_MANAGER_APP_PRIVATE_KEY). The PR must be opened by the App, not GITHUB_TOKEN, so CI
+# runs on it; Contents + Pull requests (write) is all this one needs.
 
 on:
   schedule:
@@ -21,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  bump:
+  bump-cmake-meson:
     runs-on: ubuntu-24.04
     # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
     if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
@@ -61,7 +64,7 @@ jobs:
       - name: Bump CMake and Meson dependencies
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: python3 tools/bump_dependencies.py
+        run: python3 tools/bump_cmake_meson_deps.py
 
       # Commit the bumps to bump/cmake-meson and open the PR (or update it if one is already
       # open) with plain git + gh -- no third-party action holds the App token. Nothing to do
@@ -90,5 +93,5 @@ jobs:
           else
             gh pr create --base "$BASE" --head "$branch" \
               --title "Bump CMake and Meson dependencies" \
-              --body 'Automated bump of the CMake FetchContent registries and the Meson wraps (`tools/bump_dependencies.py`). The Renovate pipeline handles everything else.'
+              --body 'Automated bump of the CMake FetchContent registries and the Meson wraps (`tools/bump_cmake_meson_deps.py`). The Renovate pipeline handles everything else.'
           fi

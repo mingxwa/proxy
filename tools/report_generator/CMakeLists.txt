@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(report_generator)
 
-# Single source of truth for this tool's libraries (bumped by tools/bump_dependencies.py).
+# Single source of truth for this tool's libraries (bumped by tools/bump_cmake_meson_deps.py).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/read_dependencies.cmake)
 proxy_read_dependencies("${CMAKE_CURRENT_SOURCE_DIR}/dependencies.json")
 

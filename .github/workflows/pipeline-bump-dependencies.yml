@@ -1,14 +1,16 @@
 name: Bump-Dependencies
 
 # Weekly dependency automation, all in a single pull request. Self-hosted Renovate
-# (renovate.json) bumps everything with a standard manager -- GitHub Actions, pre-commit
-# hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry) and .bazelversion. It
-# then refreshes MODULE.bazel.lock as a post-upgrade step (`bazel mod graph`) so the lock
-# tracks the bazel_dep versions just bumped. Everything lands in one PR.
+# (renovate.json) bumps everything it has a manager for -- GitHub Actions, pre-commit hooks, the
+# mkdocs PyPI pins, the MODULE.bazel modules (Bazel Central Registry: both the build-rule deps and
+# the C++ libraries fmt / googletest / google_benchmark) and .bazelversion. It then refreshes
+# MODULE.bazel.lock as a post-upgrade step (`bazel mod graph`) so the lock tracks the bumped
+# bazel_dep versions. Everything lands in one PR.
 #
-# The CMake FetchContent registries and Meson wraps -- which no Renovate manager can discover --
-# live in their own pipeline (pipeline-bump-cmake-meson.yml). Bazel ships preinstalled (as
-# bazelisk) on the GitHub-hosted image, so the post step needs no extra setup.
+# The CMake FetchContent registries and Meson wraps -- the same C++ libraries, but in build
+# systems Renovate has no manager for -- are bumped by a companion pipeline
+# (pipeline-bump-cmake-meson.yml). Bazel ships preinstalled (as bazelisk) on the GitHub-hosted
+# image, so the post step needs no extra setup.
 #
 # Auth: updating the `uses:` pins inside .github/workflows/*.yml needs a token with the
 # `workflow` scope, which GITHUB_TOKEN cannot have. A GitHub App's installation token can, but
@@ -29,7 +31,7 @@ permissions:
   contents: read
 
 jobs:
-  bump:
+  renovate:
     runs-on: ubuntu-24.04
     # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
     if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
