@@ -1,4 +1,4 @@
-name: Bump-Dependencies
+name: Renovate
 
 # Weekly dependency automation, all in a single pull request. Self-hosted Renovate
 # (renovate.json) bumps everything it has a manager for -- GitHub Actions, pre-commit hooks, the
@@ -9,7 +9,7 @@ name: Bump-Dependencies
 #
 # The CMake FetchContent registries and Meson wraps -- the same C++ libraries, but in build
 # systems Renovate has no manager for -- are bumped by a companion pipeline
-# (pipeline-bump-cmake-meson.yml). Bazel ships preinstalled (as bazelisk) on the GitHub-hosted
+# (pipeline-bump-cpp-dependencies.yml). Bazel ships preinstalled (as bazelisk) on the GitHub-hosted
 # image, so the post step needs no extra setup.
 #
 # Auth: updating the `uses:` pins inside .github/workflows/*.yml needs a token with the

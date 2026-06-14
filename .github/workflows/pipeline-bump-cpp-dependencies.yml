@@ -1,4 +1,4 @@
-name: Bump-CMake-Meson
+name: Bump-Cpp-Dependencies
 
 # Weekly bump of the C++ library pins that Renovate has no manager for: the CMake FetchContent
 # registries (cmake/dependencies.json, tools/report_generator/dependencies.json) and the Meson
@@ -9,7 +9,7 @@ name: Bump-CMake-Meson
 #
 # The Bazel versions of the same libraries (fmt, googletest, google_benchmark in MODULE.bazel)
 # *do* have a manager, so Renovate bumps them via the Bazel Central Registry over in
-# pipeline-bump-dependencies.yml -- this pipeline only covers what Renovate can't.
+# pipeline-renovate.yml -- this pipeline only covers what Renovate can't.
 #
 # Auth reuses the same GitHub App as the Renovate pipeline (DEPENDENCY_MANAGER_APP_ID /
 # DEPENDENCY_MANAGER_APP_PRIVATE_KEY). The PR must be opened by the App, not GITHUB_TOKEN, so CI
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  bump-cmake-meson:
+  bump-cpp-dependencies:
     runs-on: ubuntu-24.04
     # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
     if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'

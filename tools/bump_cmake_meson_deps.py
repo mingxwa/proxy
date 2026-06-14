@@ -5,7 +5,7 @@
 
 Renovate handles everything with a standard manager (GitHub Actions, pre-commit, the mkdocs
 PyPI pins, Bazel Central Registry, .bazelversion). The two families below have no manager, so
-they live in their own pipeline (.github/workflows/pipeline-bump-cmake-meson.yml), which runs
+they live in their own pipeline (.github/workflows/pipeline-bump-cpp-dependencies.yml), which runs
 this script and opens a pull request with whatever it changes:
 
   cmake   fmt / googletest / benchmark in cmake/dependencies.json and nlohmann_json in
