@@ -34,7 +34,7 @@ jobs:
           private-key: ${{ secrets.DEPENDENCY_MANAGER_APP_PRIVATE_KEY }}
 
       # Author the bump commit as the App's bot (the numeric id links it to the App account),
-      # otherwise create-pull-request attributes it to whoever triggered the run.
+      # otherwise the commit is attributed to whoever triggered the run.
       - name: Resolve the bot's commit identity
         id: bot
         env:
@@ -42,9 +42,14 @@ jobs:
         run: |
           slug='${{ steps.app-token.outputs.app-slug }}'
           uid=$(gh api "/users/${slug}[bot]" --jq '.id')
-          echo "git-author=${slug}[bot] <${uid}+${slug}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+          echo "name=${slug}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${uid}+${slug}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
 
+      # Check out with the App token so the branch push is attributed to the App -- that is what
+      # makes CI run on the PR (a push by the default GITHUB_TOKEN would not trigger it).
       - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: actions/setup-python@v6
         with:
@@ -58,15 +63,32 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: python3 tools/bump_dependencies.py
 
+      # Commit the bumps to bump/cmake-meson and open the PR (or update it if one is already
+      # open) with plain git + gh -- no third-party action holds the App token. Nothing to do
+      # when the script changed nothing.
       - name: Open or update the pull request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          committer: ${{ steps.bot.outputs.git-author }}
-          author: ${{ steps.bot.outputs.git-author }}
-          branch: bump/cmake-meson
-          title: Bump CMake and Meson dependencies
-          commit-message: Bump CMake and Meson dependencies
-          body: |
-            Automated bump of the CMake FetchContent registries and the Meson wraps
-            (`tools/bump_dependencies.py`). The Renovate pipeline handles everything else.
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GIT_NAME: ${{ steps.bot.outputs.name }}
+          GIT_EMAIL: ${{ steps.bot.outputs.email }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No dependency changes; nothing to do."
+            exit 0
+          fi
+          branch=bump/cmake-meson
+          git config user.name "$GIT_NAME"
+          git config user.email "$GIT_EMAIL"
+          git checkout -B "$branch"
+          git add -A
+          git commit -m "Bump CMake and Meson dependencies"
+          git push --force origin "$branch"
+          if [ -n "$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')" ]; then
+            echo "Updated the existing pull request."
+          else
+            gh pr create --base "$BASE" --head "$branch" \
+              --title "Bump CMake and Meson dependencies" \
+              --body 'Automated bump of the CMake FetchContent registries and the Meson wraps (`tools/bump_dependencies.py`). The Renovate pipeline handles everything else.'
+          fi
