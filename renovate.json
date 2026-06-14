@@ -52,7 +52,7 @@
   "postUpgradeTasks": {
     "description": "Regenerate the artifacts Renovate cannot compute (hashes, wraps, lockfile).",
     "commands": [
-      "python3 tools/bump_dependencies.py --warnings-file /tmp/bump-warnings.txt"
+      "python3 tools/bump_dependencies.py 2>/tmp/bump-warnings.txt"
     ],
     "fileFilters": [
       "cmake/dependencies.json",
