@@ -17,7 +17,8 @@ name: Bump-Dependencies
 # (no personal-account PAT). Create a GitHub App with repository permissions Contents,
 # Pull requests, Workflows and Commit statuses (read & write) -- the last lets Renovate flag a
 # failed post-upgrade task as a red check on the PR -- install it on this repo, and set the
-# RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY secrets (the token step fails if they are unset).
+# DEPENDENCY_MANAGER_APP_ID and DEPENDENCY_MANAGER_APP_PRIVATE_KEY secrets (the token step fails
+# if they are unset).
 
 on:
   schedule:
@@ -37,8 +38,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.RENOVATE_APP_ID }}
-          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.DEPENDENCY_MANAGER_APP_ID }}
+          private-key: ${{ secrets.DEPENDENCY_MANAGER_APP_PRIVATE_KEY }}
 
       # Renovate must be told its own identity: an App installation token cannot self-identify
       # via the /user API the way a PAT can. The username (from the token step) lets Renovate
