@@ -87,7 +87,7 @@ jobs:
           # Manage whichever branch the workflow runs on (the default branch for the cron).
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
           # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^bash -c \"python3 tools/bump_dependencies\\.py 2>/tmp/bump-warnings\\.txt\"$"]'
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^bash -c \"echo ::warning::PROBE_task_stdout_visible; python3 tools/bump_dependencies\\.py 2>/tmp/bump-warnings\\.txt\"$"]'
           LOG_LEVEL: info
         run: npx --yes renovate
 
