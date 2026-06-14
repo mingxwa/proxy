@@ -1,4 +1,5 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "enabledManagers": [
     "github-actions",
@@ -23,16 +24,6 @@
         "bazelisk"
       ],
       "groupName": "dependencies"
-    },
-    {
-      "description": "Leave compiler/runner images (gcc, clang, ...) to humans.",
-      "matchDatasources": ["docker"],
-      "enabled": false
-    },
-    {
-      "description": "Leave the pinned Python toolchain to humans.",
-      "matchDepNames": ["python"],
-      "enabled": false
     }
   ],
   "postUpgradeTasks": {
