@@ -38,8 +38,6 @@ from typing import NoReturn
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# A clean version tag, e.g. "v4", "1.2", "v1.2.3" (no stdlib semver parser exists).
-_SEMVER_RE = re.compile(r"^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$")
 # A GitHub archive tarball URL -> (owner/repo, tag).
 _ARCHIVE_URL_RE = re.compile(
     r"https://github\.com/([^/]+/[^/]+)/archive/refs/tags/(.+)\.tar\.gz"
@@ -54,7 +52,7 @@ def _log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
-def _die(msg: str) -> NoReturn:
+def _abort(msg: str) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr, flush=True)
     raise SystemExit(1)
 
@@ -89,30 +87,12 @@ def _http_json(url: str) -> object | None:
         return None
 
 
-def _parse_semver(tag: str) -> tuple[int, int, int] | None:
-    m = _SEMVER_RE.match(tag.strip())
-    if m is None:
-        return None
-    return (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 0))
-
-
 def _github_latest_tag(repo: str) -> str | None:
-    """Latest stable release tag for ``owner/repo``, or ``None`` if it can't be determined.
-
-    Prefers ``releases/latest`` (excludes pre-releases); falls back to the newest tag for
-    repos that publish tags but no Releases.
-    """
+    """Latest published release tag for ``owner/repo``, or ``None`` if there is none."""
     data = _http_json(f"https://api.github.com/repos/{repo}/releases/latest")
     if isinstance(data, dict):
         name = data.get("tag_name")
         if isinstance(name, str):
-            return name
-
-    data = _http_json(f"https://api.github.com/repos/{repo}/tags?per_page=1")
-    if isinstance(data, list) and data:
-        entry = data[0]
-        name = entry.get("name") if isinstance(entry, dict) else None
-        if isinstance(name, str) and _parse_semver(name) is not None:
             return name
     return None
 
@@ -122,7 +102,7 @@ def _github_latest_tag(repo: str) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
-def update_json_registry(rel_path: str, label: str) -> None:
+def _update_registry(rel_path: str, label: str) -> None:
     """Bump each GitHub-archive entry to its latest release (downloading only on a change)."""
     _log(f"Checking {label} ({rel_path}) ...")
     path = _REPO_ROOT / rel_path
@@ -132,17 +112,17 @@ def update_json_registry(rel_path: str, label: str) -> None:
         name, url = dep["name"], dep["url"]
         m = _ARCHIVE_URL_RE.fullmatch(url)
         if m is None:
-            _die(f"{label}/{name}: url is not a GitHub archive tarball: {url}")
+            _abort(f"{label}/{name}: url is not a GitHub archive tarball: {url}")
         repo, current = m.group(1), m.group(2)
         latest = _github_latest_tag(repo)
         if latest is None:
-            _die(f"{label}/{name}: could not determine the latest release of {repo}")
+            _abort(f"{label}/{name}: could not determine the latest release of {repo}")
         if latest == current:
             continue  # already current -- no download
         new_url = f"https://github.com/{repo}/archive/refs/tags/{latest}.tar.gz"
         body = _http_get(new_url)
         if body is None:
-            _die(f"{label}/{name}: could not download {new_url}")
+            _abort(f"{label}/{name}: could not download {new_url}")
         _log(f"  {name}: {current} -> {latest}")
         dep["url"] = new_url
         dep["sha256"] = hashlib.sha256(body).hexdigest()
@@ -156,13 +136,13 @@ def _wrap_version(wrap: Path) -> str:
     return m.group(1).strip() if m else "?"
 
 
-def update_meson() -> None:
+def _update_meson() -> None:
     _log("Updating Meson wraps ...")
     wraps = sorted((_REPO_ROOT / "subprojects").glob("*.wrap"))
     if not wraps:
-        _die("no wrap files found in subprojects/")
+        _abort("no wrap files found in subprojects/")
     if shutil.which("meson") is None:
-        _die("meson not found on PATH")
+        _abort("meson not found on PATH")
     for wrap in wraps:
         name = wrap.stem
         if _WRAPDB_RE.search(wrap.read_text(encoding="utf-8")) is None:
@@ -177,16 +157,16 @@ def update_meson() -> None:
             check=False,
         )
         if result.returncode != 0:
-            _die(f"`meson wrap update {name}` failed: {result.stderr.strip()}")
+            _abort(f"`meson wrap update {name}` failed: {result.stderr.strip()}")
         after = _wrap_version(wrap)
         if after != before:
             _log(f"  {name}: {before} -> {after}")
 
 
-def refresh_bazel_lock() -> None:
+def _refresh_bazel_lock() -> None:
     _log("Refreshing MODULE.bazel.lock ...")
     if shutil.which("bazel") is None:
-        _die("bazel not found on PATH")
+        _abort("bazel not found on PATH")
     result = subprocess.run(
         ["bazel", "mod", "graph", "--lockfile_mode=update"],
         cwd=_REPO_ROOT,
@@ -195,11 +175,11 @@ def refresh_bazel_lock() -> None:
         check=False,
     )
     if result.returncode != 0:
-        _die(f"`bazel mod graph` failed: {result.stderr.strip()}")
+        _abort(f"`bazel mod graph` failed: {result.stderr.strip()}")
 
 
 if __name__ == "__main__":
-    update_json_registry("cmake/dependencies.json", "cmake")
-    update_json_registry("tools/report_generator/dependencies.json", "report_generator")
-    update_meson()
-    refresh_bazel_lock()
+    _update_registry("cmake/dependencies.json", "cmake")
+    _update_registry("tools/report_generator/dependencies.json", "report_generator")
+    _update_meson()
+    _refresh_bazel_lock()
