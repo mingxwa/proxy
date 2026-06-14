@@ -17,7 +17,7 @@ name: Bump-Cpp-Dependencies
 
 on:
   schedule:
-    - cron: "0 6 * * 1" # Mondays at 06:00 UTC
+    - cron: "0 0 * * 1" # Mondays at 00:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -66,7 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: python3 tools/bump_cmake_meson_deps.py
 
-      # Commit the bumps to bump/cmake-meson and open the PR (or update it if one is already
+      # Commit the bumps to bump/cpp-dependencies and open the PR (or update it if one is already
       # open) with plain git + gh -- no third-party action holds the App token. Nothing to do
       # when the script changed nothing.
       - name: Open or update the pull request
@@ -81,7 +81,7 @@ jobs:
             echo "No dependency changes; nothing to do."
             exit 0
           fi
-          branch=bump/cmake-meson
+          branch=bump/cpp-dependencies
           git config user.name "$GIT_NAME"
           git config user.email "$GIT_EMAIL"
           git checkout -B "$branch"

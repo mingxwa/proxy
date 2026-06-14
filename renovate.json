@@ -14,9 +14,10 @@
   "separateMajorMinor": false,
   "updateLockFiles": false,
   "prHourlyLimit": 0,
+  "branchPrefix": "bump/",
   "packageRules": [
     {
-      "description": "Collect every bump into a single weekly PR.",
+      "description": "One weekly PR on bump/renovate (groupSlug); title 'Update dependencies' (groupName).",
       "matchManagers": [
         "github-actions",
         "pre-commit",
@@ -24,7 +25,8 @@
         "bazel-module",
         "bazelisk"
       ],
-      "groupName": "dependencies"
+      "groupName": "dependencies",
+      "groupSlug": "renovate"
     }
   ],
   "postUpgradeTasks": {
