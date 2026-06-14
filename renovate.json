@@ -1,6 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "enabledManagers": [
     "github-actions",
     "pre-commit",
@@ -8,9 +10,6 @@
     "bazel-module",
     "bazelisk"
   ],
-  "pre-commit": {
-    "enabled": true
-  },
   "separateMajorMinor": false,
   "updateLockFiles": false,
   "prHourlyLimit": 0,
@@ -28,18 +27,24 @@
     },
     {
       "description": "Leave compiler/runner images (gcc, clang, ...) to humans.",
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "enabled": false
     },
     {
       "description": "Leave the pinned Python toolchain to humans.",
-      "matchDepNames": ["python"],
+      "matchDepNames": [
+        "python"
+      ],
       "enabled": false
     }
   ],
   "postUpgradeTasks": {
     "description": "Bump the CMake registries + Meson wraps and refresh MODULE.bazel.lock.",
-    "commands": ["python3 tools/bump_dependencies.py"],
+    "commands": [
+      "python3 tools/bump_dependencies.py"
+    ],
     "fileFilters": [
       "cmake/dependencies.json",
       "tools/report_generator/dependencies.json",

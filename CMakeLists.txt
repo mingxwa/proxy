@@ -106,9 +106,6 @@ install(
 if(BUILD_TESTING)
   include(CTest)
 
-  # Read the C++ dependency registry (single source of truth: cmake/dependencies.json) and
-  # expose PROXY_<NAME>_URL / PROXY_<NAME>_SHA256 for the FetchContent_Declare calls here and
-  # in tests/ and benchmarks/. Adding or bumping a dependency only touches the JSON.
   include(cmake/read_dependencies.cmake)
   proxy_read_dependencies("${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.json")
 
