@@ -19,18 +19,16 @@ It only rewrites; it does not pick versions. Running it by hand simply makes tho
 consistent with the versions already on disk.
 
 Output channels:
-  * ``_log``    progress -> stderr.
-  * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr, and -- when
-                ``--warnings-file`` is given -- appended to that file. Renovate captures this
-                script's stdout/stderr instead of forwarding it to the runner, so a printed
-                ``::warning::`` would be swallowed; the workflow re-emits the file instead.
+  * ``_log``    progress -> stdout.
+  * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr only.
+                Renovate captures this task's streams, so the workflow redirects stderr to a
+                file and re-emits each line as a ``::warning::`` annotation.
   * ``_record`` a regenerated artifact -> stdout as a markdown bullet for the PR/job summary.
 
 Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHub download
 rate limit (the workflow passes the built-in token automatically).
 """
 
-import argparse
 import hashlib
 import json
 import os
@@ -44,8 +42,6 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Set from --warnings-file; warnings are appended here for the workflow to re-emit (see _warn).
-_WARNINGS_FILE: str | None = None
 
 # A Meson wrap's resolved version, read from its "directory = <name>-<version>" line.
 _WRAP_DIR_RE = re.compile(r"^directory\s*=\s*(.+)$", re.MULTILINE)
@@ -55,22 +51,17 @@ _WRAPDB_RE = re.compile(r"^wrapdb_version\s*=", re.MULTILINE)
 
 
 def _log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
+    print(msg, flush=True)
 
 
 def _warn(msg: str) -> None:
-    """Record an actionable problem to stderr and, if configured, to the warnings file.
+    """Print an actionable problem to stderr (warnings-only; progress goes to stdout).
 
-    This script runs as a Renovate post-upgrade task whose stdout/stderr Renovate captures
-    rather than forwarding to the Actions runner, so a printed ``::warning::`` would never
-    become an annotation. Instead we append to the ``--warnings-file`` path (passed by the
-    workflow), which a later step re-emits as ``::warning::`` lines.
+    Renovate captures this task's streams, so a printed ``::warning::`` would be swallowed.
+    The workflow runs the task as ``bash -c '... 2>FILE'`` and re-emits each stderr line as a
+    ``::warning::`` annotation, so keeping stderr free of anything but warnings is the contract.
     """
-    line = msg.replace("\n", " ")
-    _log(f"  ! {line}")
-    if _WARNINGS_FILE is not None:
-        with open(_WARNINGS_FILE, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+    print(msg.replace("\n", " "), file=sys.stderr, flush=True)
 
 
 def _record(name: str, old: str, new: str) -> None:
@@ -167,14 +158,6 @@ def refresh_bazel_lock() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Regenerate the artifacts Renovate cannot compute."
-    )
-    parser.add_argument(
-        "--warnings-file",
-        help="append warnings here for the workflow to re-emit as ::warning:: annotations",
-    )
-    _WARNINGS_FILE = parser.parse_args().warnings_file
     refresh_registry_hashes("cmake/dependencies.json", "cmake")
     refresh_registry_hashes(
         "tools/report_generator/dependencies.json", "report_generator"
