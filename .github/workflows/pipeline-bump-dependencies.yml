@@ -4,19 +4,20 @@ name: Bump-Dependencies
 # (renovate.json) bumps everything with a standard manager -- GitHub Actions, pre-commit
 # hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry) and .bazelversion. It
 # then runs tools/bump_dependencies.py as a post-upgrade task, on the same branch, to bump
-# what Renovate doesn't: the CMake FetchContent registries, the Meson wraps, and
-# MODULE.bazel.lock. Everything lands in one PR.
+# what Renovate doesn't: the CMake FetchContent registries, the Meson wraps, MODULE.bazel.lock,
+# and the CLANG/NVHPC version pins in the bvt workflows. Everything lands in one PR.
 #
-# Renovate runs directly on the runner (not its container) so the post-upgrade task has
-# python, meson and bazelisk available.
+# Renovate runs directly on the runner (not its container) so the post-upgrade task has python,
+# meson and bazel available. Bazel ships preinstalled (as bazelisk) on the GitHub-hosted image.
 #
 # Auth: updating the `uses:` pins inside .github/workflows/*.yml needs a token with the
-# `workflow` scope, which GITHUB_TOKEN cannot have. We mint a short-lived, repo-scoped token
-# from a GitHub App each run, so the only stored secrets are the App ID + private key (no
-# personal-account access). Create a GitHub App with repository permissions Contents,
+# `workflow` scope, which GITHUB_TOKEN cannot have. A GitHub App's installation token can, but
+# such tokens are short-lived (~1h) and cannot be issued from the App settings page, so we mint
+# one per run from the App ID + private key. That keeps the only stored secrets to those two
+# (no personal-account PAT). Create a GitHub App with repository permissions Contents,
 # Pull requests, Workflows and Commit statuses (read & write) -- the last lets Renovate flag a
 # failed post-upgrade task as a red check on the PR -- install it on this repo, and set the
-# RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY secrets. The job fails fast if they are unset.
+# RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY secrets (the token step fails if they are unset).
 
 on:
   schedule:
@@ -32,16 +33,6 @@ jobs:
     # The weekly cron only runs on the canonical repo. Forks can still trigger it manually.
     if: github.event_name != 'schedule' || github.repository == 'ngcpp/proxy'
     steps:
-      - name: Require Renovate App credentials
-        env:
-          RENOVATE_APP_ID: ${{ secrets.RENOVATE_APP_ID }}
-          RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
-        run: |
-          if [ -z "$RENOVATE_APP_ID" ] || [ -z "$RENOVATE_APP_PRIVATE_KEY" ]; then
-            echo "::error::RENOVATE_APP_ID / RENOVATE_APP_PRIVATE_KEY secrets are not set. Create a GitHub App (Contents, Pull requests, Workflows, Commit statuses: read & write), install it on this repo, and add its App ID and a private key as those secrets. See the workflow header."
-            exit 1
-          fi
-
       - name: Mint a GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v2
@@ -49,14 +40,17 @@ jobs:
           app-id: ${{ secrets.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
-      - name: Resolve the App's bot identity
+      # Renovate must be told its own identity: an App installation token cannot self-identify
+      # via the /user API the way a PAT can. The username (from the token step) lets Renovate
+      # recognize and rebase its own PR; the git-author needs the bot's numeric id so commits
+      # link to the App account.
+      - name: Resolve the bot's commit identity
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           slug='${{ steps.app-token.outputs.app-slug }}'
           uid=$(gh api "/users/${slug}[bot]" --jq '.id')
-          echo "username=${slug}[bot]" >> "$GITHUB_OUTPUT"
           echo "git-author=${slug}[bot] <${uid}+${slug}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v6
@@ -69,17 +63,14 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Meson and Bazelisk
-        run: |
-          python3 -m pip install --upgrade pip meson
-          sudo curl -fsSL -o /usr/local/bin/bazel \
-            https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
-          sudo chmod +x /usr/local/bin/bazel
+      # Bazel is already on the runner (as bazelisk); only Meson needs installing.
+      - name: Install Meson
+        run: python3 -m pip install --upgrade pip meson
 
       - name: Run Renovate
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
-          RENOVATE_USERNAME: ${{ steps.bot.outputs.username }}
+          RENOVATE_USERNAME: ${{ steps.app-token.outputs.app-slug }}[bot]
           RENOVATE_GIT_AUTHOR: ${{ steps.bot.outputs.git-author }}
           RENOVATE_PLATFORM: github
           RENOVATE_REPOSITORIES: ${{ github.repository }}
@@ -87,7 +78,9 @@ jobs:
           RENOVATE_ONBOARDING: "false"
           # Manage whichever branch the workflow runs on (the default branch for the cron).
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
-          # Self-hosted gate: only our post-upgrade hook may run as a postUpgradeTasks command.
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/bump_dependencies\\.py$"]'
+          # Self-hosted safety gate: Renovate runs a postUpgradeTasks command only if it matches
+          # this allowlist. Scope it to a python script in tools/ (no path traversal, no shell
+          # metacharacters) rather than one filename, so renaming the script needs no edit here.
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^python3 tools/[\\w-]+\\.py$"]'
           LOG_LEVEL: info
         run: npx --yes renovate

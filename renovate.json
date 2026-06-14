@@ -28,13 +28,15 @@
     }
   ],
   "postUpgradeTasks": {
-    "description": "Bump the CMake registries + Meson wraps and refresh MODULE.bazel.lock.",
+    "description": "Bump what no manager covers: CMake registries, Meson wraps, MODULE.bazel.lock, and the CLANG/NVHPC workflow pins.",
     "commands": ["python3 tools/bump_dependencies.py"],
     "fileFilters": [
       "cmake/dependencies.json",
       "tools/report_generator/dependencies.json",
       "subprojects/*.wrap",
-      "MODULE.bazel.lock"
+      "MODULE.bazel.lock",
+      ".github/workflows/bvt-clang.yml",
+      ".github/workflows/bvt-nvhpc.yml"
     ],
     "executionMode": "branch"
   }
