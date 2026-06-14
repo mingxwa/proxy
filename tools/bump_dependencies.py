@@ -17,8 +17,8 @@ handle, self-containedly, the three families it has no manager for:
 
 The script is self-contained: it discovers versions and computes hashes itself rather than
 relying on Renovate to pre-bump anything. Any problem -- a lookup or download that fails, a
-missing tool, a failed subprocess -- is a hard error: the script exits non-zero and Renovate
-reports the post-upgrade task as failed.
+missing tool, a failed subprocess -- is a hard error: the script exits non-zero, which
+Renovate surfaces as a failed ``renovate/artifacts`` check on the pull request.
 
 Progress and errors go to stdout. Only the Python standard library is used; GITHUB_TOKEN, if
 present, lifts the GitHub rate limit.

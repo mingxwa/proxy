@@ -1,11 +1,11 @@
 name: Bump-Dependencies
 
 # Weekly dependency automation, all in a single pull request. Self-hosted Renovate
-# (renovate.json) discovers every version bump -- GitHub Actions, pre-commit hooks, the
-# mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry), .bazelversion, and the CMake
-# FetchContent registry (via a customManager). Renovate then runs tools/bump_dependencies.py
-# as a post-upgrade task, on the same branch, to regenerate the artifacts it cannot compute:
-# the CMake tarball hashes, the Meson wraps, and MODULE.bazel.lock. Everything lands in one PR.
+# (renovate.json) bumps everything with a standard manager -- GitHub Actions, pre-commit
+# hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry) and .bazelversion. It
+# then runs tools/bump_dependencies.py as a post-upgrade task, on the same branch, to bump
+# what Renovate doesn't: the CMake FetchContent registries, the Meson wraps, and
+# MODULE.bazel.lock. Everything lands in one PR.
 #
 # Renovate runs directly on the runner (not its container) so the post-upgrade task has
 # python, meson and bazelisk available.
@@ -14,7 +14,8 @@ name: Bump-Dependencies
 # `workflow` scope, which GITHUB_TOKEN cannot have. We mint a short-lived, repo-scoped token
 # from a GitHub App each run, so the only stored secrets are the App ID + private key (no
 # personal-account access). Create a GitHub App with repository permissions Contents,
-# Pull requests and Workflows (read & write), install it on this repo, and set the
+# Pull requests, Workflows and Commit statuses (read & write) -- the last lets Renovate flag a
+# failed post-upgrade task as a red check on the PR -- install it on this repo, and set the
 # RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY secrets. The job fails fast if they are unset.
 
 on:
@@ -37,7 +38,7 @@ jobs:
           RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
         run: |
           if [ -z "$RENOVATE_APP_ID" ] || [ -z "$RENOVATE_APP_PRIVATE_KEY" ]; then
-            echo "::error::RENOVATE_APP_ID / RENOVATE_APP_PRIVATE_KEY secrets are not set. Create a GitHub App (Contents, Pull requests, Workflows: read & write), install it on this repo, and add its App ID and a private key as those secrets. See the workflow header."
+            echo "::error::RENOVATE_APP_ID / RENOVATE_APP_PRIVATE_KEY secrets are not set. Create a GitHub App (Contents, Pull requests, Workflows, Commit statuses: read & write), install it on this repo, and add its App ID and a private key as those secrets. See the workflow header."
             exit 1
           fi
 
