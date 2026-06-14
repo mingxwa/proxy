@@ -14,10 +14,10 @@
   "separateMajorMinor": false,
   "updateLockFiles": false,
   "prHourlyLimit": 0,
-  "branchPrefix": "bump/",
+  "branchPrefix": "auto/bump-renovate-",
   "packageRules": [
     {
-      "description": "One weekly PR on bump/renovate (groupSlug); title 'Update dependencies' (groupName).",
+      "description": "One weekly PR on auto/bump-renovate-deps (branchPrefix + groupSlug); title 'Update dependencies' (groupName). The prefix is scoped so Renovate prunes only its own branches, not the cpp pipeline's auto/bump-cpp-deps.",
       "matchManagers": [
         "github-actions",
         "pre-commit",
@@ -26,7 +26,7 @@
         "bazelisk"
       ],
       "groupName": "dependencies",
-      "groupSlug": "renovate"
+      "groupSlug": "deps"
     }
   ],
   "postUpgradeTasks": {
