@@ -20,8 +20,8 @@ relying on Renovate to pre-bump anything. Any problem -- a lookup or download th
 missing tool, a failed subprocess -- is a hard error: the script exits non-zero and Renovate
 reports the post-upgrade task as failed.
 
-Progress goes to stderr. Only the Python standard library is used; GITHUB_TOKEN, if present,
-lifts the GitHub rate limit.
+Progress and errors go to stdout. Only the Python standard library is used; GITHUB_TOKEN, if
+present, lifts the GitHub rate limit.
 """
 
 import hashlib
@@ -30,7 +30,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -49,11 +48,11 @@ _WRAPDB_RE = re.compile(r"^wrapdb_version\s*=", re.MULTILINE)
 
 
 def _log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
+    print(msg, flush=True)
 
 
 def _abort(msg: str) -> NoReturn:
-    print(f"error: {msg}", file=sys.stderr, flush=True)
+    print(f"error: {msg}", flush=True)
     raise SystemExit(1)
 
 
