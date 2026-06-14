@@ -1,32 +1,27 @@
 #!/usr/bin/env python3
 # pyright: strict
 
-"""Renovate post-upgrade hook: regenerate the artifacts Renovate cannot compute itself.
+"""Post-upgrade hook for the weekly Renovate bump: handle what Renovate has no manager for.
 
-Renovate (see renovate.json) discovers every version bump in this repo -- GitHub Actions,
-pre-commit hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry), .bazelversion,
-and the CMake FetchContent registry (via a customManager). It then runs this script as a
-``postUpgradeTasks`` command, on the same branch, to regenerate the three derived artifacts a
-version bump invalidates but Renovate has no way to produce:
+Renovate (renovate.json) bumps everything with a standard manager -- GitHub Actions,
+pre-commit hooks, the mkdocs PyPI pins, MODULE.bazel (Bazel Central Registry) and
+.bazelversion. It then runs this script (a postUpgradeTasks command) on the same branch to
+handle, self-containedly, the three families it has no manager for:
 
-  cmake   the SHA256 in cmake/dependencies.json + the report generator's registry, recomputed
-          to match the tarball URL Renovate just bumped.
-  meson   subprojects/*.wrap, refreshed via ``meson wrap update`` (wrapdb has no Renovate
-          manager, and a wrap's source/patch versions and hashes must move together).
-  bazel   MODULE.bazel.lock, refreshed to match the bazel_dep versions Renovate just bumped.
+  cmake   fmt / googletest / benchmark in cmake/dependencies.json and nlohmann_json in
+          tools/report_generator/dependencies.json. For each, query the repo's latest release
+          and -- only when it differs from the pinned tag -- download the tarball and rewrite
+          its url + sha256 (the sha256 is the part Renovate cannot compute).
+  meson   subprojects/*.wrap, refreshed via `meson wrap update`.
+  bazel   MODULE.bazel.lock, refreshed to match the bazel_dep versions Renovate bumped.
 
-It only rewrites; it does not pick versions. Running it by hand simply makes those artifacts
-consistent with the versions already on disk.
+The script is self-contained: it discovers versions and computes hashes itself rather than
+relying on Renovate to pre-bump anything. Any problem -- a lookup or download that fails, a
+missing tool, a failed subprocess -- is a hard error: the script exits non-zero and Renovate
+reports the post-upgrade task as failed.
 
-Output channels:
-  * ``_log``    progress -> stdout.
-  * ``_warn``   actionable problems (a download failed, a tool missing) -> stderr only.
-                Renovate captures this task's streams, so the workflow redirects stderr to a
-                file and re-emits each line as a ``::warning::`` annotation.
-  * ``_record`` a regenerated artifact -> stdout as a markdown bullet for the PR/job summary.
-
-Only the Python standard library is used. Set ``GITHUB_TOKEN`` to lift the GitHub download
-rate limit (the workflow passes the built-in token automatically).
+Progress goes to stderr. Only the Python standard library is used; GITHUB_TOKEN, if present,
+lifts the GitHub rate limit.
 """
 
 import hashlib
@@ -39,39 +34,41 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import NoReturn
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
-
-# A Meson wrap's resolved version, read from its "directory = <name>-<version>" line.
+# A clean version tag, e.g. "v4", "1.2", "v1.2.3" (no stdlib semver parser exists).
+_SEMVER_RE = re.compile(r"^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$")
+# A GitHub archive tarball URL -> (owner/repo, tag).
+_ARCHIVE_URL_RE = re.compile(
+    r"https://github\.com/([^/]+/[^/]+)/archive/refs/tags/(.+)\.tar\.gz"
+)
+# A Meson wrap's resolved version, from its "directory = <name>-<version>" line.
 _WRAP_DIR_RE = re.compile(r"^directory\s*=\s*(.+)$", re.MULTILINE)
-# Marks a wrapdb-managed wrap. `meson wrap update` only handles these; wraps provided by the
-# upstream project (fmt, which uses "3rdparty_wrapdb_version") are not updatable this way.
+# Marks a wrapdb-managed wrap; `meson wrap update` only handles these.
 _WRAPDB_RE = re.compile(r"^wrapdb_version\s*=", re.MULTILINE)
 
 
 def _log(msg: str) -> None:
-    print(msg, flush=True)
+    print(msg, file=sys.stderr, flush=True)
 
 
-def _warn(msg: str) -> None:
-    """Print an actionable problem to stderr (warnings-only; progress goes to stdout).
-
-    Renovate captures this task's streams, so a printed ``::warning::`` would be swallowed.
-    The workflow runs the task as ``bash -c '... 2>FILE'`` and re-emits each stderr line as a
-    ``::warning::`` annotation, so keeping stderr free of anything but warnings is the contract.
-    """
-    print(msg.replace("\n", " "), file=sys.stderr, flush=True)
+def _die(msg: str) -> NoReturn:
+    print(f"error: {msg}", file=sys.stderr, flush=True)
+    raise SystemExit(1)
 
 
-def _record(name: str, old: str, new: str) -> None:
-    print(f"- {name}: {old} → {new}", flush=True)
+# --------------------------------------------------------------------------- #
+# HTTP (stdlib only)
+# --------------------------------------------------------------------------- #
 
 
-def _download(url: str) -> bytes | None:
-    """GET ``url`` (with the GitHub token, for rate limits); ``None`` on any failure."""
+def _http_get(url: str, *, accept: str | None = None) -> bytes | None:
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "proxy-bump-dependencies")
+    if accept is not None:
+        req.add_header("Accept", accept)
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -82,23 +79,74 @@ def _download(url: str) -> bytes | None:
         return None
 
 
-def refresh_registry_hashes(rel_path: str, label: str) -> None:
-    """Recompute each entry's SHA256 to match its (Renovate-bumped) URL."""
-    _log(f"Refreshing hashes for {label} ({rel_path}) ...")
+def _http_json(url: str) -> object | None:
+    body = _http_get(url, accept="application/json")
+    if body is None:
+        return None
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_semver(tag: str) -> tuple[int, int, int] | None:
+    m = _SEMVER_RE.match(tag.strip())
+    if m is None:
+        return None
+    return (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 0))
+
+
+def _github_latest_tag(repo: str) -> str | None:
+    """Latest stable release tag for ``owner/repo``, or ``None`` if it can't be determined.
+
+    Prefers ``releases/latest`` (excludes pre-releases); falls back to the newest tag for
+    repos that publish tags but no Releases.
+    """
+    data = _http_json(f"https://api.github.com/repos/{repo}/releases/latest")
+    if isinstance(data, dict):
+        name = data.get("tag_name")
+        if isinstance(name, str):
+            return name
+
+    data = _http_json(f"https://api.github.com/repos/{repo}/tags?per_page=1")
+    if isinstance(data, list) and data:
+        entry = data[0]
+        name = entry.get("name") if isinstance(entry, dict) else None
+        if isinstance(name, str) and _parse_semver(name) is not None:
+            return name
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Updaters
+# --------------------------------------------------------------------------- #
+
+
+def update_json_registry(rel_path: str, label: str) -> None:
+    """Bump each GitHub-archive entry to its latest release (downloading only on a change)."""
+    _log(f"Checking {label} ({rel_path}) ...")
     path = _REPO_ROOT / rel_path
     deps = json.loads(path.read_text(encoding="utf-8"))
     changed = False
     for dep in deps:
         name, url = dep["name"], dep["url"]
-        body = _download(url)
+        m = _ARCHIVE_URL_RE.fullmatch(url)
+        if m is None:
+            _die(f"{label}/{name}: url is not a GitHub archive tarball: {url}")
+        repo, current = m.group(1), m.group(2)
+        latest = _github_latest_tag(repo)
+        if latest is None:
+            _die(f"{label}/{name}: could not determine the latest release of {repo}")
+        if latest == current:
+            continue  # already current -- no download
+        new_url = f"https://github.com/{repo}/archive/refs/tags/{latest}.tar.gz"
+        body = _http_get(new_url)
         if body is None:
-            _warn(f"{label}/{name}: could not download {url}; sha256 left unchanged")
-            continue
-        digest = hashlib.sha256(body).hexdigest()
-        if digest != dep.get("sha256"):
-            _record(f"{label}/{name} sha256", str(dep.get("sha256"))[:12], digest[:12])
-            dep["sha256"] = digest
-            changed = True
+            _die(f"{label}/{name}: could not download {new_url}")
+        _log(f"  {name}: {current} -> {latest}")
+        dep["url"] = new_url
+        dep["sha256"] = hashlib.sha256(body).hexdigest()
+        changed = True
     if changed:
         path.write_text(json.dumps(deps, indent=2) + "\n", encoding="utf-8")
 
@@ -112,15 +160,13 @@ def update_meson() -> None:
     _log("Updating Meson wraps ...")
     wraps = sorted((_REPO_ROOT / "subprojects").glob("*.wrap"))
     if not wraps:
-        _warn("no wrap files found in subprojects/")
-        return
+        _die("no wrap files found in subprojects/")
     if shutil.which("meson") is None:
-        _warn("meson not found on PATH; wraps not updated")
-        return
+        _die("meson not found on PATH")
     for wrap in wraps:
         name = wrap.stem
         if _WRAPDB_RE.search(wrap.read_text(encoding="utf-8")) is None:
-            _log(f"  - {name}: not wrapdb-managed; skipping")
+            _log(f"  {name}: not wrapdb-managed; skipping")
             continue
         before = _wrap_version(wrap)
         result = subprocess.run(
@@ -131,18 +177,16 @@ def update_meson() -> None:
             check=False,
         )
         if result.returncode != 0:
-            _warn(f"`meson wrap update {name}` failed; left unchanged")
-            continue
+            _die(f"`meson wrap update {name}` failed: {result.stderr.strip()}")
         after = _wrap_version(wrap)
         if after != before:
-            _record(name, before, after)
+            _log(f"  {name}: {before} -> {after}")
 
 
 def refresh_bazel_lock() -> None:
     _log("Refreshing MODULE.bazel.lock ...")
     if shutil.which("bazel") is None:
-        _warn("bazel not found on PATH; MODULE.bazel.lock not refreshed")
-        return
+        _die("bazel not found on PATH")
     result = subprocess.run(
         ["bazel", "mod", "graph", "--lockfile_mode=update"],
         cwd=_REPO_ROOT,
@@ -151,16 +195,11 @@ def refresh_bazel_lock() -> None:
         check=False,
     )
     if result.returncode != 0:
-        _warn(
-            f"`bazel mod graph` failed; MODULE.bazel.lock may be stale: "
-            f"{result.stderr.strip()}"
-        )
+        _die(f"`bazel mod graph` failed: {result.stderr.strip()}")
 
 
 if __name__ == "__main__":
-    refresh_registry_hashes("cmake/dependencies.json", "cmake")
-    refresh_registry_hashes(
-        "tools/report_generator/dependencies.json", "report_generator"
-    )
+    update_json_registry("cmake/dependencies.json", "cmake")
+    update_json_registry("tools/report_generator/dependencies.json", "report_generator")
     update_meson()
     refresh_bazel_lock()

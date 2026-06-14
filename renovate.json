@@ -6,25 +6,13 @@
     "pre-commit",
     "pip_requirements",
     "bazel-module",
-    "bazelisk",
-    "custom.regex"
+    "bazelisk"
   ],
   "pre-commit": {
     "enabled": true
   },
   "separateMajorMinor": false,
   "updateLockFiles": false,
-  "customManagers": [
-    {
-      "description": "CMake FetchContent registries: bump the tag in each archive URL.",
-      "customType": "regex",
-      "fileMatch": ["(^|/)dependencies\\.json$"],
-      "matchStrings": [
-        "https://github\\.com/(?<depName>[^/]+/[^/\"]+)/archive/refs/tags/(?<currentValue>.+?)\\.tar\\.gz"
-      ],
-      "datasourceTemplate": "github-releases"
-    }
-  ],
   "packageRules": [
     {
       "description": "Collect every bump into a single weekly PR.",
@@ -33,8 +21,7 @@
         "pre-commit",
         "pip_requirements",
         "bazel-module",
-        "bazelisk",
-        "custom.regex"
+        "bazelisk"
       ],
       "groupName": "dependencies"
     },
@@ -50,10 +37,8 @@
     }
   ],
   "postUpgradeTasks": {
-    "description": "Regenerate the artifacts Renovate cannot compute (hashes, wraps, lockfile).",
-    "commands": [
-      "bash -c \"python3 tools/bump_dependencies.py 2>/tmp/bump-warnings.txt\""
-    ],
+    "description": "Bump the CMake registries + Meson wraps and refresh MODULE.bazel.lock.",
+    "commands": ["python3 tools/bump_dependencies.py"],
     "fileFilters": [
       "cmake/dependencies.json",
       "tools/report_generator/dependencies.json",
