@@ -13,6 +13,7 @@
   },
   "separateMajorMinor": false,
   "updateLockFiles": false,
+  "prHourlyLimit": 0,
   "packageRules": [
     {
       "description": "Collect every bump into a single weekly PR.",
