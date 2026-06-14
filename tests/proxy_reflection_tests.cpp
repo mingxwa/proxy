@@ -8,7 +8,7 @@
 #include <proxy/proxy.h>
 #include <typeinfo>
 
-namespace proxy_reflection_tests_details {
+namespace proxy_reflection_tests_detail {
 
 struct TraitsReflector {
 public:
@@ -44,26 +44,26 @@ struct TestTraitsFacade : pro::facade_builder                      //
                           ::add_direct_reflection<TraitsReflector> //
                           ::build {};
 
-} // namespace proxy_reflection_tests_details
+} // namespace proxy_reflection_tests_detail
 
-namespace details = proxy_reflection_tests_details;
+namespace detail = proxy_reflection_tests_detail;
 
 TEST(ProxyReflectionTests, TestRtti_RawPtr) {
   int foo = 123;
-  pro::proxy<details::TestRttiFacade> p = &foo;
+  pro::proxy<detail::TestRttiFacade> p = &foo;
   ASSERT_STREQ(p.GetTypeName(), typeid(int*).name());
   ASSERT_STREQ(p->GetTypeName(), typeid(int).name());
 }
 
 TEST(ProxyReflectionTests, TestRtti_FancyPtr) {
-  pro::proxy<details::TestRttiFacade> p = std::make_unique<double>(1.23);
+  pro::proxy<detail::TestRttiFacade> p = std::make_unique<double>(1.23);
   ASSERT_STREQ(p.GetTypeName(), typeid(std::unique_ptr<double>).name());
   ASSERT_STREQ(p->GetTypeName(), typeid(double).name());
 }
 
 TEST(ProxyReflectionTests, TestTraits_RawPtr) {
   int foo = 123;
-  pro::proxy<details::TestTraitsFacade> p = &foo;
+  pro::proxy<detail::TestTraitsFacade> p = &foo;
   ASSERT_EQ(p.ReflectTraits().is_default_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_copy_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_nothrow_move_constructible_, true);
@@ -72,7 +72,7 @@ TEST(ProxyReflectionTests, TestTraits_RawPtr) {
 }
 
 TEST(ProxyReflectionTests, TestTraits_FancyPtr) {
-  pro::proxy<details::TestTraitsFacade> p = std::make_unique<double>(1.23);
+  pro::proxy<detail::TestTraitsFacade> p = std::make_unique<double>(1.23);
   ASSERT_EQ(p.ReflectTraits().is_default_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_copy_constructible_, false);
   ASSERT_EQ(p.ReflectTraits().is_nothrow_move_constructible_, true);

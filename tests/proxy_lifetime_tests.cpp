@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <proxy/proxy.h>
 
-namespace proxy_lifetime_tests_details {
+namespace proxy_lifetime_tests_detail {
 
 struct TestFacade
     : pro::facade_builder                                        //
@@ -37,17 +37,17 @@ static_assert(!std::is_convertible_v<pro::proxy<TestTrivialFacade>,
 static_assert(
     std::is_convertible_v<pro::proxy<TestRttiFacade>, pro::proxy<TestFacade>>);
 
-} // namespace proxy_lifetime_tests_details
+} // namespace proxy_lifetime_tests_detail
 
-namespace details = proxy_lifetime_tests_details;
+namespace detail = proxy_lifetime_tests_detail;
 
 TEST(ProxyLifetimeTests, TestDefaultConstrction) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
   ASSERT_FALSE(p.has_value());
 }
 
 TEST(ProxyLifetimeTests, TestNullConstrction_Nullptr) {
-  pro::proxy<details::TestFacade> p = nullptr;
+  pro::proxy<detail::TestFacade> p = nullptr;
   ASSERT_FALSE(p.has_value());
 }
 
@@ -61,7 +61,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p =
+    pro::proxy<detail::TestFacade> p =
         utils::LifetimeTracker::Session(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 2");
@@ -86,7 +86,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_FromValue_Exception) {
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
-      pro::proxy<details::TestFacade> p = another_session;
+      pro::proxy<detail::TestFacade> p = another_session;
     } catch (const utils::ConstructionFailure& e) {
       exception_thrown = true;
       ASSERT_EQ(e.type_, utils::LifetimeOperationType::kCopyConstruction);
@@ -102,7 +102,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_InPlace) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
@@ -121,7 +121,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_InPlace_Exception) {
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
-      pro::proxy<details::TestFacade> p{
+      pro::proxy<detail::TestFacade> p{
           std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     } catch (const utils::ConstructionFailure& e) {
       exception_thrown = true;
@@ -137,7 +137,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_InPlaceInitializerList) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>,
         {1, 2, 3},
         &tracker};
@@ -158,7 +158,7 @@ TEST(ProxyLifetimeTests, TestPolyConstrction_InPlaceInitializerList_Exception) {
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
-      pro::proxy<details::TestFacade> p{
+      pro::proxy<detail::TestFacade> p{
           std::in_place_type<utils::LifetimeTracker::Session>,
           {1, 2, 3},
           &tracker};
@@ -177,7 +177,7 @@ TEST(ProxyLifetimeTests, TestCopyConstrction_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -199,7 +199,7 @@ TEST(ProxyLifetimeTests, TestCopyConstrction_FromValue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -221,7 +221,7 @@ TEST(ProxyLifetimeTests, TestCopyConstrction_FromValue_Exception) {
 }
 
 TEST(ProxyLifetimeTests, TestCopyConstrction_FromNull) {
-  pro::proxy<details::TestFacade> p1;
+  pro::proxy<detail::TestFacade> p1;
   auto p2 = p1;
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
@@ -231,7 +231,7 @@ TEST(ProxyLifetimeTests, TestMoveConstrction_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -255,7 +255,7 @@ TEST(ProxyLifetimeTests, TestMoveConstrction_FromValue_Trivial) {
     utils::LifetimeTracker::Session session{&tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestTrivialFacade> p1 = &session;
+    pro::proxy<detail::TestTrivialFacade> p1 = &session;
     ASSERT_TRUE(p1.has_value());
     auto p2 = std::move(p1);
     ASSERT_TRUE(p1.has_value());
@@ -268,7 +268,7 @@ TEST(ProxyLifetimeTests, TestMoveConstrction_FromValue_Trivial) {
 }
 
 TEST(ProxyLifetimeTests, TestMoveConstrction_FromNull) {
-  pro::proxy<details::TestFacade> p1;
+  pro::proxy<detail::TestFacade> p1;
   auto p2 = std::move(p1);
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
@@ -278,7 +278,7 @@ TEST(ProxyLifetimeTests, TestNullAssignment_FromNullptr_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -298,7 +298,7 @@ TEST(ProxyLifetimeTests, TestNullAssignment_FromTypedNullPointer_ToValue) {
 }
 
 TEST(ProxyLifetimeTests, TestNullAssignment_ToNull) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
   p = nullptr;
   ASSERT_FALSE(p.has_value());
 }
@@ -307,7 +307,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -333,7 +333,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_ToValue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -362,7 +362,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_FromValue_ToNull) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     p = utils::LifetimeTracker::Session{&tracker};
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 3");
@@ -387,7 +387,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_FromValue_ToNull_Exception) {
     utils::LifetimeTracker::Session session{&tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
@@ -408,7 +408,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlace_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -428,7 +428,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlace_ToValue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -452,7 +452,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlace_ToNull) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     p.emplace<utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
@@ -468,7 +468,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlace_ToNull_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
@@ -488,7 +488,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlaceInitializerList_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -509,7 +509,7 @@ TEST(ProxyLifetimeTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -534,7 +534,7 @@ TEST(ProxyLifetimeTests, TestPolyAssignment_InPlaceInitializerList_ToNull) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     p.emplace<utils::LifetimeTracker::Session>({1, 2, 3}, &tracker);
     ASSERT_TRUE(p.has_value());
     ASSERT_EQ(ToString(*p), "Session 1");
@@ -551,7 +551,7 @@ TEST(ProxyLifetimeTests,
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     tracker.ThrowOnNextConstruction();
     bool exception_thrown = false;
     try {
@@ -572,11 +572,11 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromValue_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -602,11 +602,11 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromValue_ToValue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -634,7 +634,7 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromValue_ToSelf) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -658,8 +658,8 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromValue_ToNull) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1;
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p1;
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -684,8 +684,8 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromValue_ToNull_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1;
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p1;
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -711,11 +711,11 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromNull_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2;
+    pro::proxy<detail::TestFacade> p2;
     p1 = p2;
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -724,7 +724,7 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromNull_ToValue) {
 }
 
 TEST(ProxyLifetimeTests, TestCopyAssignment_FromNull_ToSelf) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wself-assign-overloaded"
@@ -737,8 +737,8 @@ TEST(ProxyLifetimeTests, TestCopyAssignment_FromNull_ToSelf) {
 }
 
 TEST(ProxyLifetimeTests, TestCopyAssignment_FromNull_ToNull) {
-  pro::proxy<details::TestFacade> p1;
-  pro::proxy<details::TestFacade> p2;
+  pro::proxy<detail::TestFacade> p1;
+  pro::proxy<detail::TestFacade> p2;
   p1 = p2;
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
@@ -748,11 +748,11 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromValue_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -774,11 +774,11 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromValue_ToValue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -804,7 +804,7 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromValue_ToSelf) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -832,8 +832,8 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromValue_ToNull) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1;
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p1;
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -854,8 +854,8 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromValue_ToNull_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1;
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p1;
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -880,11 +880,11 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromNull_ToValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2;
+    pro::proxy<detail::TestFacade> p2;
     p1 = std::move(p2);
     expected_ops.emplace_back(1, utils::LifetimeOperationType::kDestruction);
     ASSERT_TRUE(tracker.GetOperations() == expected_ops);
@@ -893,7 +893,7 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromNull_ToValue) {
 }
 
 TEST(ProxyLifetimeTests, TestMoveAssignment_FromNull_ToSelf) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wself-move"
@@ -911,8 +911,8 @@ TEST(ProxyLifetimeTests, TestMoveAssignment_FromNull_ToSelf) {
 }
 
 TEST(ProxyLifetimeTests, TestMoveAssignment_FromNull_ToNull) {
-  pro::proxy<details::TestFacade> p1;
-  pro::proxy<details::TestFacade> p2;
+  pro::proxy<detail::TestFacade> p1;
+  pro::proxy<detail::TestFacade> p2;
   p1 = std::move(p2);
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
@@ -922,7 +922,7 @@ TEST(ProxyLifetimeTests, TestHasValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     ASSERT_FALSE(p.has_value());
     p.emplace<utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(p.has_value());
@@ -938,12 +938,12 @@ TEST(ProxyLifetimeTests, TestHasValue) {
 TEST(ProxyLifetimeTests, TestOperatorBool) {
   // Implicit conversion to bool shall be prohibited.
   static_assert(
-      !std::is_nothrow_convertible_v<pro::proxy<details::TestFacade>, bool>);
+      !std::is_nothrow_convertible_v<pro::proxy<detail::TestFacade>, bool>);
 
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     ASSERT_FALSE(static_cast<bool>(p));
     p.emplace<utils::LifetimeTracker::Session>(&tracker);
     ASSERT_TRUE(static_cast<bool>(p));
@@ -960,7 +960,7 @@ TEST(ProxyLifetimeTests, TestEqualsToNullptr) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p;
+    pro::proxy<detail::TestFacade> p;
     ASSERT_TRUE(p == nullptr);
     ASSERT_TRUE(nullptr == p);
     p.emplace<utils::LifetimeTracker::Session>(&tracker);
@@ -979,7 +979,7 @@ TEST(ProxyLifetimeTests, TestReset_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -992,7 +992,7 @@ TEST(ProxyLifetimeTests, TestReset_FromValue) {
 }
 
 TEST(ProxyLifetimeTests, TestReset_FromNull) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
   p.reset();
   ASSERT_FALSE(p.has_value());
 }
@@ -1001,11 +1001,11 @@ TEST(ProxyLifetimeTests, TestSwap_Value_Value) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(2,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1034,7 +1034,7 @@ TEST(ProxyLifetimeTests, TestSwap_Value_Self) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1057,11 +1057,11 @@ TEST(ProxyLifetimeTests, TestSwap_Value_Null) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1{
+    pro::proxy<detail::TestFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2;
+    pro::proxy<detail::TestFacade> p2;
     swap(p1, p2);
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
@@ -1078,8 +1078,8 @@ TEST(ProxyLifetimeTests, TestSwap_Null_Value) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p1;
-    pro::proxy<details::TestFacade> p2{
+    pro::proxy<detail::TestFacade> p1;
+    pro::proxy<detail::TestFacade> p2{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1096,24 +1096,24 @@ TEST(ProxyLifetimeTests, TestSwap_Null_Value) {
 }
 
 TEST(ProxyLifetimeTests, TestSwap_Null_Self) {
-  pro::proxy<details::TestFacade> p;
+  pro::proxy<detail::TestFacade> p;
   swap(p, p);
   ASSERT_FALSE(p.has_value());
 }
 
 TEST(ProxyLifetimeTests, TestSwap_Null_Null) {
-  pro::proxy<details::TestFacade> p1;
-  pro::proxy<details::TestFacade> p2;
+  pro::proxy<detail::TestFacade> p1;
+  pro::proxy<detail::TestFacade> p2;
   swap(p1, p2);
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
 }
 
 TEST(ProxyLifetimeTests, TestSwap_Trivial) {
-  pro::proxy<details::TestTrivialFacade> p1 =
-      pro::make_proxy<details::TestTrivialFacade>(123);
-  pro::proxy<details::TestTrivialFacade> p2 =
-      pro::make_proxy<details::TestTrivialFacade>(456);
+  pro::proxy<detail::TestTrivialFacade> p1 =
+      pro::make_proxy<detail::TestTrivialFacade>(123);
+  pro::proxy<detail::TestTrivialFacade> p2 =
+      pro::make_proxy<detail::TestTrivialFacade>(456);
   swap(p1, p2);
   ASSERT_TRUE(p1.has_value());
   ASSERT_EQ(ToString(*p1), "456");
@@ -1125,7 +1125,7 @@ TEST(ProxyLifetimeTests, Test_DirectConvension_Lvalue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1146,7 +1146,7 @@ TEST(ProxyLifetimeTests, Test_DirectConvension_Rvalue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1166,7 +1166,7 @@ TEST(ProxyLifetimeTests, Test_DirectConvension_Rvalue_Exception) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestFacade> p{
+    pro::proxy<detail::TestFacade> p{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
@@ -1190,11 +1190,11 @@ TEST(ProxyLifetimeTests, Test_CopySubstitution_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestRttiFacade> p1{
+    pro::proxy<detail::TestRttiFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2 = p1;
+    pro::proxy<detail::TestFacade> p2 = p1;
     ASSERT_TRUE(p1.has_value());
     ASSERT_EQ(ToString(*p1), "Session 1");
     ASSERT_STREQ(p1.GetTypeName(),
@@ -1211,8 +1211,8 @@ TEST(ProxyLifetimeTests, Test_CopySubstitution_FromValue) {
 }
 
 TEST(ProxyLifetimeTests, Test_CopySubstitution_FromNull) {
-  pro::proxy<details::TestRttiFacade> p1;
-  pro::proxy<details::TestFacade> p2 = p1;
+  pro::proxy<detail::TestRttiFacade> p1;
+  pro::proxy<detail::TestFacade> p2 = p1;
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
 }
@@ -1221,11 +1221,11 @@ TEST(ProxyLifetimeTests, Test_MoveSubstitution_FromValue) {
   utils::LifetimeTracker tracker;
   std::vector<utils::LifetimeOperation> expected_ops;
   {
-    pro::proxy<details::TestRttiFacade> p1{
+    pro::proxy<detail::TestRttiFacade> p1{
         std::in_place_type<utils::LifetimeTracker::Session>, &tracker};
     expected_ops.emplace_back(1,
                               utils::LifetimeOperationType::kValueConstruction);
-    pro::proxy<details::TestFacade> p2 = std::move(p1);
+    pro::proxy<detail::TestFacade> p2 = std::move(p1);
     ASSERT_FALSE(p1.has_value());
     ASSERT_TRUE(p2.has_value());
     ASSERT_EQ(ToString(*p2), "Session 2");
@@ -1239,8 +1239,8 @@ TEST(ProxyLifetimeTests, Test_MoveSubstitution_FromValue) {
 }
 
 TEST(ProxyLifetimeTests, Test_MoveSubstitution_FromNull) {
-  pro::proxy<details::TestRttiFacade> p1;
-  pro::proxy<details::TestFacade> p2 = std::move(p1);
+  pro::proxy<detail::TestRttiFacade> p1;
+  pro::proxy<detail::TestFacade> p2 = std::move(p1);
   ASSERT_FALSE(p1.has_value());
   ASSERT_FALSE(p2.has_value());
 }

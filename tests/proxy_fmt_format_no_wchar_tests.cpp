@@ -8,7 +8,7 @@
 #include <proxy/proxy.h>
 #include <proxy/proxy_fmt.h>
 
-namespace proxy_fmt_format_no_wchar_tests_details {
+namespace proxy_fmt_format_no_wchar_tests_detail {
 
 struct NonFormattable : pro::facade_builder::build {};
 
@@ -23,13 +23,13 @@ struct Formattable : pro::facade_builder                  //
 static_assert(std::is_default_constructible_v<
               fmt::formatter<pro::proxy_indirect_accessor<Formattable>, char>>);
 
-} // namespace proxy_fmt_format_no_wchar_tests_details
+} // namespace proxy_fmt_format_no_wchar_tests_detail
 
-namespace details = proxy_fmt_format_no_wchar_tests_details;
+namespace detail = proxy_fmt_format_no_wchar_tests_detail;
 
 TEST(ProxyFmtFormatNoWcharTests, TestFormat) {
   int v = 123;
-  pro::proxy<details::Formattable> p = &v;
+  pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(fmt::format("{}", *p), "123");
   ASSERT_EQ(fmt::format("{:*<6}", *p), "123***");
 }

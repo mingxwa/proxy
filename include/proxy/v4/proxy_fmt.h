@@ -19,7 +19,7 @@ later) are included before proxy_fmt.h.
 
 namespace pro::inline v4 {
 
-namespace details {
+namespace detail {
 
 template <class CharT>
 #if FMT_VERSION >= 110000
@@ -32,19 +32,19 @@ struct fmt_format_traits
     : format_traits<fmt::formatter, std::basic_string_view,
                     fmt::basic_format_parse_context, fmt_buffered_context> {};
 
-} // namespace details
+} // namespace detail
 
 namespace skills {
 
 template <class FB>
 using fmt_format = typename FB::template add_convention<
-    details::fmt_format_traits::dispatch,
-    details::fmt_format_traits::overload<char>>;
+    detail::fmt_format_traits::dispatch,
+    detail::fmt_format_traits::overload<char>>;
 
 template <class FB>
 using fmt_wformat = typename FB::template add_convention<
-    details::fmt_format_traits::dispatch,
-    details::fmt_format_traits::overload<wchar_t>>;
+    detail::fmt_format_traits::dispatch,
+    detail::fmt_format_traits::overload<wchar_t>>;
 
 } // namespace skills
 
@@ -53,9 +53,9 @@ using fmt_wformat = typename FB::template add_convention<
 namespace fmt {
 
 template <class T, class CharT>
-  requires(pro::v4::details::enabled_for<T, fmt::formatter, CharT>)
+  requires(pro::v4::detail::enabled_for<T, fmt::formatter, CharT>)
 struct formatter<T, CharT>
-    : pro::v4::details::fmt_format_traits::formatter<CharT> {};
+    : pro::v4::detail::fmt_format_traits::formatter<CharT> {};
 
 } // namespace fmt
 

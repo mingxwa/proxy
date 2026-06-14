@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <proxy/proxy.h>
 
-namespace proxy_view_tests_details {
+namespace proxy_view_tests_detail {
 
 struct TestFacade
     : pro::facade_builder                                              //
@@ -76,28 +76,27 @@ private:
   double x_, y_;
 };
 
-} // namespace proxy_view_tests_details
+} // namespace proxy_view_tests_detail
 
-namespace details = proxy_view_tests_details;
+namespace detail = proxy_view_tests_detail;
 
 TEST(ProxyViewTests, TestViewOfNull) {
-  pro::proxy<details::TestFacade> p1;
-  pro::proxy_view<details::TestFacade> p2 = p1;
+  pro::proxy<detail::TestFacade> p1;
+  pro::proxy_view<detail::TestFacade> p2 = p1;
   ASSERT_FALSE(p2.has_value());
 }
 
 TEST(ProxyViewTests, TestViewIndependentUse) {
   int a = 123;
-  pro::proxy_view<details::TestFacade> p = &a;
+  pro::proxy_view<detail::TestFacade> p = &a;
   *p += 3;
   ASSERT_EQ(ToString(*p), "126");
   ASSERT_EQ(a, 126);
 }
 
 TEST(ProxyViewTests, TestViewOfOwning) {
-  pro::proxy<details::TestFacade> p1 =
-      pro::make_proxy<details::TestFacade>(123);
-  pro::proxy_view<details::TestFacade> p2 = p1;
+  pro::proxy<detail::TestFacade> p1 = pro::make_proxy<detail::TestFacade>(123);
+  pro::proxy_view<detail::TestFacade> p2 = p1;
   ASSERT_TRUE(p1.has_value());
   ASSERT_TRUE(p2.has_value());
   *p2 += 3;
@@ -108,8 +107,8 @@ TEST(ProxyViewTests, TestViewOfOwning) {
 
 TEST(ProxyViewTests, TestViewOfNonOwning) {
   int a = 123;
-  pro::proxy<details::TestFacade> p1 = &a;
-  pro::proxy_view<details::TestFacade> p2 = p1;
+  pro::proxy<detail::TestFacade> p1 = &a;
+  pro::proxy_view<detail::TestFacade> p2 = p1;
   ASSERT_TRUE(p1.has_value());
   ASSERT_TRUE(p2.has_value());
   *p2 += 3;
@@ -170,15 +169,15 @@ TEST(ProxyViewTests, TestSubstitution_FromValue) {
 }
 
 TEST(ProxyViewTests, TestFacadeAware) {
-  details::Point_2 v1{1, 1};
-  details::Point_2 v2{1, 0};
-  details::Point_2 v3{1.0000001, 1.0000001};
-  pro::proxy_view<details::EqualableQuantity> p1 =
-      pro::make_proxy_view<details::EqualableQuantity>(v1);
-  pro::proxy_view<details::EqualableQuantity> p2 =
-      pro::make_proxy_view<details::EqualableQuantity>(v2);
-  pro::proxy_view<details::EqualableQuantity> p3 =
-      pro::make_proxy_view<details::EqualableQuantity>(v3);
+  detail::Point_2 v1{1, 1};
+  detail::Point_2 v2{1, 0};
+  detail::Point_2 v3{1.0000001, 1.0000001};
+  pro::proxy_view<detail::EqualableQuantity> p1 =
+      pro::make_proxy_view<detail::EqualableQuantity>(v1);
+  pro::proxy_view<detail::EqualableQuantity> p2 =
+      pro::make_proxy_view<detail::EqualableQuantity>(v2);
+  pro::proxy_view<detail::EqualableQuantity> p3 =
+      pro::make_proxy_view<detail::EqualableQuantity>(v3);
   ASSERT_TRUE(p1->AreEqual(*p1, 1e-6));
   ASSERT_FALSE(p1->AreEqual(*p2, 1e-6));
   ASSERT_TRUE(p1->AreEqual(*p3, 1e-6));

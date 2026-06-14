@@ -34,34 +34,13 @@ endif
 
 inc = include_directories('include')
 
-hdrs = files(
-  'include/proxy/proxy.h',
-  'include/proxy/proxy_fmt.h',
-  'include/proxy/proxy_macros.h',
-)
-hdrs_v4 = files(
-  'include/proxy/v4/proxy.h',
-  'include/proxy/v4/proxy_fmt.h',
-  'include/proxy/v4/proxy_macros.h',
-)
-hdrs_mod = files('include/proxy/v4/proxy.ixx')
-
 msft_proxy4_dep = declare_dependency(
-  sources: hdrs + hdrs_v4,
   include_directories: inc,
 )
 
-install_headers(
-  hdrs,
-  subdir: 'proxy',
-)
-install_headers(
-  hdrs_v4,
-  subdir: 'proxy/v4',
-)
-install_headers(
-  hdrs_mod,
-  subdir: 'proxy/v4',
+install_subdir(
+  'include/proxy',
+  install_dir: get_option('includedir'),
 )
 pkgconfig = import(
   'pkgconfig',

@@ -11,7 +11,7 @@
 #include <proxy/proxy.h>
 #include <proxy/proxy_fmt.h>
 
-namespace proxy_fmt_format_tests_details {
+namespace proxy_fmt_format_tests_detail {
 
 struct NonFormattable : pro::facade_builder::build {};
 
@@ -33,20 +33,20 @@ static_assert(
     std::is_default_constructible_v<
         fmt::formatter<pro::proxy_indirect_accessor<Formattable>, wchar_t>>);
 
-} // namespace proxy_fmt_format_tests_details
+} // namespace proxy_fmt_format_tests_detail
 
-namespace details = proxy_fmt_format_tests_details;
+namespace detail = proxy_fmt_format_tests_detail;
 
 TEST(ProxyFmtFormatTests, TestFormat) {
   int v = 123;
-  pro::proxy<details::Formattable> p = &v;
+  pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(fmt::format("{}", *p), "123");
   ASSERT_EQ(fmt::format("{:*<6}", *p), "123***");
 }
 
 TEST(ProxyFmtFormatTests, TestWformat) {
   int v = 123;
-  pro::proxy<details::Formattable> p = &v;
+  pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(fmt::format(L"{}", *p), L"123");
   ASSERT_EQ(fmt::format(L"{:*<6}", *p), L"123***");
 }

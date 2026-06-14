@@ -14,7 +14,7 @@
 #endif // defined(_MSC_VER) && !defined(__clang__)
 #include <vector>
 
-namespace proxy_regression_tests_details {
+namespace proxy_regression_tests_detail {
 
 template <class It, class F>
 bool operator==(const It& it, const pro::proxy<F>& rhs) noexcept
@@ -50,9 +50,9 @@ struct Range : pro::facade_builder                                          //
 
 PRO_DEF_MEM_DISPATCH(MemFun, Fun);
 
-} // namespace proxy_regression_tests_details
+} // namespace proxy_regression_tests_detail
 
-namespace details = proxy_regression_tests_details;
+namespace detail = proxy_regression_tests_detail;
 
 // https://github.com/microsoft/proxy/issues/213
 TEST(ProxyRegressionTests, TestUnexpectedCompilerWarning) {
@@ -74,7 +74,7 @@ TEST(ProxyRegressionTests, TestUnexpectedCompilerWarning) {
 TEST(ProxyRegressionTests, TestProxiableSelfDependency) {
   std::vector<int> original{1, 2, 123};
   std::vector<int> expected;
-  pro::proxy<details::Range<int>> p = &original;
+  pro::proxy<detail::Range<int>> p = &original;
   for (int i : *p) {
     expected.push_back(i);
   }
@@ -84,8 +84,8 @@ TEST(ProxyRegressionTests, TestProxiableSelfDependency) {
 // https://github.com/ngcpp/proxy/issues/10
 TEST(ProxyRegressionTests, TestWeakDispatchReferenceReturningOverload) {
   struct MyFacade
-      : pro::facade_builder                                           //
-        ::add_convention<pro::weak_dispatch<details::MemFun>, int&()> //
+      : pro::facade_builder                                          //
+        ::add_convention<pro::weak_dispatch<detail::MemFun>, int&()> //
         ::build {};
   static_assert(pro::proxiable<int*, MyFacade>);
 
