@@ -38,6 +38,16 @@ jobs:
         with:
           node-version: lts/*
 
+      - name: Install Bazelisk
+        # Renovate's bazel-module manager regenerates MODULE.bazel.lock by running
+        # `bazel mod deps --lockfile_mode=update`, so bazel must be on PATH. `npx renovate`
+        # is not the containerbase image, so it does not provision bazelisk for us.
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/bazel \
+            https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64
+          sudo chmod +x /usr/local/bin/bazel
+          bazel version
+
       - name: Run Renovate
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -48,6 +58,6 @@ jobs:
           RENOVATE_AUTODISCOVER: "false"
           RENOVATE_ONBOARDING: "false"
           RENOVATE_BASE_BRANCHES: ${{ github.ref_name }}
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^bazel mod graph --lockfile_mode=update$"]'
+          RENOVATE_ALLOWED_UNSAFE_EXECUTIONS: '["bazelModDeps"]'
           LOG_LEVEL: info
         run: npx --yes renovate
