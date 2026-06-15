@@ -28,6 +28,10 @@ jobs:
     uses: ./.github/workflows/bvt-appleclang.yml
     name: Run BVT with AppleClang
 
+  run-bvt-apple-pac:
+    uses: ./.github/workflows/bvt-apple-pac.yml
+    name: Run BVT with Clang on arm64e (PAC)
+
   run-bvt-nvhpc:
     uses: ./.github/workflows/bvt-nvhpc.yml
     name: Run BVT with NVHPC
@@ -43,4 +47,4 @@ jobs:
   report:
     uses: ./.github/workflows/bvt-report.yml
     name: Generate report
-    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-nvhpc, run-bvt-oneapi]
+    needs: [run-bvt-gcc, run-bvt-clang, run-bvt-msvc, run-bvt-appleclang, run-bvt-apple-pac, run-bvt-nvhpc, run-bvt-oneapi]

@@ -20,6 +20,16 @@ jobs:
         meson --version
         bazel version
 
+    # The default target on these runners is arm64, which has no pointer
+    # authentication. Build and run the test binary as arm64e -- the ABI where
+    # v-tables are signed -- to exercise proxy's signed dispatch metadata
+    # (address + type diversity). proxy_pac_tests static_asserts that PAC is on.
+    - name: Build and run tests as arm64e (pointer authentication)
+      run: |
+        cmake -B build-arm64e -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE -DBUILD_DOC_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES=arm64e
+        cmake --build build-arm64e -j --target msft_proxy_tests
+        ./build-arm64e/tests/msft_proxy_tests
+
     - name: Build and run test with AppleClang on cmake
       run: |
         cmake -B build-cmake -GNinja -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=Release -DPROXY_BUILD_MODULES=FALSE

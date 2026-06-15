@@ -72,6 +72,14 @@ struct applicable_traits {
 struct inapplicable_traits {
   static constexpr bool applicable = false;
 };
+// Defined here (rather than next to its first use) because
+// facade_meta_traits.h, included partway through this header, needs it.
+template <class T, template <class...> class TT>
+struct specialization_traits : inapplicable_traits {};
+template <template <class...> class TT, class... Args>
+struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
+template <class T, template <class...> class TT>
+concept specialization_of = specialization_traits<T, TT>::applicable;
 
 template <template <class, class> class R, class O, class... Is>
 struct recursive_reduction : std::type_identity<O> {};
@@ -235,7 +243,7 @@ struct proxy_helper {
   template <class M, class F>
   static const M& get_meta(const proxy<F>& p) noexcept {
     assert(p.has_value());
-    return static_cast<const M&>(*p.meta_.operator->());
+    return get<M>(p.meta_);
   }
   template <class M, class F>
   static const M& get_meta(const proxy_indirect_accessor<F>& p) noexcept {
@@ -348,31 +356,20 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                 "not proxiable due to a required convention not implemented");
 }
 
-template <class ProP, class D, class O>
-struct conv_meta;
-#define PRO4D_DEF_CONV_META(oq, pq, ne, ...)                                   \
-  template <class ProP, class D, class R, class... Args>                       \
-  struct conv_meta<ProP, D, R(Args...) oq ne> {                                \
-    conv_meta() = default;                                                     \
-    template <class P>                                                         \
-    constexpr explicit conv_meta(std::in_place_type_t<P>)                      \
-        : invoke([](ProP pq self, Args... args) ne -> R {                      \
-            return reinterpret_invoke<P, D, R>(static_cast<ProP pq>(self),     \
-                                               std::forward<Args>(args)...);   \
-          }) {}                                                                \
-                                                                               \
-    R (*invoke)(ProP pq, Args...) ne;                                          \
-  }
-PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PRO4D_DEF_CONV_META)
-#undef PRO4D_DEF_CONV_META
+// `invoker`, `composite_meta`, and `meta_storage` -- proxy's hand-rolled
+// dispatch v-table -- are defined in facade_meta_traits.h, which provides a
+// pointer-authenticated implementation on PAC targets and a plain one elsewhere
+// (and owns the `PRO4D_PAC` detection). That header opens
+// `namespace pro::v4::detail` itself, so the enclosing namespaces are closed
+// for the include and reopened afterwards. It depends on `specialization_of`
+// (above) and `reinterpret_invoke` (a dependent name, resolved on use).
+} // namespace detail
+} // namespace pro::inline v4
 
-template <class... Ms>
-struct PRO4D_ENFORCE_EBO composite_meta : Ms... {
-  composite_meta() = default;
-  template <class P>
-  constexpr explicit composite_meta(std::in_place_type_t<P>)
-      : Ms(std::in_place_type<P>)... {}
-};
+#include "facade_meta_traits.h"
+
+namespace pro::inline v4 {
+namespace detail {
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
@@ -422,7 +419,7 @@ template <class C, class F, class... Os>
 struct conv_traits_impl {
   static_assert((overload_traits<substituted_overload_t<Os, F>>::applicable &&
                  ...));
-  using meta = composite_meta<conv_meta<
+  using meta = std::tuple<invoker<
       std::conditional_t<C::is_direct, proxy<F>, proxy_indirect_accessor<F>>,
       typename C::dispatch_type, substituted_overload_t<Os, F>>...>;
   template <class T>
@@ -515,10 +512,10 @@ template <class F, class D, class ONE, class OE, constraint_level C>
 struct lifetime_meta_traits : std::type_identity<void> {};
 template <class F, class D, class ONE, class OE>
 struct lifetime_meta_traits<F, D, ONE, OE, constraint_level::nothrow>
-    : std::type_identity<conv_meta<proxy<F>, D, ONE>> {};
+    : std::type_identity<invoker<proxy<F>, D, ONE>> {};
 template <class F, class D, class ONE, class OE>
 struct lifetime_meta_traits<F, D, ONE, OE, constraint_level::nontrivial>
-    : std::type_identity<conv_meta<proxy<F>, D, OE>> {};
+    : std::type_identity<invoker<proxy<F>, D, OE>> {};
 template <class F, class D, class ONE, class OE, constraint_level C>
 using lifetime_meta_t = typename lifetime_meta_traits<F, D, ONE, OE, C>::type;
 
@@ -560,13 +557,6 @@ template <class T>
 concept pointer_like = (std::is_pointer_v<T> ||
     requires { typename T::element_type; } || requires(T val) { *val; }) &&
     requires { typename std::pointer_traits<T>::element_type; };
-
-template <class T, template <class...> class TT>
-struct specialization_traits : inapplicable_traits {};
-template <template <class...> class TT, class... Args>
-struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
-template <class T, template <class...> class TT>
-concept specialization_of = specialization_traits<T, TT>::applicable;
 
 template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
 consteval void diagnose_proxiable_size_too_large() {
@@ -649,8 +639,8 @@ struct basic_facade_traits<F> : applicable_traits {};
 
 template <class F, class... Cs>
 struct facade_conv_traits_impl {
-  using conv_meta =
-      composite_t<composite_meta<>, typename conv_traits<Cs, F>::meta...>;
+  using invoker =
+      composite_t<std::tuple<>, typename conv_traits<Cs, F>::meta...>;
   using conv_indirect_accessor =
       composite_t<composite_accessor<>, conv_accessor_t<Cs, F, false>...>;
   using conv_direct_accessor =
@@ -667,7 +657,7 @@ struct facade_conv_traits_impl {
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl {
-  using refl_meta = composite_meta<
+  using refl_meta = std::tuple<
       reflection_meta<Rs::is_direct, typename Rs::reflector_type>...>;
   using refl_indirect_accessor =
       composite_t<composite_accessor<>, refl_accessor_t<Rs, F, false>...>;
@@ -692,15 +682,17 @@ struct facade_traits : specialization_t<facade_conv_traits_impl,
                                         typename F::convention_types, F>,
                        specialization_t<facade_refl_traits_impl,
                                         typename F::reflection_types, F> {
-  using meta = composite_t<
-      composite_meta<>,
-      lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept,
-                      void(proxy<F>&) const, F::copyability>,
-      lifetime_meta_t<F, relocate_dispatch, void(proxy<F>&) && noexcept,
-                      void(proxy<F>&) &&, F::relocatability>,
-      lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(),
-                      F::destructibility>,
-      typename facade_traits::conv_meta, typename facade_traits::refl_meta>;
+  using meta = specialization_t<
+      meta_storage,
+      composite_t<
+          std::tuple<>,
+          lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept,
+                          void(proxy<F>&) const, F::copyability>,
+          lifetime_meta_t<F, relocate_dispatch, void(proxy<F>&) && noexcept,
+                          void(proxy<F>&) &&, F::relocatability>,
+          lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(),
+                          F::destructibility>,
+          typename facade_traits::invoker, typename facade_traits::refl_meta>>;
   using indirect_accessor =
       composite_t<typename facade_traits::conv_indirect_accessor,
                   typename facade_traits::refl_indirect_accessor>;
@@ -730,48 +722,6 @@ struct facade_traits : specialization_t<facade_conv_traits_impl,
       facade_traits::template refl_applicable_ptr<P>;
 };
 
-using ptr_prototype = void* [2];
-
-template <class M>
-struct meta_ptr_indirect_impl {
-  meta_ptr_indirect_impl() = default;
-  template <class P>
-  explicit meta_ptr_indirect_impl(std::in_place_type_t<P>)
-      : ptr_(&storage<P>) {}
-  bool has_value() const noexcept { return ptr_ != nullptr; }
-  void reset() noexcept { ptr_ = nullptr; }
-  const M* operator->() const noexcept { return ptr_; }
-
-private:
-  const M* ptr_;
-  template <class P>
-  static constexpr M storage{std::in_place_type<P>};
-};
-template <class M, class DM>
-struct meta_ptr_direct_impl : private M {
-  using M::M;
-  bool has_value() const noexcept { return this->DM::invoke != nullptr; }
-  void reset() noexcept { this->DM::invoke = nullptr; }
-  const M* operator->() const noexcept { return this; }
-};
-template <class M>
-struct meta_ptr_traits_impl : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class ProP, class D, class O, class... Ms>
-struct meta_ptr_traits_impl<composite_meta<conv_meta<ProP, D, O>, Ms...>>
-    : std::type_identity<
-          meta_ptr_direct_impl<composite_meta<conv_meta<ProP, D, O>, Ms...>,
-                               conv_meta<ProP, D, O>>> {};
-template <class M>
-struct meta_ptr_traits : std::type_identity<meta_ptr_indirect_impl<M>> {};
-template <class M>
-  requires(sizeof(M) <= sizeof(ptr_prototype) &&
-           alignof(M) <= alignof(ptr_prototype) &&
-           std::is_nothrow_default_constructible_v<M> &&
-           std::is_trivially_copyable_v<M>)
-struct meta_ptr_traits<M> : meta_ptr_traits_impl<M> {};
-template <class M>
-using meta_ptr = typename meta_ptr_traits<M>::type;
-
 template <class T>
 class inplace_ptr {
 public:
@@ -798,8 +748,8 @@ private:
 
 template <class D, class O, class P, class... Args>
 ret_t<O> invoke_impl(P&& p, Args&&... args) {
-  return proxy_helper::get_meta<conv_meta<std::remove_cvref_t<P>, D, O>>(p)
-      .invoke(std::forward<P>(p), std::forward<Args>(args)...);
+  return proxy_helper::get_meta<invoker<std::remove_cvref_t<P>, D, O>>(p)(
+      std::forward<P>(p), std::forward<Args>(args)...);
 }
 template <class F, qualifier_type Q>
 add_qualifier_t<proxy<F>, Q>
@@ -928,6 +878,13 @@ public:
 
   proxy() noexcept { initialize(); }
   proxy(std::nullptr_t) noexcept : proxy() {}
+  // For a trivially-copyable facade the copy is memberwise: it copies the
+  // storage bytes and the metadata as-is, with no has_value() check (an empty
+  // proxy is copied just like any other). Under PAC the metadata is
+  // address-diversified, so this defaulted copy is non-trivial -- it re-signs
+  // each pointer for the destination address -- but it stays correct for the
+  // empty state because the signed pointers' copy is total (it carries the null
+  // pointer through unchanged). See `invoker` / `meta_storage`.
   proxy(const proxy&) noexcept
     requires(F::copyability == constraint_level::trivial)
   = default;
@@ -977,6 +934,8 @@ public:
     reset();
     return *this;
   }
+  // Memberwise like the copy constructor; the signed metadata's total copy
+  // keeps it correct under PAC, including for an empty proxy.
   proxy& operator=(const proxy&) noexcept
     requires(F::copyability == constraint_level::trivial)
   = default;
@@ -1055,6 +1014,10 @@ public:
   {
     if constexpr (F::relocatability == constraint_level::trivial ||
                   F::copyability == constraint_level::trivial) {
+      // The signed metadata's copy/move is total (it carries a null through and
+      // otherwise re-signs for the destination address), so a plain swap is
+      // correct for empty as well as non-empty proxies -- each of the three
+      // moves below re-signs for the slot it lands in.
       std::swap(meta_, rhs.meta_);
 #ifdef __INTEL_LLVM_COMPILER
       // Workaround: Intel oneAPI compiler (as of 2025.2.0) may over-optimize
@@ -1202,8 +1165,7 @@ private:
     P& result = *std::construct_at(reinterpret_cast<P*>(ptr_),
                                    std::forward<Args>(args)...);
     if constexpr (proxiable<P, F>) {
-      meta_ = detail::meta_ptr<typename detail::facade_traits<F>::meta>{
-          std::in_place_type<P>};
+      meta_ = typename detail::facade_traits<F>::meta{std::in_place_type<P>};
     } else {
       detail::facade_traits<F>::template diagnose_proxiable_noreturn<P>();
     }
@@ -1230,7 +1192,7 @@ private:
     *std::move(cself);
   })
 
-  detail::meta_ptr<typename detail::facade_traits<F>::meta> meta_;
+  typename detail::facade_traits<F>::meta meta_;
   alignas(F::max_align) std::byte ptr_[F::max_size];
 };
 

@@ -30,8 +30,14 @@ static_assert(
     SupportsToString<decltype(*std::declval<pro::proxy<TestFacade>>())>);
 static_assert(sizeof(pro::proxy<TestFacade>) == 3 * sizeof(void*));
 
+#if !PRO4D_PAC
+// Under pointer authentication the dispatch metadata is address-diversified, so
+// copying must re-sign it and a proxy view is no longer trivially copyable.
 static_assert(
     std::is_trivially_copy_constructible_v<pro::proxy_view<TestFacade>>);
+#endif // !PRO4D_PAC
+static_assert(
+    std::is_nothrow_copy_constructible_v<pro::proxy_view<TestFacade>>);
 static_assert(std::is_trivially_destructible_v<pro::proxy_view<TestFacade>>);
 static_assert(SupportsIntPlusEqual<
               decltype(*std::declval<pro::proxy_view<TestFacade>>())>);

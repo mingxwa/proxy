@@ -212,14 +212,21 @@ struct TrivialFacade : pro::facade_builder                                   //
                        ::support_relocation<pro::constraint_level::trivial>  //
                        ::support_destruction<pro::constraint_level::trivial> //
                        ::build {};
+#if !PRO4D_PAC
+// Under pointer authentication the embedded dispatch metadata is
+// address-diversified, so copies and moves must re-sign it: the proxy remains
+// nothrow-copyable/movable (asserted below) but is no longer *trivially* so.
 static_assert(
     std::is_trivially_copy_constructible_v<pro::proxy<TrivialFacade>>);
 static_assert(std::is_trivially_copy_assignable_v<pro::proxy<TrivialFacade>>);
-static_assert(std::is_nothrow_move_constructible_v<pro::proxy<TrivialFacade>>);
 static_assert(
     std::is_trivially_move_constructible_v<pro::proxy<TrivialFacade>>);
-static_assert(std::is_nothrow_move_assignable_v<pro::proxy<TrivialFacade>>);
 static_assert(std::is_trivially_move_assignable_v<pro::proxy<TrivialFacade>>);
+#endif // !PRO4D_PAC
+static_assert(std::is_nothrow_copy_constructible_v<pro::proxy<TrivialFacade>>);
+static_assert(std::is_nothrow_copy_assignable_v<pro::proxy<TrivialFacade>>);
+static_assert(std::is_nothrow_move_constructible_v<pro::proxy<TrivialFacade>>);
+static_assert(std::is_nothrow_move_assignable_v<pro::proxy<TrivialFacade>>);
 static_assert(std::is_trivially_destructible_v<pro::proxy<TrivialFacade>>);
 static_assert(!pro::proxiable<MockMovablePtr, TrivialFacade>);
 static_assert(!pro::proxiable<MockCopyablePtr, TrivialFacade>);
@@ -499,6 +506,15 @@ static_assert(!std::is_constructible_v<pro::proxy<DefaultFacade>,
 static_assert(std::is_move_constructible_v<ProxyWrapperTemplate<void>>);
 
 // proxiable shall not reject a specialization of proxy.
+#if PRO4D_PAC
+// Under pointer authentication a proxy is address-sensitive (its signed
+// metadata depends on its storage address) and therefore not bitwise-trivially-
+// relocatable, so it cannot satisfy a facade that requires trivial relocation
+// (the default). This is the safe outcome: it prevents a byte-wise relocation
+// that would carry signatures to an address where they no longer authenticate.
+static_assert(!pro::proxiable<pro::proxy_view<DefaultFacade>, DefaultFacade>);
+#else
 static_assert(pro::proxiable<pro::proxy_view<DefaultFacade>, DefaultFacade>);
+#endif
 
 } // namespace proxy_traits_tests_detail
