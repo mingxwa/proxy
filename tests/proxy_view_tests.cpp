@@ -43,7 +43,14 @@ static_assert(SupportsIntPlusEqual<
               decltype(*std::declval<pro::proxy_view<TestFacade>>())>);
 static_assert(
     SupportsToString<decltype(*std::declval<pro::proxy_view<TestFacade>>())>);
+#if PRO4D_PAC
+// Under pointer authentication the multi-convention metadata is referenced out
+// of line (one signed pointer) rather than embedded inline, so the view is one
+// pointer smaller.
+static_assert(sizeof(pro::proxy_view<TestFacade>) == 2 * sizeof(void*));
+#else
 static_assert(sizeof(pro::proxy_view<TestFacade>) == 3 * sizeof(void*));
+#endif // PRO4D_PAC
 
 static_assert(std::is_nothrow_convertible_v<pro::proxy<TestFacade>&,
                                             pro::proxy_view<TestFacade>>);

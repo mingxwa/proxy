@@ -170,8 +170,15 @@ static_assert(std::is_nothrow_constructible_v<pro::proxy<CopyableFacade>,
                                               MockFunctionPtr>);
 static_assert(
     std::is_nothrow_assignable_v<pro::proxy<CopyableFacade>, MockFunctionPtr>);
+#if PRO4D_PAC
+// Under pointer authentication the address-diversified metadata that does not
+// fit in a single pointer is referenced out of line (one signed pointer) rather
+// than embedded inline, so the proxy is one pointer smaller.
+static_assert(sizeof(pro::proxy<CopyableFacade>) == 3 * sizeof(void*));
+#else
 static_assert(sizeof(pro::proxy<CopyableFacade>) ==
               4 * sizeof(void*)); // VTABLE should be embeded
+#endif // PRO4D_PAC
 
 struct CopyableSmallFacade
     : pro::facade_builder                               //
@@ -203,8 +210,13 @@ static_assert(
     std::is_constructible_v<pro::proxy<CopyableSmallFacade>, MockFunctionPtr>);
 static_assert(
     std::is_assignable_v<pro::proxy<CopyableSmallFacade>, MockFunctionPtr>);
+#if PRO4D_PAC
+// Out of line under PAC (see CopyableFacade above): one pointer smaller.
+static_assert(sizeof(pro::proxy<CopyableSmallFacade>) == 2 * sizeof(void*));
+#else
 static_assert(sizeof(pro::proxy<CopyableSmallFacade>) ==
               3 * sizeof(void*)); // VTABLE should be embeded
+#endif // PRO4D_PAC
 
 struct TrivialFacade : pro::facade_builder                                   //
                        ::restrict_layout<sizeof(void*), alignof(void*)>      //
