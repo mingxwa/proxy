@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "../proxy_macros.h"
+#include "facade_meta_traits.h"
 
 #if __has_cpp_attribute(msvc::no_unique_address)
 #define PRO4D_NO_UNIQUE_ADDRESS_ATTRIBUTE msvc::no_unique_address
@@ -72,14 +73,6 @@ struct applicable_traits {
 struct inapplicable_traits {
   static constexpr bool applicable = false;
 };
-// Defined here (rather than next to its first use) because
-// facade_meta_traits.h, included partway through this header, needs it.
-template <class T, template <class...> class TT>
-struct specialization_traits : inapplicable_traits {};
-template <template <class...> class TT, class... Args>
-struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
-template <class T, template <class...> class TT>
-concept specialization_of = specialization_traits<T, TT>::applicable;
 
 template <template <class, class> class R, class O, class... Is>
 struct recursive_reduction : std::type_identity<O> {};
@@ -355,21 +348,6 @@ consteval void diagnose_proxiable_required_convention_not_implemented() {
                     overload_traits<O>::template applicable_ptr<P, IsDirect, D>,
                 "not proxiable due to a required convention not implemented");
 }
-
-// `invoker`, `composite_meta`, and `meta_storage` -- proxy's hand-rolled
-// dispatch v-table -- are defined in facade_meta_traits.h, which provides a
-// pointer-authenticated implementation on PAC targets and a plain one elsewhere
-// (and owns the `PRO4D_PAC` detection). That header opens
-// `namespace pro::v4::detail` itself, so the enclosing namespaces are closed
-// for the include and reopened afterwards. It depends on `specialization_of`
-// (above) and `reinterpret_invoke` (a dependent name, resolved on use).
-} // namespace detail
-} // namespace pro::inline v4
-
-#include "facade_meta_traits.h"
-
-namespace pro::inline v4 {
-namespace detail {
 
 template <class T>
 consteval bool is_is_direct_well_formed() {
