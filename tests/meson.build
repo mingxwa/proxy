@@ -1,4 +1,5 @@
 test_srcs = files(
+  'proxy_box_tests.cpp',
   'proxy_creation_tests.cpp',
   'proxy_detail_tests.cpp',
   'proxy_dispatch_tests.cpp',

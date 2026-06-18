@@ -1,0 +1,13 @@
+nav:
+  - box: README.md
+  - (constructor): constructor.md
+  - (destructor): destructor.md
+  - emplace<br />emplace_alloc: emplace.md
+  - operator bool<br />has_value: operator_bool.md
+  - operator=: assignment.md
+  - operator= (non-member): friend_operator_equality.md
+  - operator proxy_indirect_accessor: conversion.md
+  - release: release.md
+  - reset: reset.md
+  - swap: swap.md
+  - swap (non-member): friend_swap.md

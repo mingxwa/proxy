@@ -525,36 +525,24 @@ using lifetime_meta_t = typename lifetime_meta_traits<F, D, ONE, OE, C>::type;
 template <class... As>
 struct PRO4D_ENFORCE_EBO composite_accessor : As... {};
 
-template <class C, class F, bool IsDirect>
+template <class P, class C, class F, bool IsDirect>
 struct conv_accessor_traits : std::type_identity<void> {};
-template <class C, class F>
-  requires(!C::is_direct)
-struct conv_accessor_traits<C, F, false>
-    : std::type_identity<typename conv_traits<C, F>::template accessor<
-          proxy_indirect_accessor<F>>> {};
-template <class C, class F>
-  requires(C::is_direct)
-struct conv_accessor_traits<C, F, true>
-    : std::type_identity<
-          typename conv_traits<C, F>::template accessor<proxy<F>>> {};
-template <class C, class F, bool IsDirect>
-using conv_accessor_t = typename conv_accessor_traits<C, F, IsDirect>::type;
+template <class P, class C, class F, bool IsDirect>
+  requires(C::is_direct == IsDirect)
+struct conv_accessor_traits<P, C, F, IsDirect>
+    : std::type_identity<typename conv_traits<C, F>::template accessor<P>> {};
+template <class P, class C, class F, bool IsDirect>
+using conv_accessor_t = typename conv_accessor_traits<P, C, F, IsDirect>::type;
 
-template <class R, class F, bool IsDirect>
+template <class P, class R, bool IsDirect>
 struct refl_accessor_traits : std::type_identity<void> {};
-template <class R, class F>
-  requires(!R::is_direct)
-struct refl_accessor_traits<R, F, false>
-    : std::type_identity<
-          accessor_t<typename R::reflector_type, proxy_indirect_accessor<F>,
-                     typename R::reflector_type>> {};
-template <class R, class F>
-  requires(R::is_direct)
-struct refl_accessor_traits<R, F, true>
-    : std::type_identity<accessor_t<typename R::reflector_type, proxy<F>,
+template <class P, class R, bool IsDirect>
+  requires(R::is_direct == IsDirect)
+struct refl_accessor_traits<P, R, IsDirect>
+    : std::type_identity<accessor_t<typename R::reflector_type, P,
                                     typename R::reflector_type>> {};
-template <class R, class F, bool IsDirect>
-using refl_accessor_t = typename refl_accessor_traits<R, F, IsDirect>::type;
+template <class P, class R, bool IsDirect>
+using refl_accessor_t = typename refl_accessor_traits<P, R, IsDirect>::type;
 
 template <class T>
 concept pointer_like = (std::is_pointer_v<T> ||
@@ -652,9 +640,11 @@ struct facade_conv_traits_impl {
   using conv_meta =
       composite_t<composite_meta<>, typename conv_traits<Cs, F>::meta...>;
   using conv_indirect_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, false>...>;
+      composite_t<composite_accessor<>,
+                  conv_accessor_t<proxy_indirect_accessor<F>, Cs, F, false>...>;
   using conv_direct_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, true>...>;
+      composite_t<composite_accessor<>,
+                  conv_accessor_t<proxy<F>, Cs, F, true>...>;
 
   template <class P>
   static consteval void diagnose_proxiable_conv() {
@@ -670,9 +660,10 @@ struct facade_refl_traits_impl {
   using refl_meta = composite_meta<
       reflection_meta<Rs::is_direct, typename Rs::reflector_type>...>;
   using refl_indirect_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, false>...>;
+      composite_t<composite_accessor<>,
+                  refl_accessor_t<proxy_indirect_accessor<F>, Rs, false>...>;
   using refl_direct_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, true>...>;
+      composite_t<composite_accessor<>, refl_accessor_t<proxy<F>, Rs, true>...>;
 
   template <class P>
   static consteval void diagnose_proxiable_refl() {
@@ -775,8 +766,8 @@ using meta_ptr = typename meta_ptr_traits<M>::type;
 template <class T>
 class inplace_ptr {
 public:
-  template <class... Args>
-  explicit inplace_ptr(std::in_place_t, Args&&... args)
+  template <class Ignore, class... Args>
+  explicit inplace_ptr(const Ignore&, Args&&... args)
       : value_(std::forward<Args>(args)...) {}
   inplace_ptr() = default;
   inplace_ptr(const inplace_ptr&) = default;

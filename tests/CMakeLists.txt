@@ -12,6 +12,7 @@ include(GoogleTest)
 
 add_executable(
   msft_proxy_tests
+  proxy_box_tests.cpp
   proxy_creation_tests.cpp
   proxy_detail_tests.cpp
   proxy_dispatch_tests.cpp

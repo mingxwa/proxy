@@ -10,6 +10,9 @@ using v4::allocate_proxy;
 using v4::allocate_proxy_shared;
 using v4::bad_proxy_cast;
 using v4::basic_facade_builder;
+#if __STDC_HOSTED__
+using v4::box;
+#endif // __STDC_HOSTED__
 using v4::constraint_level;
 using v4::conversion_dispatch;
 using v4::explicit_conversion_dispatch;

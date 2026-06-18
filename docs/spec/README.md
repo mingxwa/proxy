@@ -21,6 +21,7 @@ This document provides the API specifications for the C++ library Proxy (version
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | [`bad_proxy_cast`](bad_proxy_cast.md)                        | Exception thrown by the value-returning forms of `proxy_cast` on a type mismatch |
 | [`basic_facade_builder`<br />`facade_builder`](basic_facade_builder/README.md) | Provides capability to build a facade type at compile-time   |
+| [`box`](box/README.md)                                       | Owning, value-semantic polymorphic wrapper matching specified facade |
 | [`constraint_level`](constraint_level.md)                    | Defines the 4 constraint levels of a special member function |
 | [`explicit_conversion_dispatch`<br />`conversion_dispatch`](explicit_conversion_dispatch/README.md) | Dispatch type for explicit conversion expressions with accessibility |
 | [`facade_aware_overload_t`](facade_aware_overload_t.md)      | Specifies a facade-aware overload template                   |
