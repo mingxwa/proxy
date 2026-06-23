@@ -14,7 +14,9 @@
 #include <typeindex>
 #include <typeinfo>
 #include <vector>
+
 #include <proxy/proxy.h>
+
 #include "utils.h"
 
 namespace proxy_invocation_tests_detail {
