@@ -28,7 +28,7 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`is_bitwise_trivially_relocatable`](is_bitwise_trivially_relocatable.md) | Specifies whether a type is bitwise trivially relocatable    |
 | [`not_implemented` ](not_implemented.md)                     | Exception thrown by `weak_dispatch` for the default implementation |
 | [`operator_dispatch`](operator_dispatch/README.md)           | Dispatch type for operator expressions with accessibility    |
-| [`proxy_indirect_accessor`](proxy_indirect_accessor.md)      | Provides indirection accessibility for `proxy`               |
+| [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md) | Provides indirection accessibility for `proxy`               |
 | [`proxy_view`<br />`observer_facade`](proxy_view.md)         | Non-owning `proxy` optimized for raw pointer types           |
 | [`proxy`](proxy/README.md)                                   | Wraps a pointer object matching specified facade             |
 | [`substitution_dispatch`](substitution_dispatch/README.md)   | Dispatch type for `proxy` substitution with accessibility    |
@@ -55,8 +55,8 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`make_proxy_shared`](make_proxy_shared.md)         | Creates a `proxy` object with shared ownership               |
 | [`make_proxy_view`](make_proxy_view.md)             | Creates a `proxy_view` object                                |
 | [`make_proxy`](make_proxy.md)                       | Creates a `proxy` object potentially with heap allocation    |
-| [`proxy_invoke`](proxy_invoke.md)                   | Invokes a `proxy` with a specified convention                |
-| [`proxy_reflect`](proxy_reflect.md)                 | Acquires reflection information of a contained type          |
+| [`proxy_invoke`](proxy_invoke.md) [deprecated]      | Invokes a `proxy` with a specified convention                |
+| [`proxy_reflect`](proxy_reflect.md) [deprecated]    | Acquires reflection information of a contained type          |
 
 ## Header `<proxy_macros.h>`
 
