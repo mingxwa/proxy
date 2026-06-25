@@ -32,8 +32,8 @@
       "binaryDir": "${sourceDir}/build/coverage",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS": "--coverage -O0 -g",
-        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+        "CMAKE_CXX_FLAGS_DEBUG": "--coverage",
+        "CMAKE_EXE_LINKER_FLAGS_DEBUG": "--coverage"
       }
     },
     {
