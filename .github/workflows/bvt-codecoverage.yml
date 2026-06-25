@@ -12,7 +12,8 @@ jobs:
     - name: Install CMake, Ninja, and gcovr
       run: |
         apt-get update
-        apt-get install -y cmake ninja-build gcovr
+        apt-get install -y cmake ninja-build python3-pip
+        pip install --break-system-packages gcovr
 
     - name: Check toolchain versions
       run: |
@@ -44,7 +45,16 @@ jobs:
           --print-summary \
           --txt build/coverage/report/coverage.txt \
           --xml-pretty --output build/coverage/report/coverage.xml \
-          --html-details build/coverage/report/coverage.html
+          --html-details build/coverage/report/coverage.html \
+          --markdown-summary build/coverage/report/coverage.md \
+          build/coverage build/coverage-freestanding
+
+    - name: Publish coverage summary
+      run: |
+        {
+          echo "## Code coverage"
+          cat build/coverage/report/coverage.md
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload code coverage report
       uses: actions/upload-artifact@v7
