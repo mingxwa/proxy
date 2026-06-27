@@ -28,6 +28,11 @@ jobs:
     name: Run BVT with MSVC
     if: github.event_name != 'push' || github.repository == 'ngcpp/proxy'
 
+  run-bvt-visualizers:
+    uses: ./.github/workflows/bvt-visualizers.yml
+    name: Run BVT for debugger visualizers
+    if: github.event_name != 'push' || github.repository == 'ngcpp/proxy'
+
   run-bvt-appleclang:
     uses: ./.github/workflows/bvt-appleclang.yml
     name: Run BVT with AppleClang

@@ -1,0 +1,49 @@
+on:
+  push:
+    branches:
+      - "user/**"
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  CLANG_VERSION: 22
+
+jobs:
+  bvt-visualizers-gcc:
+    runs-on: ubuntu-24.04
+    container: gcc:16
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install gdb and Python
+      run: |
+        apt-get update
+        apt-get install -y gdb python3
+
+    - name: Check toolchain versions
+      run: |
+        g++ --version
+        gdb --version
+        python3 --version
+
+    - name: Run gdb visualizer tests (gcc)
+      run: CXX=g++ python3 tools/visualizers/tests/run_gdb_tests.py
+
+  bvt-visualizers-clang:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install clang and gdb
+      run: |
+        curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$CLANG_VERSION"
+        sudo apt-get install -y "clang-$CLANG_VERSION" gdb
+
+    - name: Check toolchain versions
+      run: |
+        "clang++-$CLANG_VERSION" --version
+        gdb --version
+        python3 --version
+
+    - name: Run gdb visualizer tests (clang, libstdc++)
+      run: CXX="clang++-$CLANG_VERSION" python3 tools/visualizers/tests/run_gdb_tests.py

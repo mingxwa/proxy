@@ -336,6 +336,22 @@ Testing requires **Bazel 7+**. The repository pins a specific Bazel version in `
 bazel test //tests/...
 ```
 
+## Debugging
+
+A `proxy<F>` is type-erased, so a debugger shows only the opaque `meta_` pointer and the raw `ptr_` storage by default. The visualizers in [`tools/visualizers`](tools/visualizers) recover the contained pointer type so you can see what a proxy holds and call through the stored pointer with ordinary syntax. Build your program with debug info (`-g`).
+
+For GDB, load the pretty-printer (e.g. from `~/.gdbinit`):
+
+```
+(gdb) source /path/to/proxy/tools/visualizers/proxy_gdb.py
+(gdb) print p
+$1 = Animal [holds std::unique_ptr<Cat, std::default_delete<Cat> >] = {stored = std::unique_ptr<Cat> = {get() = 0x55…}}
+(gdb) print $pro_ptr(p)->Speak()
+$2 = "Tom says meow"
+```
+
+See [`tools/visualizers/README.md`](tools/visualizers/README.md) for details and the recovery mechanisms. LLDB and MSVC (natvis) support is planned.
+
 ## Related Resources
 
 - August, 2025: [Announcing Proxy 4: The Next Leap in C++ Polymorphism](https://devblogs.microsoft.com/cppblog/announcing-proxy-4-the-next-leap-in-c-polymorphism/)
