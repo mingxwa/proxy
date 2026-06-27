@@ -81,11 +81,17 @@ jobs:
         path: build/coverage/report/
 
     # Publish the Cobertura report to GitHub's native code coverage API so that
-    # line/branch coverage shows up on pull requests. fail-on-error is false
-    # because the code coverage API is still pre-GA: until GitHub Code Quality is
-    # enabled for the repository the upload degrades to a warning instead of
-    # failing CI, and starts working automatically once the feature is available.
+    # line/branch coverage shows up on pull requests.
+    #
+    # Gated behind the UPLOAD_CODE_COVERAGE repository variable: the code coverage
+    # API is still pre-GA, so until GitHub Code Quality is enabled for the repo
+    # every upload returns HTTP 404 and the action emits a red "error" annotation
+    # on each run (fail-on-error only sets the step's exit code, not whether the
+    # annotation is printed). Keeping the step dormant avoids that noise. Once
+    # Code Quality is enabled, turn it on with:
+    #   gh variable set UPLOAD_CODE_COVERAGE --body true --repo <owner>/<repo>
     - name: Publish coverage to GitHub code coverage API
+      if: vars.UPLOAD_CODE_COVERAGE == 'true'
       uses: actions/upload-code-coverage@v1
       with:
         file: build/coverage/report/coverage.xml
