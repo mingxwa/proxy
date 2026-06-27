@@ -1,0 +1,64 @@
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  bvt-codecoverage:
+    runs-on: ubuntu-24.04
+    container: gcc:16
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install CMake, Ninja, and gcovr
+      run: |
+        apt-get update
+        apt-get install -y cmake ninja-build gcovr
+
+    - name: Check toolchain versions
+      run: |
+        g++ --version
+        gcov --version
+        cmake --version
+        ninja --version
+        gcovr --version
+
+    - name: Build and run tests with code coverage instrumentation
+      run: |
+        cmake --preset coverage -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake --build --preset coverage -j
+        ctest --preset coverage -j
+
+    - name: Build and run freestanding tests with code coverage instrumentation
+      run: |
+        cmake --preset coverage-freestanding -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake --build --preset coverage-freestanding -j
+        ctest --preset coverage-freestanding -j
+
+    - name: Generate code coverage report
+      run: |
+        mkdir -p build/coverage/report
+        gcovr --root . \
+          --filter 'include/proxy/' \
+          --gcov-executable gcov \
+          --exclude-unreachable-branches \
+          --print-summary \
+          --txt build/coverage/report/coverage.txt \
+          --xml-pretty --output build/coverage/report/coverage.xml \
+          --html-details build/coverage/report/coverage.html \
+          build/coverage build/coverage-freestanding \
+          | tee build/coverage/report/summary.txt
+
+    - name: Publish coverage summary
+      run: |
+        {
+          echo "## Code coverage"
+          echo '```'
+          cat build/coverage/report/summary.txt
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload code coverage report
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: build/coverage/report/
