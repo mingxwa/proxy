@@ -51,6 +51,11 @@ def main():
             "-q",
             "-batch",
             "-nx",
+            # Allow gdb to auto-load libstdc++'s printers/xmethods (needed so
+            # operator-> on std smart pointers resolves; declined by default in
+            # some containers, e.g. the gcc image).
+            "-iex",
+            "set auto-load safe-path /",
             "-ex",
             "source " + _PRINTER,
             "-ex",

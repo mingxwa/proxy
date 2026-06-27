@@ -1,7 +1,4 @@
 on:
-  push:
-    branches:
-      - "user/**"
   workflow_call:
   workflow_dispatch:
 
