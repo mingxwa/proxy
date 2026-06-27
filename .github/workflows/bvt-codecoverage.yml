@@ -1,0 +1,100 @@
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  bvt-codecoverage:
+    runs-on: ubuntu-24.04
+    container: gcc:16
+    permissions:
+      contents: read
+      code-quality: write
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install CMake, Ninja, and gcovr
+      run: |
+        apt-get update
+        apt-get install -y cmake ninja-build gcovr
+
+    - name: Check toolchain versions
+      run: |
+        g++ --version
+        gcov --version
+        cmake --version
+        ninja --version
+        gcovr --version
+
+    - name: Build and run tests with code coverage instrumentation
+      run: |
+        cmake --preset coverage -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake --build --preset coverage -j
+        ctest --preset coverage -j
+
+    - name: Build and run freestanding tests with code coverage instrumentation
+      run: |
+        cmake --preset coverage-freestanding -DCMAKE_CXX_STANDARD=23 -DPROXY_BUILD_MODULES=TRUE
+        cmake --build --preset coverage-freestanding -j
+        ctest --preset coverage-freestanding -j
+
+    - name: Generate code coverage report
+      run: |
+        mkdir -p build/coverage/report
+        gcovr --root . \
+          --filter 'include/proxy/' \
+          --gcov-executable gcov \
+          --exclude-unreachable-branches \
+          --txt build/coverage/report/coverage.txt \
+          --xml build/coverage/report/coverage.xml --xml-pretty \
+          --html-details build/coverage/report/coverage.html \
+          --json-summary build/coverage/report/summary.json --json-summary-pretty \
+          build/coverage build/coverage-freestanding
+
+    - name: Publish coverage summary
+      # Only line and branch coverage are reported. Function coverage is
+      # intentionally omitted: proxy is a header-only template library, so every
+      # template instantiation across the tests, doc examples, and benchmarks is
+      # counted as a distinct function. The metric is dominated by uninvoked
+      # instantiations (tens of thousands of them) and is not meaningful here.
+      run: |
+        python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+        import json
+        with open("build/coverage/report/summary.json") as f:
+            d = json.load(f)
+        print("## Code coverage (`include/proxy/`)")
+        print()
+        print("| Metric | Coverage | Covered / Total |")
+        print("|--------|---------:|----------------:|")
+        print(f"| Lines | {d['line_percent']:.1f}% | {d['line_covered']} / {d['line_total']} |")
+        print(f"| Branches | {d['branch_percent']:.1f}% | {d['branch_covered']} / {d['branch_total']} |")
+        print()
+        print("> Function coverage is omitted on purpose: for a header-only "
+              "template library every instantiation counts as a separate "
+              "function, so the metric is dominated by uninvoked instantiations "
+              "from the tests, doc examples, and benchmarks.")
+        PY
+
+    - name: Upload code coverage report
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage-report
+        path: build/coverage/report/
+
+    # Publish the Cobertura report to GitHub's native code coverage API so that
+    # line/branch coverage shows up on pull requests.
+    #
+    # Gated behind the UPLOAD_CODE_COVERAGE repository variable: the code coverage
+    # API is still pre-GA, so until GitHub Code Quality is enabled for the repo
+    # every upload returns HTTP 404 and the action emits a red "error" annotation
+    # on each run (fail-on-error only sets the step's exit code, not whether the
+    # annotation is printed). Keeping the step dormant avoids that noise. Once
+    # Code Quality is enabled, turn it on with:
+    #   gh variable set UPLOAD_CODE_COVERAGE --body true --repo <owner>/<repo>
+    - name: Publish coverage to GitHub code coverage API
+      if: vars.UPLOAD_CODE_COVERAGE == 'true'
+      uses: actions/upload-code-coverage@v1
+      with:
+        file: build/coverage/report/coverage.xml
+        language: C++
+        label: code-coverage/gcovr
+        fail-on-error: false

@@ -1,0 +1,7 @@
+# actionlint does not yet know GitHub's "code-quality" permission scope (added
+# alongside the code coverage API). GitHub Actions accepts it, so ignore the
+# false-positive "unknown permission scope" error until actionlint catches up.
+paths:
+  .github/workflows/*.yml:
+    ignore:
+      - 'unknown permission scope "code-quality"'
