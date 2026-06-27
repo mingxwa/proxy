@@ -51,6 +51,12 @@ jobs:
   run-bvt-codecoverage:
     uses: ./.github/workflows/bvt-codecoverage.yml
     name: Run BVT for code coverage
+    # code-quality:write lets the job upload the Cobertura report to GitHub's
+    # native code coverage API. A reusable workflow only receives the
+    # permissions the caller grants, so it must be declared here too.
+    permissions:
+      contents: read
+      code-quality: write
     if: github.event_name != 'push' || github.repository == 'ngcpp/proxy'
 
   report:
