@@ -350,7 +350,7 @@ $1 = Animal [holds std::unique_ptr<Cat, std::default_delete<Cat> >] = {stored = 
 $2 = "Tom says meow"
 ```
 
-See [`tools/visualizers/README.md`](tools/visualizers/README.md) for details and the recovery mechanisms. LLDB and MSVC (natvis) support is planned.
+LLDB is supported too (`command script import .../proxy_lldb.py`). See [`tools/visualizers/README.md`](tools/visualizers/README.md) for details and the recovery mechanisms. MSVC (natvis) support is planned.
 
 ## Related Resources
 

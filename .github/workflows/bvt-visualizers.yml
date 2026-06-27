@@ -44,3 +44,24 @@ jobs:
 
     - name: Run gdb visualizer tests (clang, libstdc++)
       run: CXX="clang++-$CLANG_VERSION" python3 tools/visualizers/tests/run_gdb_tests.py
+
+  bvt-visualizers-lldb:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install clang and lldb
+      run: |
+        curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$CLANG_VERSION"
+        sudo apt-get install -y "clang-$CLANG_VERSION" "lldb-$CLANG_VERSION"
+
+    - name: Check toolchain versions
+      run: |
+        "clang++-$CLANG_VERSION" --version
+        "lldb-$CLANG_VERSION" --version
+        python3 --version
+
+    - name: Run lldb visualizer tests (clang, libstdc++)
+      run: |
+        CXX="clang++-$CLANG_VERSION" LLDB="lldb-$CLANG_VERSION" \
+          python3 tools/visualizers/tests/run_lldb_tests.py

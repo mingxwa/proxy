@@ -8,7 +8,7 @@ see what a proxy holds and call through the stored pointer with ordinary syntax.
 | Debugger | File | Status |
 | --- | --- | --- |
 | GDB | [`proxy_gdb.py`](proxy_gdb.py) | available |
-| LLDB | _planned_ | — |
+| LLDB | [`proxy_lldb.py`](proxy_lldb.py) | available |
 | MSVC (natvis) | _planned_ | — |
 
 Build your program with debug info (`-g`) for any of these to work.
@@ -54,17 +54,43 @@ Then:
   `std::unique_ptr` / `std::shared_ptr` (libstdc++).
 * `$pro_type(p)` returns the recovered type of `P` as a string.
 
-## Tests
+## LLDB
 
-[`tests/run_gdb_tests.py`](tests/run_gdb_tests.py) compiles
-[`tests/test_subjects.cpp`](tests/test_subjects.cpp) and drives gdb with
-[`tests/gdb_driver.py`](tests/gdb_driver.py), asserting recovery and calls for
-raw pointers, `std::unique_ptr`, `std::shared_ptr`, `make_proxy` storage, empty
-proxies, and the RTTI variants:
+Load the formatters (e.g. from your `~/.lldbinit`, or per session):
 
-```sh
-python3 tools/visualizers/tests/run_gdb_tests.py            # uses g++
-CXX=clang++-22 python3 tools/visualizers/tests/run_gdb_tests.py
+```
+(lldb) command script import /path/to/proxy/tools/visualizers/proxy_lldb.py
 ```
 
-CI runs this for both GCC and Clang (see `.github/workflows/bvt-visualizers.yml`).
+Then:
+
+```
+(lldb) frame variable p          # AnimalFacade [holds std::unique_ptr<Cat, ...>]
+(lldb) proxy_type p              # std::unique_ptr<Cat, std::default_delete<Cat> >
+(lldb) proxy_ptr p               # the stored pointer object P itself
+(lldb) proxy_call p ->Speak()    # call through the stored pointer
+```
+
+* A summary and a synthetic `stored` child show what the proxy holds (LLDB's own
+  formatters then expand `std::unique_ptr` / `std::shared_ptr`).
+* `proxy_call p ->Speak()` calls through the held pointer. (LLDB's expression
+  parser cannot name `std::unique_ptr` in a cast, so the command resolves the
+  held object itself and calls through it.)
+
+## Tests
+
+`tests/run_gdb_tests.py` and `tests/run_lldb_tests.py` compile
+[`tests/test_subjects.cpp`](tests/test_subjects.cpp) and drive the respective
+debugger ([`tests/gdb_driver.py`](tests/gdb_driver.py) /
+[`tests/lldb_driver.py`](tests/lldb_driver.py)), asserting recovery and calls
+for raw pointers, `std::unique_ptr`, `std::shared_ptr`, `make_proxy` storage,
+empty proxies, and the RTTI variants:
+
+```sh
+python3 tools/visualizers/tests/run_gdb_tests.py             # uses g++
+CXX=clang++-22 python3 tools/visualizers/tests/run_gdb_tests.py
+CXX=clang++-22 LLDB=lldb-22 python3 tools/visualizers/tests/run_lldb_tests.py
+```
+
+CI runs gdb (GCC + Clang) and lldb (Clang); see
+`.github/workflows/bvt-visualizers.yml`.
