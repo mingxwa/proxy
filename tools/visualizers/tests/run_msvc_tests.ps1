@@ -3,9 +3,10 @@
 # Licensed under the MIT License.
 
 # Builds the visualizer test subjects with MSVC, validates that proxy.natvis is
-# well-formed, and (best effort) drives cdb with the natvis loaded to confirm the
-# contained type surfaces for an rtti-enabled proxy. Run from a Developer shell
-# (cl.exe on PATH); honors $env:CDB_ENFORCE=1 to fail when the cdb check fails.
+# well-formed, and drives cdb with the natvis loaded to confirm the contained
+# type surfaces for an rtti-enabled proxy. Run from a Developer shell (cl.exe on
+# PATH). Fails if the build, the XML, or the cdb check fails; the cdb check is
+# skipped only when cdb.exe is unavailable.
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -51,14 +52,11 @@ try {
     Write-Host "---- end cdb output ----"
 
     if ($out -match "Cat") {
-        Write-Host "CDB_CHECK: PASS (contained type surfaced)"
-    }
-    elseif ($env:CDB_ENFORCE -eq "1") {
-        Write-Host "CDB_CHECK: FAIL (no contained type in cdb output)"
-        exit 1
+        Write-Host "CDB_CHECK: PASS (contained type surfaced for direct_rtti)"
     }
     else {
-        Write-Host "CDB_CHECK: INFO (no 'Cat' match; not enforced yet)"
+        Write-Host "CDB_CHECK: FAIL (contained type did not surface)"
+        exit 1
     }
 }
 finally {

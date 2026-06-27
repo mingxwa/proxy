@@ -350,7 +350,7 @@ $1 = Animal [holds std::unique_ptr<Cat, std::default_delete<Cat> >] = {stored = 
 $2 = "Tom says meow"
 ```
 
-LLDB is supported too (`command script import .../proxy_lldb.py`). See [`tools/visualizers/README.md`](tools/visualizers/README.md) for details and the recovery mechanisms. MSVC (natvis) support is planned.
+LLDB is supported too (`command script import .../proxy_lldb.py`), as is MSVC via [`proxy.natvis`](tools/visualizers/proxy.natvis) (which surfaces the contained type for `skills::direct_rtti` facades). See [`tools/visualizers/README.md`](tools/visualizers/README.md) for details and the recovery mechanisms.
 
 ## Related Resources
 

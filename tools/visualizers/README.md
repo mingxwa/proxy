@@ -9,7 +9,7 @@ see what a proxy holds and call through the stored pointer with ordinary syntax.
 | --- | --- | --- |
 | GDB | [`proxy_gdb.py`](proxy_gdb.py) | available |
 | LLDB | [`proxy_lldb.py`](proxy_lldb.py) | available |
-| MSVC (natvis) | _planned_ | — |
+| MSVC (natvis) | [`proxy.natvis`](proxy.natvis) | available (rtti only, see below) |
 
 Build your program with debug info (`-g`) for any of these to work.
 
@@ -77,9 +77,26 @@ Then:
   parser cannot name `std::unique_ptr` in a cast, so the command resolves the
   held object itself and calls through it.)
 
+## MSVC (natvis)
+
+Add [`proxy.natvis`](proxy.natvis) to your project (Visual Studio picks up a
+`.natvis` in the project/solution, or `%USERPROFILE%\Documents\Visual Studio
+<ver>\Visualizers\`; WinDbg/cdb load it with `.nvload`).
+
+Unlike gdb and lldb, **natvis is declarative** — it cannot resolve symbols,
+demangle, or cast to a runtime-determined type. So it can recover the contained
+type only when the facade enables
+[`pro::skills::direct_rtti`](https://ngcpp.github.io/proxy/spec/skills_rtti/)
+(which embeds a `std::type_info`); then the proxy displays
+`{ pro::proxy holds <type> }` with an expandable `[contained type]`. Without
+RTTI the proxy shows a generic `{ pro::proxy }` plus its raw `meta_` / `ptr_`.
+For full recovery, casting, and calls on Windows, use gdb or lldb (e.g. under
+WSL or clang), or read the type from `proxy_typeid`.
+
 ## Tests
 
-`tests/run_gdb_tests.py` and `tests/run_lldb_tests.py` compile
+`tests/run_gdb_tests.py`, `tests/run_lldb_tests.py`, and
+`tests/run_msvc_tests.ps1` compile
 [`tests/test_subjects.cpp`](tests/test_subjects.cpp) and drive the respective
 debugger ([`tests/gdb_driver.py`](tests/gdb_driver.py) /
 [`tests/lldb_driver.py`](tests/lldb_driver.py)), asserting recovery and calls
@@ -92,5 +109,9 @@ CXX=clang++-22 python3 tools/visualizers/tests/run_gdb_tests.py
 CXX=clang++-22 LLDB=lldb-22 python3 tools/visualizers/tests/run_lldb_tests.py
 ```
 
-CI runs gdb (GCC + Clang) and lldb (Clang); see
+`run_msvc_tests.ps1` (run from a Developer PowerShell) builds the subjects with
+`cl`, validates the natvis, and drives `cdb` to confirm the contained type
+surfaces for a `direct_rtti` proxy.
+
+CI runs gdb (GCC + Clang), lldb (Clang), and the natvis/cdb check (MSVC); see
 `.github/workflows/bvt-visualizers.yml`.
