@@ -5,13 +5,14 @@ on:
 jobs:
   bvt-compatibility:
     name: ${{ matrix.compiler.family }}-${{ matrix.compiler.version }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
         compiler:
           - {family: gcc, version: 13, modules: false, doc_tests: true}
           - {family: gcc, version: 14, modules: false, doc_tests: true}
+          - {family: gcc, version: 15, modules: false, doc_tests: true}
           - {family: clang, version: 16, modules: false, doc_tests: false}
           - {family: clang, version: 17, modules: false, doc_tests: true}
           - {family: clang, version: 18, modules: false, doc_tests: true}
@@ -25,7 +26,8 @@ jobs:
     - name: Install gcc
       if: ${{ matrix.compiler.family == 'gcc' }}
       run: |
-        sudo apt install -y 'g++-${{ matrix.compiler.version }}'
+        sudo apt-get update
+        sudo apt-get install -y 'g++-${{ matrix.compiler.version }}'
         cat <<'EOF' >> "$GITHUB_ENV"
         CC=gcc-${{ matrix.compiler.version }}
         CXX=g++-${{ matrix.compiler.version }}
@@ -35,10 +37,14 @@ jobs:
       if: ${{ matrix.compiler.family == 'clang' }}
       run: |
         version='${{ matrix.compiler.version }}'
-        if [ "$version" -ge 21 ]; then
+        pkgs=("clang-$version" "clang-tools-$version" "libc++-$version-dev" "libc++abi-$version-dev")
+        sudo apt-get update
+        # clang 20+ ships with the ubuntu-26.04 image; older versions are pulled
+        # from apt.llvm.org when they are not available in the default repositories.
+        if ! sudo apt-get install -y "${pkgs[@]}"; then
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$version"
+          sudo apt-get install -y "${pkgs[@]}"
         fi
-        sudo apt install -y "clang-$version" "clang-tools-$version" "libc++-$version-dev" "libc++abi-$version-dev"
         cat <<'EOF' >> "$GITHUB_ENV"
         CC=clang-${{ matrix.compiler.version }}
         CXX=clang++-${{ matrix.compiler.version }}

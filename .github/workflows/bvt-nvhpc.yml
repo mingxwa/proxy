@@ -3,19 +3,18 @@ on:
   workflow_dispatch:
 
 env:
-  NVHPC_VERSION: 26.3
+  NVHPC_VERSION: 26.5
 
 jobs:
   bvt-nvhpc:
-    runs-on: ubuntu-24.04
+    # The ubuntu-slim image ships with far less preinstalled software, leaving
+    # enough free disk for the NVHPC SDK without the slow jlumbroso/free-disk-space step.
+    runs-on: ubuntu-slim
     steps:
     - uses: actions/checkout@v7
 
-    - name: Free disk space
-      uses: jlumbroso/free-disk-space@v1.3.1
-
-    - name: Install meson
-      run: pipx install meson
+    - name: Install build tools
+      run: sudo apt-get update && sudo apt-get install -y cmake ninja-build meson
 
     - name: Install NVHPC ${{ env.NVHPC_VERSION }}
       run: |

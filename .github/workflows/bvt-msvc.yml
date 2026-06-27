@@ -4,7 +4,7 @@ on:
 
 jobs:
   bvt-msvc:
-    runs-on: windows-2025
+    runs-on: windows-2025-vs2026
     steps:
     - uses: actions/checkout@v7
 

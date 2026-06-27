@@ -7,17 +7,15 @@ env:
 
 jobs:
   bvt-clang:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
-    - name: Install meson
-      run: pipx install meson
-
-    - name: Install clang
+    - name: Install libc++ and Meson
       run: |
-        curl https://apt.llvm.org/llvm.sh | sudo bash -s -- "$CLANG_VERSION"
-        sudo apt install -y "clang-$CLANG_VERSION" "libc++-$CLANG_VERSION-dev"
+        sudo apt-get update
+        sudo apt-get install -y "libc++-$CLANG_VERSION-dev"
+        pipx install meson
         {
           echo "CC=clang-$CLANG_VERSION"
           echo "CXX=clang++-$CLANG_VERSION"

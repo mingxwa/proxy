@@ -1,0 +1,7 @@
+# ubuntu-26.04 is a GitHub-hosted runner image (public preview). actionlint's
+# bundled runner-label list does not recognize it yet, so register it here to
+# avoid false-positive "label is unknown" errors. Remove once actionlint ships
+# a release that knows the label.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

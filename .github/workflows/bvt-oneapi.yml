@@ -4,7 +4,7 @@ on:
 
 jobs:
   bvt-oneapi:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
@@ -13,7 +13,8 @@ jobs:
 
     - name: Install libc++
       run: |
-        sudo apt-get install -y libc++-19-dev libc++abi-19-dev
+        sudo apt-get update
+        sudo apt-get install -y libc++-20-dev libc++abi-20-dev
         cat <<'EOF' >> "$GITHUB_ENV"
         CXXFLAGS=-stdlib=libc++
         EOF
@@ -25,6 +26,7 @@ jobs:
         sudo apt update
         sudo apt install -y intel-oneapi-compiler-dpcpp-cpp
         source /opt/intel/oneapi/setvars.sh
+        # shellcheck disable=SC2317  # setvars.sh returns normally; the following lines are reachable
         cat<<-EOF >> "$GITHUB_ENV"
         PATH=$PATH
         LD_LIBRARY_PATH=$LD_LIBRARY_PATH
