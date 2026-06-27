@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2022-2026 Microsoft Corporation.
+  Copyright (c) 2026-Present Next Gen C++ Foundation.
+  Licensed under the MIT License.
+
+  Natvis visualizer for pro::proxy<F> (MSVC / Visual Studio / WinDbg / cdb).
+
+  pro::proxy<F> is type-erased: the contained pointer object P lives in the raw
+  ptr_ buffer and the only runtime trace of its type is meta_. Unlike the gdb and
+  lldb scripts (which recover P from meta_ symbols), natvis is declarative and
+  cannot resolve symbols, demangle, or cast to a runtime-determined type. So this
+  visualizer can only surface the contained type when the facade opts into
+  pro::skills::direct_rtti (or rtti), which embeds a std::type_info; everything
+  shown below is Optional and silently omitted when it does not apply.
+  See tools/visualizers/README.md.
+-->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="pro::v4::proxy&lt;*&gt;">
+    <DisplayString Optional="true">{{ pro::proxy holds {*meta_.ptr_->reflector.info} }}</DisplayString>
+    <DisplayString>{{ pro::proxy }}</DisplayString>
+    <Expand>
+      <Item Name="[contained type]" Optional="true">*meta_.ptr_->reflector.info</Item>
+      <Item Name="[contained type name]" Optional="true">meta_.ptr_->reflector.info->_M_d_name,s</Item>
+      <Item Name="[meta]">meta_</Item>
+      <Item Name="[storage]">ptr_</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

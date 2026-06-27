@@ -65,3 +65,15 @@ jobs:
       run: |
         CXX="clang++-$CLANG_VERSION" LLDB="lldb-$CLANG_VERSION" \
           python3 tools/visualizers/tests/run_lldb_tests.py
+
+  bvt-visualizers-msvc:
+    runs-on: windows-2025
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Add cl.exe to PATH
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Run natvis visualizer tests (MSVC)
+      shell: pwsh
+      run: ./tools/visualizers/tests/run_msvc_tests.ps1
