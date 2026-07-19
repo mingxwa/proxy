@@ -74,4 +74,5 @@ int main() {
 ## See Also
 
 - [macro `PRO_DEF_FREE_DISPATCH`](PRO_DEF_FREE_DISPATCH.md)
+- [class template `mem_dispatch`](mem_dispatch/README.md)
 - [alias template `basic_facade_builder::add_convention`](basic_facade_builder/add_convention.md)

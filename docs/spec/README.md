@@ -26,6 +26,7 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`facade_aware_overload_t`](facade_aware_overload_t.md)      | Specifies a facade-aware overload template                   |
 | [`implicit_conversion_dispatch`](implicit_conversion_dispatch/README.md) | Dispatch type for implicit conversion expressions with accessibility |
 | [`is_bitwise_trivially_relocatable`](is_bitwise_trivially_relocatable.md) | Specifies whether a type is bitwise trivially relocatable    |
+| [`mem_dispatch`](mem_dispatch/README.md)                     | Dispatch type for member function call expressions with accessibility (requires C++26 reflection) |
 | [`not_implemented` ](not_implemented.md)                     | Exception thrown by `weak_dispatch` for the default implementation |
 | [`operator_dispatch`](operator_dispatch/README.md)           | Dispatch type for operator expressions with accessibility    |
 | [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md) | Provides indirection accessibility for `proxy`               |
