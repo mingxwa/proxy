@@ -17,11 +17,11 @@ Invokes a `proxy_indirect_accessor<F>` with a specified dispatch type `D`, an ov
 
 Let `ptr` be the contained value of the `proxy` object associated to `p` with the same cv ref-qualifiers. Equivalent to [`INVOKE<R>`](https://en.cppreference.com/w/cpp/utility/functional)`(D(), *ptr, static_cast<Args2>(args)...)`.
 
-There shall be a convention type `Conv` defined in `typename F::convention_types` where
+There shall be a convention type `Conv` defined in the convention types of `F` or of any super of `F`, reachable via `typename F::super_types` transitively, where
 
 - `Conv::is_direct` is `false`, and
 - `typename Conv::dispatch_type` is `D`, and
-- there shall be an overload type `O1` defined in `typename Conv::overload_types` where [`substituted-overload`](../ProOverload.md)`<O1, F>` is `O`.
+- [`substituted-overload`](../ProOverload.md)`<typename Conv::overload_type, F>` is `O`.
 
 This function is not visible to ordinary [unqualified](https://en.cppreference.com/w/cpp/language/unqualified_lookup) or [qualified lookup](https://en.cppreference.com/w/cpp/language/qualified_lookup). It can only be found by [argument-dependent lookup](https://en.cppreference.com/w/cpp/language/adl) when `proxy_indirect_accessor<F>` is an associated class of the arguments.
 
@@ -59,4 +59,3 @@ int main() {
 ## See Also
 
 - [function template `reflect` (`proxy_indirect_accessor<F>`)](friend_reflect.md)
-- [function template `reinterpret_invoke` (`proxy_indirect_accessor<F>`)](friend_reinterpret_invoke.md)

@@ -18,14 +18,15 @@ using weak_proxy = proxy<weak_facade<F>>;
 `weak_facade<F>` adapts the original [facade](facade.md) `F` so that:
 
 * A `lock()` member (direct convention) is provided, returning a `proxy<F>` that contains a value if and only if the referenced object is still alive at the time of the call.
-* All direct substitution conversions that would have produced a `proxy<G>` become conversions that produce a `weak_proxy<G>` instead (so that "weak-ness" is preserved across facade-substitution).
+* Each super of `F` is adapted in the same way, so that "weak-ness" is preserved when converting to a `proxy` of a super: a `weak_proxy<F>` converts to a `weak_proxy<G>` for every super `G` of `F`.
 * No reflections from `F` are preserved.
 
 ## Member Types of `weak_facade`
 
 | Name | Description |
 | ---- | ----------- |
-| `convention_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::convention_types`. Specifically: <br/>- It always prepends a direct convention whose dispatch type denotes the member function `lock` and whose single overload has signature `proxy<F>() const noexcept`. Calling this overload attempts to obtain a strong `proxy<F>`; it returns an empty `proxy<F>` if the object has expired.<br/>- For any direct convention `C` in `F` whose `dispatch_type` is `substitution_dispatch`, a transformed convention `C'` is included, whose<br/>  * `is_direct` is `true` and `dispatch_type` is still `substitution_dispatch`.<br/>  * For every overload `O` in `typename C::overload_types` with signature (after cv/ref/noexcept qualifiers) returning a `proxy<G>`, replace its return type with `weak_proxy<G>` while preserving qualifiers and `noexcept`.<br/>- All other conventions from `F` are discarded. |
+| `super_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::super_types`. Specifically, for each super `S` in `typename F::super_types`, `weak_facade<S>` is included. |
+| `convention_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains a single direct convention whose dispatch type denotes the member function `lock` and whose overload has signature `proxy<F>() const noexcept`. Calling this overload attempts to obtain a strong `proxy<F>`; it returns an empty `proxy<F>` if the object has expired. All conventions from `F` are discarded. |
 | `reflection_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains no types. |
 
 ## Member Constants of `weak_facade`

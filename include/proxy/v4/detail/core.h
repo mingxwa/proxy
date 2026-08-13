@@ -39,9 +39,8 @@ namespace detail {
 
 template <class F>
 struct basic_facade_traits;
-
 template <class F>
-struct meta_storage;
+struct facade_traits;
 
 } // namespace detail
 
@@ -77,19 +76,51 @@ struct inapplicable_traits {
   static constexpr bool applicable = false;
 };
 
-template <template <class, class> class R, class O, class... Is>
+template <template <class...> class T, class TL, class Is, class... Args>
+struct specialization_type_traits_impl;
+template <template <class...> class T, class TL, std::size_t... Is,
+          class... Args>
+struct specialization_type_traits_impl<T, TL, std::index_sequence<Is...>,
+                                       Args...>
+    : std::type_identity<T<Args..., std::tuple_element_t<Is, TL>...>> {};
+template <template <class...> class T, class TL, class... Args>
+struct specialization_type_traits
+    : specialization_type_traits_impl<
+          T, TL, std::make_index_sequence<std::tuple_size_v<TL>>, Args...> {};
+template <template <class...> class T, class... Ts, class... Args>
+struct specialization_type_traits<T, std::tuple<Ts...>, Args...>
+    : std::type_identity<T<Args..., Ts...>> {};
+template <template <class...> class T, class TL, class... Args>
+using specialization_t = specialization_type_traits<T, TL, Args...>::type;
+
+template <class T, template <class...> class TT>
+struct specialization_traits : inapplicable_traits {};
+template <template <class...> class TT, class... Args>
+struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
+template <class T, template <class...> class TT>
+concept specialization_of = specialization_traits<T, TT>::applicable;
+
+template <template <class, class, class...> class R, class... Args>
+struct reduction_t;
+template <class R, class O, class... Is>
 struct recursive_reduction : std::type_identity<O> {};
-template <template <class, class> class R, class O, class I, class... Is>
-struct recursive_reduction<R, O, I, Is...>
-    : recursive_reduction<R, R<O, I>, Is...> {};
-template <template <class, class> class R, class O, class... Is>
+template <template <class, class, class...> class R, class... Args, class O,
+          class I, class... Is>
+struct recursive_reduction<reduction_t<R, Args...>, O, I, Is...>
+    : recursive_reduction<reduction_t<R, Args...>,
+                          typename R<O, I, Args...>::type, Is...> {};
+template <class R, class O, class... Is>
 using recursive_reduction_t = recursive_reduction<R, O, Is...>::type;
 
-template <template <class...> class R, class... Args>
-struct reduction_traits {
-  template <class O, class I>
-  using type = R<Args..., O, I>::type;
-};
+template <class O, class I, class R>
+struct flattening_reduction : specialization_t<recursive_reduction, I, R, O> {};
+template <class R, class... Tss>
+struct flattening_merge : std::type_identity<std::tuple<>> {};
+template <class R, class Ts, class... Tss>
+struct flattening_merge<R, Ts, Tss...>
+    : recursive_reduction<reduction_t<flattening_reduction, R>, Ts, Tss...> {};
+template <class R, class... Tss>
+using flattening_merge_t = flattening_merge<R, Tss...>::type;
 
 template <class O, class I>
 struct composition_reduction : std::type_identity<O> {};
@@ -100,8 +131,18 @@ template <template <class...> class T, class... Os, class... Is>
 struct composition_reduction<T<Os...>, T<Is...>>
     : std::type_identity<T<Os..., Is...>> {};
 template <class T, class... Us>
-using composite_t = recursive_reduction_t<
-    reduction_traits<composition_reduction>::template type, T, Us...>;
+using composite_t =
+    recursive_reduction_t<reduction_t<composition_reduction>, T, Us...>;
+
+template <class O, class I>
+struct add_tuple_reduction : std::type_identity<O> {};
+template <class... Os, class I>
+  requires(!std::is_same_v<I, Os> && ...)
+struct add_tuple_reduction<std::tuple<Os...>, I>
+    : std::type_identity<std::tuple<Os..., I>> {};
+template <class... Tss>
+using merge_tuples_t =
+    flattening_merge_t<reduction_t<add_tuple_reduction>, Tss...>;
 
 template <class Expr>
 consteval bool is_consteval(Expr) {
@@ -125,23 +166,6 @@ consteval bool is_tuple_like_well_formed() {
   }
   return false;
 }
-
-template <template <class...> class T, class TL, class Is, class... Args>
-struct specialization_type_traits_impl;
-template <template <class...> class T, class TL, std::size_t... Is,
-          class... Args>
-struct specialization_type_traits_impl<T, TL, std::index_sequence<Is...>,
-                                       Args...>
-    : std::type_identity<T<Args..., std::tuple_element_t<Is, TL>...>> {};
-template <template <class...> class T, class TL, class... Args>
-struct specialization_type_traits
-    : specialization_type_traits_impl<
-          T, TL, std::make_index_sequence<std::tuple_size_v<TL>>, Args...> {};
-template <template <class...> class T, class... Ts, class... Args>
-struct specialization_type_traits<T, std::tuple<Ts...>, Args...>
-    : std::type_identity<T<Args..., Ts...>> {};
-template <template <class...> class T, class TL, class... Args>
-using specialization_t = specialization_type_traits<T, TL, Args...>::type;
 
 enum class qualifier_type { lv, const_lv, rv, const_rv };
 template <class T, qualifier_type Q>
@@ -211,48 +235,46 @@ template <class T>
 struct destructibility_traits<T, constraint_level::trivial>
     : applicable_traits {};
 
-template <class F, bool IsDirect, qualifier_type Q>
-using proxy_accessor = add_qualifier_t<
-    std::conditional_t<IsDirect, proxy<F>, proxy_indirect_accessor<F>>, Q>;
 template <class F, qualifier_type Q>
 add_qualifier_t<proxy<F>, Q>
     as_proxy(add_qualifier_t<proxy_indirect_accessor<F>, Q> p);
 
 struct proxy_helper {
-  template <class P, class F>
-  struct resetting_guard {
-    explicit resetting_guard(proxy<F>& p) noexcept : p_(p) {}
-    explicit resetting_guard(proxy_indirect_accessor<F>& p) noexcept
+  template <class F>
+  struct meta_resetting_guard {
+    explicit meta_resetting_guard(proxy<F>& p) noexcept : p_(p) {}
+    explicit meta_resetting_guard(proxy_indirect_accessor<F>& p) noexcept
         : p_(as_proxy<F, qualifier_type::lv>(p)) {}
-    ~resetting_guard() noexcept(std::is_nothrow_destructible_v<P>) {
-      std::destroy_at(std::addressof(get_ptr<P, F, qualifier_type::lv>(p_)));
-      p_.meta_.reset();
-    }
+    ~meta_resetting_guard() noexcept { p_.meta_.reset(); }
 
   private:
     proxy<F>& p_;
   };
 
-  template <class F>
-  static const meta_storage<F>& get_meta(const proxy<F>& p) noexcept {
-    assert(p.has_value());
+  template <class M, class F>
+  static const M& get_meta(const proxy<F>& p) noexcept {
+    assert(p.meta_.has_value());
     return p.meta_;
   }
+  template <class M, class F>
+  static const M& get_meta(const proxy_indirect_accessor<F>& p) noexcept {
+    return get_meta<M>(as_proxy<F, qualifier_type::const_lv>(p));
+  }
   template <class F>
-  static const meta_storage<F>&
-      get_meta(const proxy_indirect_accessor<F>& p) noexcept {
-    return get_meta(as_proxy<F, qualifier_type::const_lv>(p));
+  static void* get_ptr(proxy<F>& p) noexcept {
+    return p.ptr_;
   }
-  template <class P, class F, qualifier_type Q>
-  static add_qualifier_t<P, Q> get_ptr(add_qualifier_t<proxy<F>, Q> p) {
-    return static_cast<add_qualifier_t<P, Q>>(
-        reinterpret_cast<add_qualifier_t<P, Q>>(*std::launder(p.ptr_)));
+  template <class F>
+  static const void* get_ptr(const proxy<F>& p) noexcept {
+    return p.ptr_;
   }
-  template <class P, class F1, class F2>
-  static void trivially_relocate(proxy<F1>& from, proxy<F2>& to) noexcept {
-    std::uninitialized_copy_n(from.ptr_, sizeof(P), to.ptr_);
-    to.meta_ = decltype(proxy<F2>::meta_){std::in_place_type<P>};
-    from.meta_.reset();
+  template <class F>
+  static void* get_ptr(proxy_indirect_accessor<F>& p) noexcept {
+    return get_ptr(as_proxy<F, qualifier_type::lv>(p));
+  }
+  template <class F>
+  static const void* get_ptr(const proxy_indirect_accessor<F>& p) noexcept {
+    return get_ptr(as_proxy<F, qualifier_type::const_lv>(p));
   }
 };
 
@@ -275,14 +297,13 @@ concept invocable_dispatch =
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
 
-struct internal_dispatch {};
-
 template <class O>
 struct overload_traits : inapplicable_traits {};
 template <qualifier_type Q, bool NE, class R, class... Args>
 struct overload_traits_impl : applicable_traits {
   using return_type = R;
 
+  static constexpr qualifier_type this_qualifier = Q;
   template <class P, bool IsDirect, class D>
   static constexpr bool applicable_ptr =
       invocable_dispatch<P, IsDirect, D, Q, NE, R, Args...>;
@@ -326,6 +347,100 @@ struct overload_traits<R(Args...) const && noexcept>
 template <class O>
 using ret_t = overload_traits<O>::return_type;
 
+template <class P, bool IsDirect, qualifier_type Q>
+operand_t<P, IsDirect, Q>
+    get_operand(std::remove_reference_t<add_qualifier_t<P, Q>>* self) {
+  if constexpr (IsDirect) {
+    return static_cast<add_qualifier_t<P, Q>>(*self);
+  } else {
+    add_qualifier_t<P, Q> ptr = static_cast<add_qualifier_t<P, Q>>(*self);
+    if constexpr (std::is_constructible_v<bool, P&>) {
+      assert(ptr);
+    }
+    return *std::forward<add_qualifier_t<P, Q>>(ptr);
+  }
+}
+
+// When a dispatch always throws, MSVC may incorrectly warn about unreachable
+// code (C4702). Disable the warning for invoke_dispatch().
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif // defined(_MSC_VER) && !defined(__clang__)
+template <class D, class R, class... Args>
+R invoke_dispatch(Args&&... args) {
+  if constexpr (std::is_void_v<R>) {
+    D()(std::forward<Args>(args)...);
+  } else {
+    return D()(std::forward<Args>(args)...);
+  }
+}
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif // defined(_MSC_VER) && !defined(__clang__)
+
+template <class P>
+struct destroying_guard {
+  explicit destroying_guard(P* p) noexcept : p_(p) {}
+  ~destroying_guard() noexcept(std::is_nothrow_destructible_v<P>) {
+    std::destroy_at(p_);
+  }
+
+private:
+  P* p_;
+};
+
+struct relocate_dispatch;
+
+template <bool IsDirect, class D, class O>
+struct erased_context {
+  static constexpr qualifier_type qualifier =
+      overload_traits<O>::this_qualifier;
+
+  template <class P, class... Args>
+  friend ret_t<O> invoke(erased_context ctx, Args&&... args) {
+    auto* self = std::launder(
+        static_cast<std::remove_reference_t<add_qualifier_t<P, qualifier>>*>(
+            ctx.p_));
+    if constexpr (qualifier == qualifier_type::rv) {
+      destroying_guard<P> guard{self};
+      return invoke_dispatch<D, ret_t<O>>(
+          get_operand<P, IsDirect, qualifier>(self),
+          std::forward<Args>(args)...);
+    } else {
+      return invoke_dispatch<D, ret_t<O>>(
+          get_operand<P, IsDirect, qualifier>(self),
+          std::forward<Args>(args)...);
+    }
+  }
+
+  std::conditional_t<qualifier == qualifier_type::const_lv ||
+                         qualifier == qualifier_type::const_rv,
+                     const void*, void*>
+      p_;
+};
+template <class O>
+struct erased_context<true, relocate_dispatch, O> {
+  template <class P>
+  friend ret_t<O> invoke(erased_context ctx, void* rhs) {
+    auto* self = std::launder(static_cast<P*>(ctx.p_));
+    if constexpr (is_bitwise_trivially_relocatable_v<P>) {
+      if constexpr (!std::is_empty_v<P>) {
+        std::uninitialized_copy_n(reinterpret_cast<const std::byte*>(self),
+                                  sizeof(P), static_cast<std::byte*>(rhs));
+      }
+    } else {
+      destroying_guard<P> guard{self};
+      std::construct_at(static_cast<P*>(rhs), std::move(*self));
+    }
+  }
+
+  void* p_;
+};
+
+template <bool IsDirect, class D, class O>
+using erased_invoker_t = invoker<erased_context<IsDirect, D, O>, O>;
+
 template <class O>
 struct overload_substitution_traits : inapplicable_traits {
   template <class>
@@ -343,13 +458,6 @@ using substituted_overload_t =
 template <class O>
 concept extended_overload = overload_traits<O>::applicable ||
                             overload_substitution_traits<O>::applicable;
-template <class P, class F, bool IsDirect, class D, class O>
-consteval void diagnose_proxiable_required_convention_not_implemented() {
-  static_assert(overload_traits<O>::applicable &&
-                    overload_traits<O>::template applicable_ptr<P, IsDirect, D>,
-                "not proxiable due to a required convention not implemented");
-}
-
 template <class T>
 consteval bool is_is_direct_well_formed() {
   if constexpr (requires {
@@ -362,22 +470,22 @@ consteval bool is_is_direct_well_formed() {
   return false;
 }
 
-template <class C, class... Os>
-struct basic_conv_traits_impl : inapplicable_traits {};
-template <class C, extended_overload... Os>
-  requires(sizeof...(Os) > 0u)
-struct basic_conv_traits_impl<C, Os...> : applicable_traits {};
 template <class C>
-struct basic_conv_traits : inapplicable_traits {};
-template <class C>
-  requires(requires {
-    { typename C::dispatch_type() } noexcept;
-    typename C::overload_types;
-  } && is_is_direct_well_formed<C>() &&
-           is_tuple_like_well_formed<typename C::overload_types>())
-struct basic_conv_traits<C>
-    : specialization_t<basic_conv_traits_impl, typename C::overload_types, C> {
-};
+concept basic_convention =
+    requires {
+      { typename C::dispatch_type() } noexcept;
+      typename C::overload_type;
+    } && is_is_direct_well_formed<C>() &&
+    extended_overload<typename C::overload_type>;
+
+template <class R>
+concept basic_reflection =
+    requires { typename R::reflector_type; } && is_is_direct_well_formed<R>();
+
+template <class T>
+concept pointer_like = (std::is_pointer_v<T> ||
+    requires { typename T::element_type; } || requires(T val) { *val; }) &&
+    requires { typename std::pointer_traits<T>::element_type; };
 
 template <class T>
 struct a11y_traits_impl
@@ -391,38 +499,8 @@ template <class T, class... Args>
 struct a11y_traits<std::void_t<typename T::template accessor<Args...>>, T,
                    Args...>
     : a11y_traits_impl<typename T::template accessor<Args...>> {};
-template <class T, class... Args>
-using accessor_t = a11y_traits<void, T, Args...>::type;
-
-template <class C, class F, class... Os>
-struct conv_traits_impl {
-  static_assert((overload_traits<substituted_overload_t<Os, F>>::applicable &&
-                 ...));
-  using meta = std::tuple<invoker<
-      std::conditional_t<C::is_direct, proxy<F>, proxy_indirect_accessor<F>>,
-      typename C::dispatch_type, substituted_overload_t<Os, F>>...>;
-  template <class T>
-  using accessor =
-      accessor_t<typename C::dispatch_type, T, typename C::dispatch_type,
-                 substituted_overload_t<Os, F>...>;
-
-  template <class P>
-  static consteval void diagnose_proxiable() {
-    ((diagnose_proxiable_required_convention_not_implemented<
-         P, F, C::is_direct, typename C::dispatch_type,
-         substituted_overload_t<Os, F>>()),
-     ...);
-  }
-
-  template <class P>
-  static constexpr bool applicable_ptr =
-      (overload_traits<substituted_overload_t<Os, F>>::template applicable_ptr<
-           P, C::is_direct, typename C::dispatch_type> &&
-       ...);
-};
-template <class C, class F>
-struct conv_traits
-    : specialization_t<conv_traits_impl, typename C::overload_types, C, F> {};
+template <class ProP, class T, class... Args>
+using accessor_t = a11y_traits<void, T, ProP, T, Args...>::type;
 
 template <bool IsDirect, class R>
 struct reflection_meta {
@@ -454,29 +532,11 @@ consteval bool is_reflector_well_formed() {
   }
   return false;
 }
-template <class P, class F, bool IsDirect, class R>
-consteval void diagnose_proxiable_required_reflection_not_implemented() {
-  static_assert(is_reflector_well_formed<P, IsDirect, R>(),
-                "not proxiable due to a required reflection not implemented");
-}
-
 struct copy_dispatch {
-  template <class T, class F>
-  PRO4D_STATIC_CALL(void, const T& self, proxy<F>& rhs) noexcept(
+  template <class T>
+  PRO4D_STATIC_CALL(void, const T& self, void* rhs) noexcept(
       std::is_nothrow_copy_constructible_v<T>) {
-    std::construct_at(std::addressof(rhs), self);
-  }
-};
-struct relocate_dispatch : internal_dispatch {
-  template <class P, class F>
-  PRO4D_STATIC_CALL(void, std::in_place_type_t<P>, proxy<F>&& self,
-                    proxy<F>& rhs) noexcept {
-    proxy_helper::trivially_relocate<P>(self, rhs);
-  }
-  template <class T, class F>
-  PRO4D_STATIC_CALL(void, T&& self, proxy<F>& rhs) noexcept(
-      relocatability_traits<T, constraint_level::nothrow>::applicable) {
-    std::construct_at(std::addressof(rhs), std::forward<T>(self));
+    std::construct_at(static_cast<T*>(rhs), self);
   }
 };
 struct destroy_dispatch {
@@ -485,62 +545,181 @@ struct destroy_dispatch {
     std::destroy_at(&self);
   }
 };
-template <class F, class D, class ONE, class OE, constraint_level C>
+template <class D, class ONE, class OE, constraint_level C>
 struct lifetime_meta_traits : std::type_identity<void> {};
-template <class F, class D, class ONE, class OE>
-struct lifetime_meta_traits<F, D, ONE, OE, constraint_level::nothrow>
-    : std::type_identity<invoker<proxy<F>, D, ONE>> {};
-template <class F, class D, class ONE, class OE>
-struct lifetime_meta_traits<F, D, ONE, OE, constraint_level::nontrivial>
-    : std::type_identity<invoker<proxy<F>, D, OE>> {};
-template <class F, class D, class ONE, class OE, constraint_level C>
-using lifetime_meta_t = lifetime_meta_traits<F, D, ONE, OE, C>::type;
+template <class D, class ONE, class OE>
+struct lifetime_meta_traits<D, ONE, OE, constraint_level::nothrow>
+    : std::type_identity<erased_invoker_t<true, D, ONE>> {};
+template <class D, class ONE, class OE>
+struct lifetime_meta_traits<D, ONE, OE, constraint_level::nontrivial>
+    : std::type_identity<erased_invoker_t<true, D, OE>> {};
+template <class D, class ONE, class OE, constraint_level C>
+using lifetime_meta_t = lifetime_meta_traits<D, ONE, OE, C>::type;
 
 template <class... As>
 struct PRO4D_ENFORCE_EBO composite_accessor : As... {};
 
-template <class C, class F, bool IsDirect>
-struct conv_accessor_traits : std::type_identity<void> {};
-template <class C, class F>
-  requires(!C::is_direct)
-struct conv_accessor_traits<C, F, false>
-    : std::type_identity<typename conv_traits<C, F>::template accessor<
-          proxy_indirect_accessor<F>>> {};
-template <class C, class F>
-  requires(C::is_direct)
-struct conv_accessor_traits<C, F, true>
-    : std::type_identity<
-          typename conv_traits<C, F>::template accessor<proxy<F>>> {};
-template <class C, class F, bool IsDirect>
-using conv_accessor_t = conv_accessor_traits<C, F, IsDirect>::type;
+template <class P, class... Rs>
+using refl_accessors_t =
+    composite_t<composite_accessor<>,
+                accessor_t<P, typename Rs::reflector_type>...>;
 
-template <class R, class F, bool IsDirect>
-struct refl_accessor_traits : std::type_identity<void> {};
-template <class R, class F>
-  requires(!R::is_direct)
-struct refl_accessor_traits<R, F, false>
-    : std::type_identity<
-          accessor_t<typename R::reflector_type, proxy_indirect_accessor<F>,
-                     typename R::reflector_type>> {};
-template <class R, class F>
-  requires(R::is_direct)
-struct refl_accessor_traits<R, F, true>
-    : std::type_identity<accessor_t<typename R::reflector_type, proxy<F>,
-                                    typename R::reflector_type>> {};
-template <class R, class F, bool IsDirect>
-using refl_accessor_t = refl_accessor_traits<R, F, IsDirect>::type;
+template <class D, class... Os>
+struct conv_group;
+template <class G, class P, class F>
+struct conv_accessor_traits;
+template <class D, class... Os, class P, class F>
+struct conv_accessor_traits<conv_group<D, Os...>, P, F>
+    : std::type_identity<accessor_t<P, D, substituted_overload_t<Os, F>...>> {};
+template <class P, class F, class... Gs>
+using conv_accessors_t =
+    composite_t<composite_accessor<>,
+                typename conv_accessor_traits<Gs, P, F>::type...>;
+
+template <class G, class D>
+struct conv_group_match_traits : inapplicable_traits {};
+template <class D, class... Os>
+struct conv_group_match_traits<conv_group<D, Os...>, D> : applicable_traits {};
+
+template <class G1, class G2>
+struct conv_group_merge_traits : std::type_identity<G1> {};
+template <class D, class... Os1, class... Os2>
+struct conv_group_merge_traits<conv_group<D, Os1...>, conv_group<D, Os2...>>
+    : specialization_type_traits<
+          conv_group, merge_tuples_t<std::tuple<Os1...>, std::tuple<Os2...>>,
+          D> {};
+
+template <class O, class I>
+struct conv_groups_reduction;
+template <class... Gs, class D, class... Os>
+  requires(conv_group_match_traits<Gs, D>::applicable || ...)
+struct conv_groups_reduction<std::tuple<Gs...>, conv_group<D, Os...>>
+    : std::type_identity<std::tuple<typename conv_group_merge_traits<
+          Gs, conv_group<D, Os...>>::type...>> {};
+template <class... Gs, class I>
+struct conv_groups_reduction<std::tuple<Gs...>, I>
+    : std::type_identity<std::tuple<Gs..., I>> {};
+template <class... Gss>
+using conv_groups_merge_t =
+    flattening_merge_t<reduction_t<conv_groups_reduction>, Gss...>;
+
+template <class O, class I, class T>
+struct first_containing_reduction : std::type_identity<O> {};
+template <class I, class T>
+struct first_containing_reduction<void, I, T>
+    : std::conditional<std::is_convertible_v<const I&, const T&>, I, void> {};
+
+template <class O, class I>
+struct most_containing_reduction
+    : std::conditional<std::is_convertible_v<const I&, const O&>, I, O> {};
+template <class SFINAE, class O, class I>
+struct sfinae_unique_types_traits : std::type_identity<O> {};
+template <class... Ts, class U, class... Us>
+struct sfinae_unique_types_traits<
+    std::enable_if_t<(std::is_convertible_v<const Ts&, const U&> || ...)>,
+    std::tuple<Ts...>, std::tuple<U, Us...>>
+    : sfinae_unique_types_traits<void, std::tuple<Ts...>, std::tuple<Us...>> {};
+template <class... Ts, class U, class... Us>
+struct sfinae_unique_types_traits<
+    std::enable_if_t<!(std::is_convertible_v<const Ts&, const U&> || ...)>,
+    std::tuple<Ts...>, std::tuple<U, Us...>>
+    : sfinae_unique_types_traits<
+          void,
+          std::tuple<Ts...,
+                     recursive_reduction_t<
+                         reduction_t<most_containing_reduction>, U, Us...>>,
+          std::tuple<Us...>> {};
+template <class T>
+using unique_types_t = sfinae_unique_types_traits<void, std::tuple<>, T>::type;
 
 template <class T>
-concept pointer_like = (std::is_pointer_v<T> ||
-    requires { typename T::element_type; } || requires(T val) { *val; }) &&
-    requires { typename std::pointer_traits<T>::element_type; };
+concept nullable = requires(T v, const T cv) {
+  { v.reset() } noexcept;
+  { cv.has_value() } noexcept -> std::same_as<bool>;
+};
 
-template <class T, template <class...> class TT>
-struct specialization_traits : inapplicable_traits {};
-template <template <class...> class TT, class... Args>
-struct specialization_traits<TT<Args...>, TT> : applicable_traits {};
-template <class T, template <class...> class TT>
-concept specialization_of = specialization_traits<T, TT>::applicable;
+template <class F>
+struct proxy_meta;
+
+struct sentinel_meta {
+  sentinel_meta() = default;
+  template <class P>
+  constexpr explicit sentinel_meta(std::in_place_type_t<P>) noexcept : v_(1) {}
+  void reset() noexcept { v_ = 0; }
+  bool has_value() const noexcept { return v_; }
+
+private:
+  std::ptrdiff_t v_;
+};
+
+template <class... Ms>
+struct PRO4D_ENFORCE_EBO composite_meta : Ms... {
+  composite_meta() = default;
+  template <class P>
+  constexpr explicit composite_meta(std::in_place_type_t<P>)
+      : Ms(std::in_place_type<P>)... {}
+};
+
+template <nullable First, class... Rest>
+struct proxy_meta_base_impl {
+  constexpr proxy_meta_base_impl() noexcept {}
+  template <class P>
+  constexpr explicit proxy_meta_base_impl(std::in_place_type_t<P>)
+      : value_(std::in_place_type<P>) {}
+  proxy_meta_base_impl(const proxy_meta_base_impl& rhs) noexcept
+      : proxy_meta_base_impl() {
+    assign(rhs);
+  }
+  proxy_meta_base_impl& operator=(const proxy_meta_base_impl& rhs) noexcept {
+    assign(rhs);
+    return *this;
+  }
+
+  template <class T>
+    requires(std::is_convertible_v<const First&, const T&> ||
+             (std::is_convertible_v<const Rest&, const T&> || ...))
+  constexpr operator const T&() const noexcept {
+    return static_cast<const recursive_reduction_t<
+        reduction_t<first_containing_reduction, T>, void, First, Rest...>&>(
+        value_);
+  }
+
+  bool has_value() const noexcept {
+    return static_cast<const First&>(value_).has_value();
+  }
+  void reset() noexcept { static_cast<First&>(value_).reset(); }
+
+private:
+  void assign(const proxy_meta_base_impl& rhs) noexcept {
+    if (rhs.has_value()) {
+      value_ = rhs.value_;
+    } else {
+      reset();
+    }
+  }
+
+  composite_meta<First, Rest...> value_;
+};
+template <nullable First>
+  requires(std::is_trivially_copyable_v<First>)
+struct proxy_meta_base_impl<First> : First {
+  proxy_meta_base_impl() = default;
+  template <class P>
+  constexpr explicit proxy_meta_base_impl(std::in_place_type_t<P>)
+      : First(std::in_place_type<P>) {}
+};
+
+template <class... Ms>
+struct proxy_meta_base_traits
+    : specialization_type_traits<proxy_meta_base_impl,
+                                 unique_types_t<std::tuple<Ms...>>,
+                                 sentinel_meta> {};
+template <nullable M, class... Ms>
+struct proxy_meta_base_traits<M, Ms...>
+    : specialization_type_traits<proxy_meta_base_impl,
+                                 unique_types_t<std::tuple<M, Ms...>>> {};
+template <class... Ms>
+using proxy_meta_base_t = typename proxy_meta_base_traits<Ms...>::type;
 
 template <class P, class F, std::size_t ActualSize, std::size_t MaxSize>
 consteval void diagnose_proxiable_size_too_large() {
@@ -565,6 +744,17 @@ template <class P, class F, constraint_level RequiredDestructibility>
 consteval void diagnose_proxiable_insufficient_destructibility() {
   static_assert(destructibility_traits<P, RequiredDestructibility>::applicable,
                 "not proxiable due to insufficient destructibility");
+}
+template <class P, class F, bool IsDirect, class D, class O>
+consteval void diagnose_proxiable_required_convention_not_implemented() {
+  static_assert(overload_traits<O>::applicable &&
+                    overload_traits<O>::template applicable_ptr<P, IsDirect, D>,
+                "not proxiable due to a required convention not implemented");
+}
+template <class P, class F, bool IsDirect, class R>
+consteval void diagnose_proxiable_required_reflection_not_implemented() {
+  static_assert(is_reflector_well_formed<P, IsDirect, R>(),
+                "not proxiable due to a required reflection not implemented");
 }
 
 consteval bool is_layout_well_formed(std::size_t size, std::size_t align) {
@@ -594,25 +784,40 @@ consteval bool is_facade_constraints_well_formed() {
   }
   return false;
 }
+template <class F, class S>
+consteval bool is_super_constraints_well_formed() {
+  return F::max_size <= S::max_size && F::max_align <= S::max_align &&
+         F::copyability >= S::copyability &&
+         F::relocatability >= S::relocatability &&
+         F::destructibility >= S::destructibility;
+}
+template <class F, class... Fs>
+struct basic_facade_super_traits_impl : inapplicable_traits {};
+template <class F, class... Fs>
+  requires((facade<Fs> && ...) &&
+           (is_super_constraints_well_formed<F, Fs>() && ...))
+struct basic_facade_super_traits_impl<F, Fs...> : applicable_traits {};
 template <class... Cs>
 struct basic_facade_conv_traits_impl : inapplicable_traits {};
 template <class... Cs>
-  requires(basic_conv_traits<Cs>::applicable && ...)
+  requires(basic_convention<Cs> && ...)
 struct basic_facade_conv_traits_impl<Cs...> : applicable_traits {};
 template <class... Rs>
 struct basic_facade_refl_traits_impl : inapplicable_traits {};
 template <class... Rs>
-  requires((requires {
-             typename Rs::reflector_type;
-           } && is_is_direct_well_formed<Rs>()) && ...)
+  requires(basic_reflection<Rs> && ...)
 struct basic_facade_refl_traits_impl<Rs...> : applicable_traits {};
 template <class F>
 struct basic_facade_traits : inapplicable_traits {};
 template <class F>
   requires(requires {
+    typename F::super_types;
     typename F::convention_types;
     typename F::reflection_types;
   } && is_facade_constraints_well_formed<F>() &&
+           is_tuple_like_well_formed<typename F::super_types>() &&
+           specialization_t<basic_facade_super_traits_impl,
+                            typename F::super_types, F>::applicable &&
            is_tuple_like_well_formed<typename F::convention_types>() &&
            specialization_t<basic_facade_conv_traits_impl,
                             typename F::convention_types>::applicable &&
@@ -621,32 +826,81 @@ template <class F>
                             typename F::reflection_types>::applicable)
 struct basic_facade_traits<F> : applicable_traits {};
 
+template <class F, class... Fs>
+using facade_convs_impl =
+    merge_tuples_t<typename facade_traits<Fs>::faw_convs...,
+                   typename F::convention_types>; // TODO: cleanup
+template <class... Fs>
+struct facade_super_traits_impl {
+  using super_indirect_conv_groups =
+      conv_groups_merge_t<typename facade_traits<Fs>::indirect_conv_groups...>;
+  using super_direct_conv_groups =
+      conv_groups_merge_t<typename facade_traits<Fs>::direct_conv_groups...>;
+  using super_indirect_refls =
+      merge_tuples_t<typename facade_traits<Fs>::indirect_refls...>;
+  using super_direct_refls =
+      merge_tuples_t<typename facade_traits<Fs>::direct_refls...>;
+  using super_meta = std::tuple<proxy_meta<Fs>...>;
+
+  template <class P>
+  static consteval void diagnose_proxiable_super() {
+    (facade_traits<Fs>::template diagnose_proxiable<P>(), ...);
+  }
+
+  template <class P>
+  static constexpr bool super_applicable_ptr =
+      (facade_traits<Fs>::template applicable_ptr<P> && ...);
+};
 template <class F, class... Cs>
 struct facade_conv_traits_impl {
-  using conv_meta =
-      composite_t<std::tuple<>, typename conv_traits<Cs, F>::meta...>;
-  using conv_indirect_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, false>...>;
-  using conv_direct_accessor =
-      composite_t<composite_accessor<>, conv_accessor_t<Cs, F, true>...>;
+  static_assert(
+      (overload_traits<
+           substituted_overload_t<typename Cs::overload_type, F>>::applicable &&
+       ...),
+      "a facade-aware overload did not substitute into a valid overload");
+  using self_indirect_conv_groups = composite_t<
+      std::tuple<>,
+      std::conditional_t<Cs::is_direct, void,
+                         conv_group<typename Cs::dispatch_type,
+                                    typename Cs::overload_type>>...>;
+  using self_direct_conv_groups =
+      composite_t<std::tuple<>,
+                  std::conditional_t<Cs::is_direct,
+                                     conv_group<typename Cs::dispatch_type,
+                                                typename Cs::overload_type>,
+                                     void>...>;
+  using faw_convs = composite_t<
+      std::tuple<>,
+      std::conditional_t<
+          overload_substitution_traits<typename Cs::overload_type>::applicable,
+          Cs, void>...>;
+  using conv_meta = std::tuple<erased_invoker_t<
+      Cs::is_direct, typename Cs::dispatch_type,
+      substituted_overload_t<typename Cs::overload_type, F>>...>;
 
   template <class P>
   static consteval void diagnose_proxiable_conv() {
-    (conv_traits<Cs, F>::template diagnose_proxiable<P>(), ...);
+    (diagnose_proxiable_required_convention_not_implemented<
+         P, F, Cs::is_direct, typename Cs::dispatch_type,
+         substituted_overload_t<typename Cs::overload_type, F>>(),
+     ...);
   }
 
   template <class P>
   static constexpr bool conv_applicable_ptr =
-      (conv_traits<Cs, F>::template applicable_ptr<P> && ...);
+      (overload_traits<substituted_overload_t<typename Cs::overload_type, F>>::
+           template applicable_ptr<P, Cs::is_direct,
+                                   typename Cs::dispatch_type> &&
+       ...);
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl {
+  using self_indirect_refls =
+      composite_t<std::tuple<>, std::conditional_t<Rs::is_direct, void, Rs>...>;
+  using self_direct_refls =
+      composite_t<std::tuple<>, std::conditional_t<Rs::is_direct, Rs, void>...>;
   using refl_meta = std::tuple<
       reflection_meta<Rs::is_direct, typename Rs::reflector_type>...>;
-  using refl_indirect_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, false>...>;
-  using refl_direct_accessor =
-      composite_t<composite_accessor<>, refl_accessor_t<Rs, F, true>...>;
 
   template <class P>
   static consteval void diagnose_proxiable_refl() {
@@ -662,38 +916,60 @@ struct facade_refl_traits_impl {
        ...);
 };
 template <class F>
-struct facade_traits : specialization_t<facade_conv_traits_impl,
-                                        typename F::convention_types, F>,
-                       specialization_t<facade_refl_traits_impl,
-                                        typename F::reflection_types, F> {
-  using meta_storage_base = specialization_t<
-      compact_facade_meta_traits::storage,
-      composite_t<
-          std::tuple<>,
-          lifetime_meta_t<F, copy_dispatch, void(proxy<F>&) const noexcept,
-                          void(proxy<F>&) const, F::copyability>,
-          lifetime_meta_t<F, relocate_dispatch, void(proxy<F>&) && noexcept,
-                          void(proxy<F>&) &&, F::relocatability>,
-          lifetime_meta_t<F, destroy_dispatch, void() noexcept, void(),
-                          F::destructibility>,
-          typename facade_traits::conv_meta,
-          typename facade_traits::refl_meta>>;
+struct facade_traits
+    : specialization_t<facade_super_traits_impl, typename F::super_types>,
+      specialization_t<
+          facade_conv_traits_impl,
+          specialization_t<facade_convs_impl, typename F::super_types, F>, F>,
+      specialization_t<facade_refl_traits_impl, typename F::reflection_types,
+                       F> {
+  using indirect_conv_groups =
+      conv_groups_merge_t<typename facade_traits::super_indirect_conv_groups,
+                          typename facade_traits::self_indirect_conv_groups>;
+  using direct_conv_groups =
+      conv_groups_merge_t<typename facade_traits::super_direct_conv_groups,
+                          typename facade_traits::self_direct_conv_groups>;
+  using indirect_refls =
+      merge_tuples_t<typename facade_traits::super_indirect_refls,
+                     typename facade_traits::self_indirect_refls>;
+  using direct_refls =
+      merge_tuples_t<typename facade_traits::super_direct_refls,
+                     typename facade_traits::self_direct_refls>;
   using indirect_accessor =
-      composite_t<typename facade_traits::conv_indirect_accessor,
-                  typename facade_traits::refl_indirect_accessor>;
-  using direct_accessor =
-      composite_t<typename facade_traits::conv_direct_accessor,
-                  typename facade_traits::refl_direct_accessor>;
+      composite_t<specialization_t<conv_accessors_t, indirect_conv_groups,
+                                   proxy_indirect_accessor<F>, F>,
+                  specialization_t<refl_accessors_t, indirect_refls,
+                                   proxy_indirect_accessor<F>>>;
+  using direct_accessor = composite_t<
+      specialization_t<conv_accessors_t, direct_conv_groups, proxy<F>, F>,
+      specialization_t<refl_accessors_t, direct_refls, proxy<F>>>;
+  using meta_base = specialization_t<
+      proxy_meta_base_t,
+      composite_t<typename facade_traits::super_meta,
+                  lifetime_meta_t<copy_dispatch, void(void*) const noexcept,
+                                  void(void*) const, F::copyability>,
+                  lifetime_meta_t<relocate_dispatch, void(void*) && noexcept,
+                                  void(void*) &&, F::relocatability>,
+                  lifetime_meta_t<destroy_dispatch, void() noexcept, void(),
+                                  F::destructibility>,
+                  typename facade_traits::conv_meta,
+                  typename facade_traits::refl_meta>>;
 
   template <class P>
-  [[noreturn]] static consteval void diagnose_proxiable_noreturn() {
+  static consteval void diagnose_proxiable() {
     diagnose_proxiable_size_too_large<P, F, sizeof(P), F::max_size>();
     diagnose_proxiable_align_too_large<P, F, alignof(P), F::max_align>();
     diagnose_proxiable_insufficient_copyability<P, F, F::copyability>();
     diagnose_proxiable_insufficient_relocatability<P, F, F::relocatability>();
     diagnose_proxiable_insufficient_destructibility<P, F, F::destructibility>();
+    facade_traits::template diagnose_proxiable_super<P>();
     facade_traits::template diagnose_proxiable_conv<P>();
     facade_traits::template diagnose_proxiable_refl<P>();
+  }
+
+  template <class P>
+  [[noreturn]] static consteval void diagnose_proxiable_noreturn() {
+    diagnose_proxiable<P>();
     PRO4D_UNREACHABLE(); // Propagate the error to the caller side
   }
 
@@ -703,13 +979,14 @@ struct facade_traits : specialization_t<facade_conv_traits_impl,
       copyability_traits<P, F::copyability>::applicable &&
       relocatability_traits<P, F::relocatability>::applicable &&
       destructibility_traits<P, F::destructibility>::applicable &&
+      facade_traits::template super_applicable_ptr<P> &&
       facade_traits::template conv_applicable_ptr<P> &&
       facade_traits::template refl_applicable_ptr<P>;
 };
 
 template <class F>
-struct meta_storage : facade_traits<F>::meta_storage_base {
-  using base = facade_traits<F>::meta_storage_base;
+struct proxy_meta : facade_traits<F>::meta_base {
+  using base = facade_traits<F>::meta_base;
   using base::base;
 };
 
@@ -737,12 +1014,6 @@ private:
   T value_;
 };
 
-template <class D, class O, class P, class... Args>
-ret_t<O> invoke_impl(P&& p, Args&&... args) {
-  return proxy_helper::get_meta(p)
-      .template get<invoker<std::remove_cvref_t<P>, D, O>>()(
-          std::forward<P>(p), std::forward<Args>(args)...);
-}
 template <class F, qualifier_type Q>
 add_qualifier_t<proxy<F>, Q>
     as_proxy(add_qualifier_t<proxy_indirect_accessor<F>, Q> p) {
@@ -750,57 +1021,16 @@ add_qualifier_t<proxy<F>, Q>
       reinterpret_cast<
           add_qualifier_t<inplace_ptr<proxy_indirect_accessor<F>>, Q>>(p));
 }
-template <class P, class F, bool IsDirect, qualifier_type Q>
-operand_t<P, IsDirect, Q> get_operand(proxy_accessor<F, IsDirect, Q> p) {
-  if constexpr (IsDirect) {
-    return proxy_helper::get_ptr<P, F, Q>(
-        std::forward<proxy_accessor<F, IsDirect, Q>>(p));
+template <class F, bool IsDirect, class D, class O, class P, class... Args>
+ret_t<O> invoke_impl(P&& p, Args&&... args) {
+  using Ctx = erased_context<IsDirect, D, O>;
+  Ctx ctx{proxy_helper::get_ptr(p)};
+  auto& inv = proxy_helper::get_meta<invoker<Ctx, O>>(p);
+  if constexpr (overload_traits<O>::this_qualifier == qualifier_type::rv) {
+    proxy_helper::meta_resetting_guard<F> guard{p};
+    return inv(ctx, std::forward<Args>(args)...);
   } else {
-    add_qualifier_t<P, Q> ptr = proxy_helper::get_ptr<P, F, Q>(
-        as_proxy<F, Q>(std::forward<proxy_accessor<F, IsDirect, Q>>(p)));
-    if constexpr (std::is_constructible_v<bool, P&>) {
-      assert(ptr);
-    }
-    return *std::forward<add_qualifier_t<P, Q>>(ptr);
-  }
-}
-
-// When a dispatch always throws, MSVC may incorrectly warn about unreachable
-// code (C4702). Disable the warning for invoke_dispatch().
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4702)
-#endif // defined(_MSC_VER) && !defined(__clang__)
-template <class D, class R, class... Args>
-R invoke_dispatch(Args&&... args) {
-  if constexpr (std::is_void_v<R>) {
-    D()(std::forward<Args>(args)...);
-  } else {
-    return D()(std::forward<Args>(args)...);
-  }
-}
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif // defined(_MSC_VER) && !defined(__clang__)
-template <class P, class F, bool IsDirect, qualifier_type Q, class D, class R,
-          class... Args>
-R reinterpret_invoke(proxy_accessor<F, IsDirect, Q> self, Args&&... args) {
-  if constexpr (Q == qualifier_type::rv) {
-    if constexpr (std::is_base_of_v<internal_dispatch, D> &&
-                  is_bitwise_trivially_relocatable_v<P>) {
-      return D()(std::in_place_type<P>, std::move(self),
-                 std::forward<Args>(args)...);
-    } else {
-      proxy_helper::resetting_guard<P, F> guard{self};
-      return invoke_dispatch<D, R>(
-          get_operand<P, F, IsDirect, Q>(std::move(self)),
-          std::forward<Args>(args)...);
-    }
-  } else {
-    return invoke_dispatch<D, R>(
-        get_operand<P, F, IsDirect, Q>(
-            std::forward<proxy_accessor<F, IsDirect, Q>>(self)),
-        std::forward<Args>(args)...);
+    return inv(ctx, std::forward<Args>(args)...);
   }
 }
 
@@ -821,51 +1051,27 @@ class proxy_indirect_accessor
 public:
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(proxy_indirect_accessor& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(p, std::forward<Args>(args)...);
+    return detail::invoke_impl<F, false, D, O>(p, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(const proxy_indirect_accessor& p,
                                  Args&&... args) {
-    return detail::invoke_impl<D, O>(p, std::forward<Args>(args)...);
+    return detail::invoke_impl<F, false, D, O>(p, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(proxy_indirect_accessor&& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(std::move(p), std::forward<Args>(args)...);
+    return detail::invoke_impl<F, false, D, O>(std::move(p),
+                                               std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(const proxy_indirect_accessor&& p,
                                  Args&&... args) {
-    return detail::invoke_impl<D, O>(std::move(p), std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(proxy_indirect_accessor& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, false, detail::qualifier_type::lv,
-                                      D, R>(p, std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(const proxy_indirect_accessor& p,
-                              Args&&... args) {
-    return detail::reinterpret_invoke<P, F, false,
-                                      detail::qualifier_type::const_lv, D, R>(
-        p, std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(proxy_indirect_accessor&& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, false, detail::qualifier_type::rv,
-                                      D, R>(std::move(p),
-                                            std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(const proxy_indirect_accessor&& p,
-                              Args&&... args) {
-    return detail::reinterpret_invoke<P, F, false,
-                                      detail::qualifier_type::const_rv, D, R>(
-        std::move(p), std::forward<Args>(args)...);
+    return detail::invoke_impl<F, false, D, O>(std::move(p),
+                                               std::forward<Args>(args)...);
   }
   template <class R>
   friend const R& reflect(const proxy_indirect_accessor& p) noexcept {
-    return detail::proxy_helper::get_meta(p)
-        .template get<detail::reflection_meta<false, R>>()
+    return detail::proxy_helper::get_meta<detail::reflection_meta<false, R>>(p)
         .reflector;
   }
 };
@@ -873,6 +1079,8 @@ public:
 template <facade F>
 class proxy : public detail::facade_traits<F>::direct_accessor,
               public detail::inplace_ptr<proxy_indirect_accessor<F>> {
+  template <facade F2>
+  friend class proxy;
   friend struct detail::proxy_helper;
 
 public:
@@ -891,6 +1099,27 @@ public:
   }
   proxy(proxy&& rhs) noexcept(F::relocatability >= constraint_level::nothrow)
     requires(F::relocatability >= constraint_level::nontrivial &&
+             F::copyability != constraint_level::trivial)
+  {
+    initialize(std::move(rhs));
+  }
+  template <facade F2>
+  proxy(const proxy<F2>& rhs) noexcept(F::copyability >=
+                                       constraint_level::nothrow)
+    requires(!std::is_same_v<F, F2> &&
+             std::is_convertible_v<const detail::proxy_meta<F2>&,
+                                   const detail::proxy_meta<F>&> &&
+             F::copyability >= constraint_level::nontrivial)
+      : detail::inplace_ptr<proxy_indirect_accessor<F>>() {
+    initialize(rhs);
+  }
+  template <facade F2>
+  proxy(proxy<F2>&& rhs) noexcept(F::relocatability >=
+                                  constraint_level::nothrow)
+    requires(!std::is_same_v<F, F2> &&
+             std::is_convertible_v<const detail::proxy_meta<F2>&,
+                                   const detail::proxy_meta<F>&> &&
+             F::relocatability >= constraint_level::nontrivial &&
              F::copyability != constraint_level::trivial)
   {
     initialize(std::move(rhs));
@@ -944,8 +1173,11 @@ public:
       if constexpr (F::copyability == constraint_level::nothrow) {
         destroy();
         initialize(rhs);
-      } else {
+      } else if constexpr (F::relocatability >= constraint_level::nontrivial) {
         *this = proxy{rhs};
+      } else {
+        reset();
+        initialize(rhs);
       }
     }
     return *this;
@@ -964,6 +1196,43 @@ public:
     }
     return *this;
   }
+  template <facade F2>
+  proxy& operator=(const proxy<F2>& rhs) noexcept(
+      F::copyability >= constraint_level::nothrow &&
+      F::destructibility >= constraint_level::nothrow)
+    requires(!std::is_same_v<F, F2> &&
+             std::is_convertible_v<const detail::proxy_meta<F2>&,
+                                   const detail::proxy_meta<F>&> &&
+             F::copyability >= constraint_level::nontrivial &&
+             F::destructibility >= constraint_level::nontrivial)
+  {
+    if constexpr (F::copyability >= constraint_level::nothrow) {
+      destroy();
+      initialize(rhs);
+    } else if constexpr (F::relocatability >= constraint_level::nontrivial) {
+      *this = proxy{rhs};
+    } else {
+      reset();
+      initialize(rhs);
+    }
+    return *this;
+  }
+  template <facade F2>
+  proxy& operator=(proxy<F2>&& rhs) noexcept(F::relocatability >=
+                                                 constraint_level::nothrow &&
+                                             F::destructibility >=
+                                                 constraint_level::nothrow)
+    requires(!std::is_same_v<F, F2> &&
+             std::is_convertible_v<const detail::proxy_meta<F2>&,
+                                   const detail::proxy_meta<F>&> &&
+             F::relocatability >= constraint_level::nontrivial &&
+             F::destructibility >= constraint_level::nontrivial &&
+             F::copyability != constraint_level::trivial)
+  {
+    reset();
+    initialize(std::move(rhs));
+    return *this;
+  }
   template <class P>
   constexpr proxy& operator=(P&& ptr) noexcept(
       std::is_nothrow_constructible_v<std::decay_t<P>, P> &&
@@ -976,8 +1245,12 @@ public:
     if constexpr (std::is_nothrow_constructible_v<std::decay_t<P>, P>) {
       destroy();
       initialize<std::decay_t<P>>(std::forward<P>(ptr));
-    } else {
+    } else if constexpr (F::relocatability >= constraint_level::nontrivial ||
+                         F::copyability == constraint_level::trivial) {
       *this = proxy{std::forward<P>(ptr)};
+    } else {
+      reset();
+      initialize<std::decay_t<P>>(std::forward<P>(ptr));
     }
     return *this;
   }
@@ -1064,48 +1337,27 @@ public:
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(proxy& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(p, std::forward<Args>(args)...);
+    return detail::invoke_impl<F, true, D, O>(p, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(const proxy& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(p, std::forward<Args>(args)...);
+    return detail::invoke_impl<F, true, D, O>(p, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(proxy&& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(std::move(p), std::forward<Args>(args)...);
+    return detail::invoke_impl<F, true, D, O>(std::move(p),
+                                              std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
   friend detail::ret_t<O> invoke(const proxy&& p, Args&&... args) {
-    return detail::invoke_impl<D, O>(std::move(p), std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(proxy& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, true, detail::qualifier_type::lv, D,
-                                      R>(p, std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(const proxy& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, true,
-                                      detail::qualifier_type::const_lv, D, R>(
-        p, std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(proxy&& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, true, detail::qualifier_type::rv, D,
-                                      R>(std::move(p),
-                                         std::forward<Args>(args)...);
-  }
-  template <class P, class D, class R, class... Args>
-  friend R reinterpret_invoke(const proxy&& p, Args&&... args) {
-    return detail::reinterpret_invoke<P, F, true,
-                                      detail::qualifier_type::const_rv, D, R>(
-        std::move(p), std::forward<Args>(args)...);
+    return detail::invoke_impl<F, true, D, O>(std::move(p),
+                                              std::forward<Args>(args)...);
   }
   template <class R>
   friend const R& reflect(const proxy& p) noexcept {
-    return detail::proxy_helper::get_meta(p)
-        .template get<detail::reflection_meta<true, R>>()
-        .reflector;
+    assert(p.meta_.has_value());
+    const detail::reflection_meta<true, R>& meta = p.meta_;
+    return meta.reflector;
   }
 
 private:
@@ -1113,38 +1365,37 @@ private:
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
     meta_.reset();
   }
-  void initialize(const proxy& rhs)
-    requires(F::copyability != constraint_level::none)
-  {
+  template <facade F2>
+  void initialize(const proxy<F2>& rhs) {
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
-    if (rhs.meta_.has_value()) {
+    if (rhs.has_value()) {
       if constexpr (F::copyability == constraint_level::trivial) {
-        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
-        meta_ = rhs.meta_;
+        std::uninitialized_copy_n(rhs.ptr_, F2::max_size, ptr_);
       } else {
         invoke<detail::copy_dispatch,
-               void(proxy&) const noexcept(
-                   F::copyability == constraint_level::nothrow)>(rhs, *this);
+               void(void*) const noexcept(
+                   F::copyability == constraint_level::nothrow)>(rhs, ptr_);
       }
+      meta_ = rhs.meta_;
     } else {
       meta_.reset();
     }
   }
-  void initialize(proxy&& rhs)
-    requires(F::relocatability != constraint_level::none)
-  {
+  template <facade F2>
+  void initialize(proxy<F2>&& rhs) {
     PRO4D_DEBUG(std::ignore = &pro_symbol_guard;)
-    if (rhs.meta_.has_value()) {
+    if (rhs.has_value()) {
+      auto meta = rhs.meta_;
       if constexpr (F::relocatability == constraint_level::trivial) {
-        std::ranges::uninitialized_copy(rhs.ptr_, ptr_);
-        meta_ = rhs.meta_;
+        std::uninitialized_copy_n(rhs.ptr_, F2::max_size, ptr_);
         rhs.meta_.reset();
       } else {
         invoke<detail::relocate_dispatch,
-               void(proxy&) &&
+               void(void*) &&
                    noexcept(F::relocatability == constraint_level::nothrow)>(
-            std::move(rhs), *this);
+            std::move(rhs), ptr_);
       }
+      meta_ = meta;
     } else {
       meta_.reset();
     }
@@ -1155,7 +1406,7 @@ private:
     P& result = *std::construct_at(reinterpret_cast<P*>(ptr_),
                                    std::forward<Args>(args)...);
     if constexpr (proxiable<P, F>) {
-      meta_ = detail::meta_storage<F>{std::in_place_type<P>};
+      meta_ = decltype(meta_){std::in_place_type<P>};
     } else {
       detail::facade_traits<F>::template diagnose_proxiable_noreturn<P>();
     }
@@ -1182,7 +1433,8 @@ private:
     *std::move(cself);
   })
 
-  detail::meta_storage<F> meta_;
+  typename compact_facade_meta_traits::template storage<detail::proxy_meta<F>>
+      meta_;
   alignas(F::max_align) std::byte ptr_[F::max_size];
 };
 
@@ -1237,8 +1489,6 @@ template <class R, facade F>
     proxy_reflect(const proxy<F>& p) noexcept {
   return reflect<R>(p);
 }
-
-struct substitution_dispatch;
 
 template <facade F>
 struct observer_facade;
@@ -1305,21 +1555,22 @@ struct cast_dispatch_base {
 };
 #undef PRO4D_DEF_CAST_ACCESSOR
 
-template <bool IsDirect, class D, class... Os>
+template <bool IsDirect, class D, class O>
 struct conv_impl {
   static constexpr bool is_direct = IsDirect;
   using dispatch_type = D;
-  using overload_types = std::tuple<Os...>;
+  using overload_type = O;
 };
 template <bool IsDirect, class R>
 struct refl_impl {
   static constexpr bool is_direct = IsDirect;
   using reflector_type = R;
 };
-template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign,
-          constraint_level Copyability, constraint_level Relocatability,
-          constraint_level Destructibility>
+template <class Ss, class Cs, class Rs, std::size_t MaxSize,
+          std::size_t MaxAlign, constraint_level Copyability,
+          constraint_level Relocatability, constraint_level Destructibility>
 struct facade_impl {
+  using super_types = Ss;
   using convention_types = Cs;
   using reflection_types = Rs;
   static constexpr std::size_t max_size = MaxSize;
@@ -1328,27 +1579,6 @@ struct facade_impl {
   static constexpr constraint_level relocatability = Relocatability;
   static constexpr constraint_level destructibility = Destructibility;
 };
-
-template <class O, class I>
-struct add_tuple_reduction : std::type_identity<O> {};
-template <class... Os, class I>
-  requires(!std::is_same_v<I, Os> && ...)
-struct add_tuple_reduction<std::tuple<Os...>, I>
-    : std::type_identity<std::tuple<Os..., I>> {};
-template <class O, class... Is>
-using add_tuple_t =
-    recursive_reduction_t<reduction_traits<add_tuple_reduction>::template type,
-                          O, Is...>;
-
-template <bool IsDirect, class D>
-struct conv_specialization_helper {
-  template <class... Os>
-  using type = conv_impl<IsDirect, D, Os...>;
-};
-template <bool IsDirect, class D, class Os>
-using conv_specialization_t =
-    specialization_t<conv_specialization_helper<IsDirect, D>::template type,
-                     Os>;
 
 template <class LR, class CLR, class RR, class CRR>
 class observer_ptr {
@@ -1368,22 +1598,8 @@ private:
   LR lr_;
 };
 
-template <class O>
-using observer_substitution_overload =
-    proxy_view<typename ret_t<O>::facade_type>() const noexcept;
-template <class... Os>
-using observer_substitution_conv = conv_specialization_t<
-    true, substitution_dispatch,
-    add_tuple_t<std::tuple<>, observer_substitution_overload<Os>...>>;
-
 template <class C>
 struct observer_conv_traits : std::type_identity<void> {};
-template <class C>
-  requires(C::is_direct &&
-           std::is_same_v<typename C::dispatch_type, substitution_dispatch>)
-struct observer_conv_traits<C>
-    : std::type_identity<specialization_t<observer_substitution_conv,
-                                          typename C::overload_types>> {};
 template <class C>
   requires(!C::is_direct)
 struct observer_conv_traits<C> : std::type_identity<C> {};
@@ -1393,6 +1609,8 @@ using observer_conv_types =
 template <class... Rs>
 using observer_refl_types =
     composite_t<std::tuple<>, std::conditional_t<Rs::is_direct, void, Rs>...>;
+template <facade... Fs>
+using observer_super_types = std::tuple<observer_facade<Fs>...>;
 
 template <class P>
 auto weak_lock_impl(const P& self) noexcept
@@ -1410,68 +1628,18 @@ auto weak_lock_impl(const P& self) noexcept
 }
 PRO4_DEF_FREE_AS_MEM_DISPATCH(weak_mem_lock, weak_lock_impl, lock);
 
-template <class O>
-struct weak_substitution_overload_traits;
-#define PRO4D_DEF_WEAK_SUBSTITUTION_OVERLOAD_TRAITS(oq, pq, ne, ...)           \
-  template <class F>                                                           \
-  struct weak_substitution_overload_traits<proxy<F>() oq ne>                   \
-      : std::type_identity<weak_proxy<F>() oq ne> {};
-PRO4D_DEF_OVERLOAD_SPECIALIZATIONS(PRO4D_DEF_WEAK_SUBSTITUTION_OVERLOAD_TRAITS)
-#undef PRO4D_DEF_WEAK_SUBSTITUTION_OVERLOAD_TRAITS
-template <class... Os>
-using weak_substitution_conv =
-    conv_impl<true, substitution_dispatch,
-              typename weak_substitution_overload_traits<Os>::type...>;
-
-template <class C>
-struct weak_conv_traits : std::type_identity<void> {};
-template <class C>
-  requires(C::is_direct &&
-           std::is_same_v<typename C::dispatch_type, substitution_dispatch>)
-struct weak_conv_traits<C>
-    : std::type_identity<specialization_t<weak_substitution_conv,
-                                          typename C::overload_types>> {};
-template <class F, class... Cs>
-using weak_conv_types = composite_t<
-    std::tuple<conv_impl<true, weak_mem_lock, proxy<F>() const noexcept>>,
-    typename weak_conv_traits<Cs>::type...>;
+template <class WF>
+using weak_lock_overload = proxy<typename WF::strong_type>() const noexcept;
+template <facade... Fs>
+using weak_super_types = std::tuple<weak_facade<Fs>...>;
 
 } // namespace detail
-
-struct PRO4D_ENFORCE_EBO substitution_dispatch
-    : detail::cast_dispatch_base<false, true>,
-      detail::internal_dispatch {
-  template <class P, class F1>
-  PRO4D_STATIC_CALL(auto, std::in_place_type_t<P>, proxy<F1>&& self) noexcept {
-    return detail::converter{
-        [&self]<class F2>(std::in_place_type_t<proxy<F2>>) noexcept {
-          proxy<F2> ret;
-          detail::proxy_helper::trivially_relocate<P>(self, ret);
-          return ret;
-        }};
-  }
-  template <class T>
-  PRO4D_STATIC_CALL(T&&, T&& self) noexcept {
-    return std::forward<T>(self);
-  }
-
-  // This overload is not reachable at runtime, but is necessary to ensure
-  // substitution_dispatch is SFINAE-friendly.
-  template <class T>
-  PRO4D_STATIC_CALL(auto, T&&) noexcept
-    requires(std::is_same_v<T, std::remove_cvref_t<T>> &&
-             is_bitwise_trivially_relocatable_v<T>)
-  {
-    return detail::converter{
-        []<class F2>(std::in_place_type_t<proxy<F2>>) noexcept -> proxy<F2>
-          requires(proxiable<T, F2>)
-        { PRO4D_UNREACHABLE(); }};
-  }
-};
 
 template <facade F>
 struct observer_facade
     : detail::facade_impl<
+          detail::specialization_t<detail::observer_super_types,
+                                   typename F::super_types>,
           detail::specialization_t<detail::observer_conv_types,
                                    typename F::convention_types>,
           detail::specialization_t<detail::observer_refl_types,
@@ -1482,10 +1650,15 @@ struct observer_facade
 template <facade F>
 struct weak_facade
     : detail::facade_impl<
-          detail::specialization_t<detail::weak_conv_types,
-                                   typename F::convention_types, F>,
+          detail::specialization_t<detail::weak_super_types,
+                                   typename F::super_types>,
+          std::tuple<detail::conv_impl<
+              true, detail::weak_mem_lock,
+              facade_aware_overload_t<detail::weak_lock_overload>>>,
           std::tuple<>, F::max_size, F::max_align, F::copyability,
-          F::relocatability, F::destructibility> {};
+          F::relocatability, F::destructibility> {
+  using strong_type = F;
+};
 
 } // namespace pro::inline v4
 

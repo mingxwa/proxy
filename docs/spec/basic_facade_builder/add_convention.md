@@ -11,25 +11,21 @@ template <class D, class... Os> requires(/* see below */)
 using add_direct_convention = basic_facade_builder</* see below */>;
 ```
 
-The alias templates `add_convention`, `add_indirect_convention`, and `add_direct_convention` of `basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>` add convention types to the template parameters. The expression inside `requires` is equivalent to `sizeof...(Os) > 0u` and each type in `Os` meets the [*ProOverload* requirements](../ProOverload.md). Let `F` be a facade type,
+The alias templates `add_convention`, `add_indirect_convention`, and `add_direct_convention` of `basic_facade_builder<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>` add convention types to the template parameters. The expression inside `requires` is equivalent to `sizeof...(Os) > 0u` and each type in `Os` meets the [*ProOverload* requirements](../ProOverload.md).
 
 - `add_convention` is equivalent to `add_indirect_convention`.
-- `add_indirect_convention` merges an implementation-defined convention type `IC` into `Cs`, where:
+- `add_indirect_convention` appends an implementation-defined convention type `IC` to `Cs` for each type `O` in `Os`, where:
   - `IC::is_direct` is `false`.
   - `typename IC::dispatch_type` is `D`.
-  - `typename IC::overload_types` is a [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type of distinct types in `Os`.
-  - `typename IC::template accessor<F>` is `typename D::template accessor<proxy_indirect_accessor<F>, D, `[`substituted-overload<Os, F>`](../ProOverload.md)`...>` if applicable.
-- `add_direct_convention` merges an implementation-defined convention type `IC` into `Cs`, where:
+  - `typename IC::overload_type` is `O`.
+- `add_direct_convention` appends an implementation-defined convention type `IC` to `Cs` for each type `O` in `Os`, where:
   - `IC::is_direct` is `true`.
   - `typename IC::dispatch_type` is `D`.
-  - `typename IC::overload_types` is a [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type of distinct types in `Os`.
-  - `typename IC::template accessor<F>` is `typename D::template accessor<proxy<F>, D, `[`substituted-overload<Os, F>`](../ProOverload.md)`...>` if applicable.
-
-When `Cs` already contains a convention type `IC2` where `IC2::is_direct == IC::is_direct && std::is_same_v<typename IC2::dispatch_type, typename IC::dispatch_type>` is `true`, `Os` merges with `typename IC2::overload_types` and removes duplicates, and `std::tuple_size_v<Cs>` shall not change.
+  - `typename IC::overload_type` is `O`.
 
 ## Notes
 
-Adding duplicated combinations of some dispatch type and overload type is well-defined (either directly via `add_convention`, `add_indirect_convention`, `add_direct_convention`, or indirectly via [`add_facade`](add_facade.md)), and does not have side-effects to [`build`](build.md) at either compile-time or runtime.
+Adding duplicated combinations of some dispatch type and overload type is well-defined (either directly via `add_convention`, `add_indirect_convention`, `add_direct_convention`, or indirectly via [`add_facade`](add_facade.md)). While such duplicates change the type produced by [`build`](build.md), they do not have side-effects on a [`proxy`](../proxy/README.md) of that facade at either compile-time or runtime.
 
 ## Example
 

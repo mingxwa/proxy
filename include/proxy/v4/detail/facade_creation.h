@@ -31,118 +31,38 @@ consteval std::size_t max_align_of(std::size_t value) {
 
 using ptr_prototype = void* [2];
 
-template <class T, class U>
-using merge_tuple_t = specialization_t<add_tuple_t, U, T>;
-template <class C1, class C2>
-using merge_conv_t = conv_specialization_t<
-    C1::is_direct, typename C1::dispatch_type,
-    merge_tuple_t<typename C1::overload_types, typename C2::overload_types>>;
-
-template <class Cs1, class C2, class C>
-struct add_conv_reduction;
-template <class... Cs1, class C2, class... Cs3, class C>
-struct add_conv_reduction<std::tuple<Cs1...>, std::tuple<C2, Cs3...>, C>
-    : add_conv_reduction<std::tuple<Cs1..., C2>, std::tuple<Cs3...>, C> {};
-template <class... Cs1, class C2, class... Cs3, class C>
-  requires(
-      C::is_direct == C2::is_direct &&
-      std::is_same_v<typename C::dispatch_type, typename C2::dispatch_type>)
-struct add_conv_reduction<std::tuple<Cs1...>, std::tuple<C2, Cs3...>, C>
-    : std::type_identity<std::tuple<Cs1..., merge_conv_t<C2, C>, Cs3...>> {};
-template <class... Cs, class C>
-struct add_conv_reduction<std::tuple<Cs...>, std::tuple<>, C>
-    : std::type_identity<std::tuple<
-          Cs..., merge_conv_t<
-                     conv_impl<C::is_direct, typename C::dispatch_type>, C>>> {
-};
-template <class Cs, class C>
-using add_conv_t = add_conv_reduction<std::tuple<>, Cs, C>::type;
-
-template <class F, constraint_level CL>
-using copy_conversion_overload =
-    proxy<F>() const& noexcept(CL >= constraint_level::nothrow);
-template <class F, constraint_level CL>
-using move_conversion_overload =
-    proxy<F>() && noexcept(CL >= constraint_level::nothrow);
-template <class Cs, class F, constraint_level CCL, constraint_level RCL>
-struct add_substitution_conv
-    : std::type_identity<add_conv_t<
-          Cs, conv_specialization_t<
-                  true, substitution_dispatch,
-                  composite_t<
-                      std::tuple<>,
-                      std::conditional_t<CCL == constraint_level::none, void,
-                                         copy_conversion_overload<F, CCL>>,
-                      std::conditional_t<RCL == constraint_level::none, void,
-                                         move_conversion_overload<F, RCL>>>>>> {
-};
-template <class Cs, class F>
-struct add_substitution_conv<Cs, F, constraint_level::none,
-                             constraint_level::none> : std::type_identity<Cs> {
-};
-
-template <class Cs1, class... Cs2>
-using merge_conv_tuple_t = recursive_reduction_t<add_conv_t, Cs1, Cs2...>;
-template <class Cs, class F, bool WithSubstitution>
-using merge_facade_conv_t = add_substitution_conv<
-    specialization_t<merge_conv_tuple_t, typename F::convention_types, Cs>, F,
-    WithSubstitution ? F::copyability : constraint_level::none,
-    (WithSubstitution && F::copyability != constraint_level::trivial)
-        ? F::relocatability
-        : constraint_level::none>::type;
-
-template <bool WithSubstitution>
-struct add_facade_deprecation_traits : std::bool_constant<WithSubstitution> {};
-template <>
-struct [[deprecated(
-    "basic_facade_builder::add_facade<F, true> is deprecated; use "
-    "basic_facade_builder::add_facade_with_substitution<F> instead.")]]
-add_facade_deprecation_traits<true> : std::bool_constant<true> {};
-
 } // namespace detail
 
-template <class Cs, class Rs, std::size_t MaxSize, std::size_t MaxAlign,
-          constraint_level Copyability, constraint_level Relocatability,
-          constraint_level Destructibility>
+template <class Ss, class Cs, class Rs, std::size_t MaxSize,
+          std::size_t MaxAlign, constraint_level Copyability,
+          constraint_level Relocatability, constraint_level Destructibility>
 struct basic_facade_builder {
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_indirect_convention = basic_facade_builder<
-      detail::add_conv_t<Cs, detail::conv_impl<false, D, Os...>>, Rs, MaxSize,
-      MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss, detail::composite_t<Cs, detail::conv_impl<false, D, Os>...>, Rs,
+      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_direct_convention = basic_facade_builder<
-      detail::add_conv_t<Cs, detail::conv_impl<true, D, Os...>>, Rs, MaxSize,
-      MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss, detail::composite_t<Cs, detail::conv_impl<true, D, Os>...>, Rs,
+      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_convention = add_indirect_convention<D, Os...>;
   template <class R>
   using add_indirect_reflection = basic_facade_builder<
-      Cs, detail::add_tuple_t<Rs, detail::refl_impl<false, R>>, MaxSize,
+      Ss, Cs, detail::composite_t<Rs, detail::refl_impl<false, R>>, MaxSize,
       MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
   using add_direct_reflection = basic_facade_builder<
-      Cs, detail::add_tuple_t<Rs, detail::refl_impl<true, R>>, MaxSize,
+      Ss, Cs, detail::composite_t<Rs, detail::refl_impl<true, R>>, MaxSize,
       MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
   using add_reflection = add_indirect_reflection<R>;
-  template <facade F, bool WithSubstitution = false>
-  using add_facade = basic_facade_builder<
-      detail::merge_facade_conv_t<
-          Cs, F,
-          detail::add_facade_deprecation_traits<WithSubstitution>::value>,
-      detail::merge_tuple_t<Rs, typename F::reflection_types>,
-      detail::merge_size(MaxSize, F::max_size),
-      detail::merge_size(MaxAlign, F::max_align),
-      detail::merge_constraint(Copyability, F::copyability),
-      detail::merge_constraint(Relocatability, F::relocatability),
-      detail::merge_constraint(Destructibility, F::destructibility)>;
   template <facade F>
-  using add_facade_with_substitution = basic_facade_builder<
-      detail::merge_facade_conv_t<Cs, F, true>,
-      detail::merge_tuple_t<Rs, typename F::reflection_types>,
+  using add_facade = basic_facade_builder<
+      detail::composite_t<Ss, F>, Cs, Rs,
       detail::merge_size(MaxSize, F::max_size),
       detail::merge_size(MaxAlign, F::max_align),
       detail::merge_constraint(Copyability, F::copyability),
@@ -152,31 +72,31 @@ struct basic_facade_builder {
             std::size_t PtrAlign = detail::max_align_of(PtrSize)>
     requires(detail::is_layout_well_formed(PtrSize, PtrAlign))
   using restrict_layout =
-      basic_facade_builder<Cs, Rs, detail::merge_size(MaxSize, PtrSize),
+      basic_facade_builder<Ss, Cs, Rs, detail::merge_size(MaxSize, PtrSize),
                            detail::merge_size(MaxAlign, PtrAlign), Copyability,
                            Relocatability, Destructibility>;
   template <constraint_level CL>
     requires(detail::is_cl_well_formed(CL))
   using support_copy =
-      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign,
+      basic_facade_builder<Ss, Cs, Rs, MaxSize, MaxAlign,
                            detail::merge_constraint(Copyability, CL),
                            Relocatability, Destructibility>;
   template <constraint_level CL>
     requires(detail::is_cl_well_formed(CL))
   using support_relocation =
-      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability,
+      basic_facade_builder<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability,
                            detail::merge_constraint(Relocatability, CL),
                            Destructibility>;
   template <constraint_level CL>
     requires(detail::is_cl_well_formed(CL))
   using support_destruction =
-      basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability,
+      basic_facade_builder<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability,
                            Relocatability,
                            detail::merge_constraint(Destructibility, CL)>;
   template <template <class> class Skill>
   using add_skill = Skill<basic_facade_builder>;
   using build = detail::facade_impl<
-      Cs, Rs,
+      Ss, Cs, Rs,
       MaxSize == detail::invalid_size ? sizeof(detail::ptr_prototype) : MaxSize,
       MaxAlign == detail::invalid_size ? alignof(detail::ptr_prototype)
                                        : MaxAlign,
@@ -188,9 +108,10 @@ struct basic_facade_builder {
   basic_facade_builder() = delete;
 };
 using facade_builder =
-    basic_facade_builder<std::tuple<>, std::tuple<>, detail::invalid_size,
-                         detail::invalid_size, detail::invalid_cl,
-                         detail::invalid_cl, detail::invalid_cl>;
+    basic_facade_builder<std::tuple<>, std::tuple<>, std::tuple<>,
+                         detail::invalid_size, detail::invalid_size,
+                         detail::invalid_cl, detail::invalid_cl,
+                         detail::invalid_cl>;
 
 } // namespace pro::inline v4
 

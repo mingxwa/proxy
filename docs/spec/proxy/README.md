@@ -13,9 +13,9 @@ Class template `proxy` is a general-purpose polymorphic wrapper for C++ objects.
 
 Any instance of `proxy<F>` at any given point in time either *contains a value* or *does not contain a value*. If a `proxy<F>` *contains a value*, the type of the value shall be a pointer type `P`  where [`proxiable<P, F>`](../proxiable.md) is `true`, and the value is guaranteed to be allocated as part of the `proxy` object footprint, i.e. no dynamic memory allocation occurs. However, `P` may allocate during its construction, depending on its implementation.
 
-As per `facade<F>`, `typename F::convention_types` shall be a [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type containing any number of distinct types `Cs`, and `typename F::reflection_types` shall be a [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type containing any number of distinct types `Rs`.
+Let `Cs` be the convention types of `F` and of every super of `F`, reachable via `typename F::super_types` transitively, and `Rs` be the reflection types of `F` and of every such super.
 
-- For each type `C` in `Cs`, if `C::is_direct` is `true` and `typename C::dispatch_type` meets the [*ProAccessible* requirements](../ProAccessible.md) of `proxy<F>, typename C::dispatch_type, substituted-overload-types...`, `typename C::dispatch_type::template accessor<proxy<F>, typename C::dispatch_type, substituted-overload-types...>` is inherited by `proxy<F>`. Let `Os...` be the element types of `typename C::overload_types`, `substituted-overload-types...` is [`substituted-overload<Os, F>...`](../ProOverload.md).
+- For each distinct dispatch type `D` among the types `C` in `Cs` where `C::is_direct` is `true`, let `Os...` be the overload types of those conventions with duplicates removed, and `substituted-overload-types...` be [`substituted-overload<Os, F>...`](../ProOverload.md). If `D` meets the [*ProAccessible* requirements](../ProAccessible.md) of `proxy<F>, D, substituted-overload-types...`, `typename D::template accessor<proxy<F>, D, substituted-overload-types...>` is inherited by `proxy<F>`.
 - For each type `R` in `Rs`, if `R::is_direct` is `true` and `typename R::reflector_type` meets the [*ProAccessible* requirements](../ProAccessible.md) of `proxy<F>, typename R::reflector_type`, `typename R::reflector_type::template accessor<proxy<F>, typename R::reflector_type` is inherited by `proxy<F>`.
 
 ## Member Types
@@ -45,7 +45,6 @@ As per `facade<F>`, `typename F::convention_types` shall be a [tuple-like](https
 | [`swap`](friend_swap.md)                             | overload the [`std::swap`](https://en.cppreference.com/w/cpp/algorithm/swap) algorithm |
 | [`invoke`](friend_invoke.md)                         | invokes a `proxy` with a specified convention                |
 | [`reflect`](friend_reflect.md)                       | acquires reflection information of a contained type          |
-| [`reinterpret_invoke`](friend_reinterpret_invoke.md) | invokes a dispatch on a `proxy` whose contained type is known statically |
 
 ## Comparing with Other Standard Polymorphic Wrappers
 
