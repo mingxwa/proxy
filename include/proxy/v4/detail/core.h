@@ -747,9 +747,10 @@ consteval void diagnose_proxiable_insufficient_destructibility() {
 }
 template <class P, class F, bool IsDirect, class D, class O>
 consteval void diagnose_proxiable_required_convention_not_implemented() {
-  static_assert(overload_traits<O>::applicable &&
-                    overload_traits<O>::template applicable_ptr<P, IsDirect, D>,
-                "not proxiable due to a required convention not implemented");
+  static_assert(
+      overload_traits<substituted_overload_t<O, F>>::template applicable_ptr<
+          P, IsDirect, D>,
+      "not proxiable due to a required convention not implemented");
 }
 template <class P, class F, bool IsDirect, class R>
 consteval void diagnose_proxiable_required_reflection_not_implemented() {
@@ -826,12 +827,39 @@ template <class F>
                             typename F::reflection_types>::applicable)
 struct basic_facade_traits<F> : applicable_traits {};
 
+template <class F, class... Cs>
+struct conv_traits_impl {
+  static_assert(
+      (overload_traits<
+           substituted_overload_t<typename Cs::overload_type, F>>::applicable &&
+       ...),
+      "a facade-aware overload did not substitute into a valid overload");
+  using convs = std::tuple<Cs...>;
+  using conv_meta = std::tuple<erased_invoker_t<
+      Cs::is_direct, typename Cs::dispatch_type,
+      substituted_overload_t<typename Cs::overload_type, F>>...>;
+
+  template <class P>
+  static consteval void diagnose_proxiable_conv() {
+    (diagnose_proxiable_required_convention_not_implemented<
+         P, F, Cs::is_direct, typename Cs::dispatch_type,
+         typename Cs::overload_type>(),
+     ...);
+  }
+
+  template <class P>
+  static constexpr bool conv_applicable_ptr =
+      (overload_traits<substituted_overload_t<typename Cs::overload_type, F>>::
+           template applicable_ptr<P, Cs::is_direct,
+                                   typename Cs::dispatch_type> &&
+       ...);
+};
 template <class F, class... Fs>
-using facade_convs_impl =
-    merge_tuples_t<typename facade_traits<Fs>::faw_convs...,
-                   typename F::convention_types>; // TODO: cleanup
-template <class... Fs>
-struct facade_super_traits_impl {
+struct facade_super_traits_impl
+    : specialization_t<conv_traits_impl,
+                       merge_tuples_t<typename facade_traits<Fs>::faw_convs...>,
+                       F> {
+  using super_faw_convs = typename facade_super_traits_impl::convs;
   using super_indirect_conv_groups =
       conv_groups_merge_t<typename facade_traits<Fs>::indirect_conv_groups...>;
   using super_direct_conv_groups =
@@ -840,24 +868,23 @@ struct facade_super_traits_impl {
       merge_tuples_t<typename facade_traits<Fs>::indirect_refls...>;
   using super_direct_refls =
       merge_tuples_t<typename facade_traits<Fs>::direct_refls...>;
-  using super_meta = std::tuple<proxy_meta<Fs>...>;
+  using super_meta = composite_t<std::tuple<proxy_meta<Fs>...>,
+                                 typename facade_super_traits_impl::conv_meta>;
 
   template <class P>
   static consteval void diagnose_proxiable_super() {
     (facade_traits<Fs>::template diagnose_proxiable<P>(), ...);
+    facade_super_traits_impl::template diagnose_proxiable_conv<P>();
   }
 
   template <class P>
   static constexpr bool super_applicable_ptr =
-      (facade_traits<Fs>::template applicable_ptr<P> && ...);
+      (facade_traits<Fs>::template applicable_ptr<P> && ...) &&
+      facade_super_traits_impl::template conv_applicable_ptr<P>;
 };
 template <class F, class... Cs>
-struct facade_conv_traits_impl {
-  static_assert(
-      (overload_traits<
-           substituted_overload_t<typename Cs::overload_type, F>>::applicable &&
-       ...),
-      "a facade-aware overload did not substitute into a valid overload");
+struct facade_conv_traits_impl : conv_traits_impl<F, Cs...> {
+  using self_conv_meta = typename facade_conv_traits_impl::conv_meta;
   using self_indirect_conv_groups = composite_t<
       std::tuple<>,
       std::conditional_t<Cs::is_direct, void,
@@ -869,29 +896,20 @@ struct facade_conv_traits_impl {
                                      conv_group<typename Cs::dispatch_type,
                                                 typename Cs::overload_type>,
                                      void>...>;
-  using faw_convs = composite_t<
+  using self_faw_convs = composite_t<
       std::tuple<>,
       std::conditional_t<
           overload_substitution_traits<typename Cs::overload_type>::applicable,
           Cs, void>...>;
-  using conv_meta = std::tuple<erased_invoker_t<
-      Cs::is_direct, typename Cs::dispatch_type,
-      substituted_overload_t<typename Cs::overload_type, F>>...>;
 
   template <class P>
-  static consteval void diagnose_proxiable_conv() {
-    (diagnose_proxiable_required_convention_not_implemented<
-         P, F, Cs::is_direct, typename Cs::dispatch_type,
-         substituted_overload_t<typename Cs::overload_type, F>>(),
-     ...);
+  static consteval void diagnose_proxiable_self_conv() {
+    facade_conv_traits_impl::template diagnose_proxiable_conv<P>();
   }
 
   template <class P>
-  static constexpr bool conv_applicable_ptr =
-      (overload_traits<substituted_overload_t<typename Cs::overload_type, F>>::
-           template applicable_ptr<P, Cs::is_direct,
-                                   typename Cs::dispatch_type> &&
-       ...);
+  static constexpr bool self_conv_applicable_ptr =
+      facade_conv_traits_impl::template conv_applicable_ptr<P>;
 };
 template <class F, class... Rs>
 struct facade_refl_traits_impl {
@@ -917,10 +935,9 @@ struct facade_refl_traits_impl {
 };
 template <class F>
 struct facade_traits
-    : specialization_t<facade_super_traits_impl, typename F::super_types>,
-      specialization_t<
-          facade_conv_traits_impl,
-          specialization_t<facade_convs_impl, typename F::super_types, F>, F>,
+    : specialization_t<facade_super_traits_impl, typename F::super_types, F>,
+      specialization_t<facade_conv_traits_impl, typename F::convention_types,
+                       F>,
       specialization_t<facade_refl_traits_impl, typename F::reflection_types,
                        F> {
   using indirect_conv_groups =
@@ -929,6 +946,8 @@ struct facade_traits
   using direct_conv_groups =
       conv_groups_merge_t<typename facade_traits::super_direct_conv_groups,
                           typename facade_traits::self_direct_conv_groups>;
+  using faw_convs = merge_tuples_t<typename facade_traits::super_faw_convs,
+                                   typename facade_traits::self_faw_convs>;
   using indirect_refls =
       merge_tuples_t<typename facade_traits::super_indirect_refls,
                      typename facade_traits::self_indirect_refls>;
@@ -952,7 +971,7 @@ struct facade_traits
                                   void(void*) &&, F::relocatability>,
                   lifetime_meta_t<destroy_dispatch, void() noexcept, void(),
                                   F::destructibility>,
-                  typename facade_traits::conv_meta,
+                  typename facade_traits::self_conv_meta,
                   typename facade_traits::refl_meta>>;
 
   template <class P>
@@ -963,7 +982,7 @@ struct facade_traits
     diagnose_proxiable_insufficient_relocatability<P, F, F::relocatability>();
     diagnose_proxiable_insufficient_destructibility<P, F, F::destructibility>();
     facade_traits::template diagnose_proxiable_super<P>();
-    facade_traits::template diagnose_proxiable_conv<P>();
+    facade_traits::template diagnose_proxiable_self_conv<P>();
     facade_traits::template diagnose_proxiable_refl<P>();
   }
 
@@ -980,7 +999,7 @@ struct facade_traits
       relocatability_traits<P, F::relocatability>::applicable &&
       destructibility_traits<P, F::destructibility>::applicable &&
       facade_traits::template super_applicable_ptr<P> &&
-      facade_traits::template conv_applicable_ptr<P> &&
+      facade_traits::template self_conv_applicable_ptr<P> &&
       facade_traits::template refl_applicable_ptr<P>;
 };
 
