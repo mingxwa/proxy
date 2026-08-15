@@ -28,7 +28,7 @@ struct TestTrivialFacade
 
 struct TestRttiFacade : pro::facade_builder                           //
                         ::add_direct_reflection<utils::RttiReflector> //
-                        ::add_facade_with_substitution<TestFacade>    //
+                        ::add_facade<TestFacade>                      //
                         ::build {};
 
 // Additional static asserts for super conversion
