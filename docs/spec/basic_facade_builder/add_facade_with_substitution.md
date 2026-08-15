@@ -7,7 +7,9 @@ template <facade F>
 using add_facade_with_substitution = basic_facade_builder</* see below */>;
 ```
 
-The alias template `add_facade_with_substitution` of `basic_facade_builder<Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>` is equivalent to [`add_facade`](add_facade.md)`<F>`, except that it always merges a direct convention of [`substitution_dispatch`](../substitution_dispatch/README.md) into `Cs`. This convention enables substitution from a `proxy` of the built [facade](../facade.md) to a `proxy<F>`.
+The alias template `add_facade_with_substitution` of `basic_facade_builder<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>` is equivalent to [`add_facade`](add_facade.md)`<F>`, except that it also merges direct conventions of [`substitution_dispatch`](../substitution_dispatch/README.md) into `Cs`. These conventions enable substitution from a `proxy` of the built [facade](../facade.md) to a `proxy<F>`.
+
+**Deprecated since 5.0.0**: [`add_facade`](add_facade.md) makes `F` a super of the built facade, which already converts a `proxy` of the built facade to a `proxy<F>` without an indirect call. Use `add_facade<F>` instead.
 
 ## Notes
 
