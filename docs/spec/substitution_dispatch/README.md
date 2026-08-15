@@ -1,5 +1,7 @@
 # Class `substitution_dispatch`
 
+**Deprecated since 5.0.0**: use [`basic_facade_builder::add_facade`](../basic_facade_builder/add_facade.md), which makes a facade a super of the built facade and converts without an indirect call.
+
 > Header: `proxy.h`  
 > Module: `proxy`  
 > Namespace: `pro::inline v4`  
