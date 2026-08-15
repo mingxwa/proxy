@@ -41,7 +41,6 @@ using facade_builder =
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | [`add_convention`<br />`add_indirect_convention`<br />`add_direct_convention`](add_convention.md) | Adds a convention to the template parameters                 |
 | [`add_facade`](add_facade.md)                                | Adds a facade to the template parameters                     |
-| [`add_facade_with_substitution`](add_facade_with_substitution.md) | Adds a facade to the template parameters, together with [substitution](../substitution_dispatch/README.md) support *(deprecated since 5.0.0: use [`add_facade`](add_facade.md) instead)* |
 | [`add_reflection`<br />`add_indirect_reflection`<br />`add_direct_reflection`](add_reflection.md) | Adds a reflection to the template parameters                 |
 | [`add_skill`](add_skill.md)                                  | Adds a custom skill                                          |
 | [`restrict_layout`](restrict_layout.md)                      | Specifies maximum `MaxSize` and `MaxAlign` in the template parameters |

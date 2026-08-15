@@ -89,5 +89,4 @@ int main() {
 
 ## See Also
 
-- [`add_facade_with_substitution`](add_facade_with_substitution.md)
 - [`build`](build.md)
