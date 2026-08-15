@@ -9,6 +9,7 @@ export namespace pro::inline v4 {
 #if __STDC_HOSTED__
 using v4::allocate_proxy;
 using v4::allocate_proxy_shared;
+using v4::box;
 using v4::make_proxy;
 using v4::make_proxy_shared;
 #endif // __STDC_HOSTED__
