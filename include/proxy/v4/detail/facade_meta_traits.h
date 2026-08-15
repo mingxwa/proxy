@@ -78,6 +78,11 @@ public:
                                  schema());
     return *this;
   }
+  meta_ptr& operator=(const T* p) noexcept {
+    p_ = ptrauth_sign_unauthenticated(p, ptrauth_key_cxx_vtable_pointer,
+                                      schema());
+    return *this;
+  }
   meta_ptr& operator=(std::nullptr_t) noexcept {
     p_ = nullptr;
     return *this;
@@ -142,6 +147,12 @@ struct static_meta_storage {
     requires(std::is_convertible_v<const M2&, const M&>)
   static_meta_storage(const static_meta_storage<M2>& rhs) noexcept
       : ptr_(std::addressof(static_cast<const M&>(rhs))) {}
+  template <class M2>
+    requires(std::is_convertible_v<const M2&, const M&>)
+  static_meta_storage& operator=(const static_meta_storage<M2>& rhs) noexcept {
+    ptr_ = std::addressof(static_cast<const M&>(rhs));
+    return *this;
+  }
   template <class P>
   explicit static_meta_storage(std::in_place_type_t<P>)
       : ptr_(std::addressof(storage<P>)) {}

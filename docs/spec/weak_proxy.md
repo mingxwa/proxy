@@ -23,11 +23,11 @@ using weak_proxy = proxy<weak_facade<F>>;
 
 ## Member Types of `weak_facade`
 
-| Name | Description |
-| ---- | ----------- |
-| `super_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::super_types`. Specifically, for each super `S` in `typename F::super_types`, `weak_facade<S>` is included. |
-| `convention_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains a single direct convention whose dispatch type denotes the member function `lock` and whose overload has signature `proxy<F>() const noexcept`. Calling this overload attempts to obtain a strong `proxy<F>`; it returns an empty `proxy<F>` if the object has expired. All conventions from `F` are discarded. |
-| `reflection_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains no types. |
+| Name                               | Description |
+| ---------------------------------- | ----------- |
+| `super_types`<br />*(since 5.0.0)* | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::super_types`. Specifically, for each super `S` in `typename F::super_types`, `weak_facade<S>` is included. |
+| `convention_types`                 | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains a single direct convention whose dispatch type denotes the member function `lock` and whose overload has signature `proxy<F>() const noexcept`. Calling this overload attempts to obtain a strong `proxy<F>`; it returns an empty `proxy<F>` if the object has expired. All conventions from `F` are discarded. |
+| `reflection_types`                 | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type that contains no types. |
 
 ## Member Constants of `weak_facade`
 

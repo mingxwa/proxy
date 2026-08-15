@@ -27,6 +27,8 @@ using facade_builder =
 
 `basic_facade_builder` provides a member type `build` that compiles the template parameters into a [`facade`](../facade.md) type. The template parameters can be modified via various member alias templates that specify `basic_facade_builder` with the modified template parameters.
 
+*Since 5.0.0*: `Ss` is added to the template parameters, holding the supers accumulated by [`add_facade`](add_facade.md).
+
 ## Member Types
 
 | Name                | Description                                                  |

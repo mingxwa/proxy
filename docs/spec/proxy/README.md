@@ -18,6 +18,8 @@ Let `Cs` be the convention types of `F` and of every super of `F`, reachable via
 - For each distinct dispatch type `D` among the types `C` in `Cs` where `C::is_direct` is `true`, let `Os...` be the overload types of those conventions with duplicates removed, and `substituted-overload-types...` be [`substituted-overload<Os, F>...`](../ProOverload.md). If `D` meets the [*ProAccessible* requirements](../ProAccessible.md) of `proxy<F>, D, substituted-overload-types...`, `typename D::template accessor<proxy<F>, D, substituted-overload-types...>` is inherited by `proxy<F>`.
 - For each type `R` in `Rs`, if `R::is_direct` is `true` and `typename R::reflector_type` meets the [*ProAccessible* requirements](../ProAccessible.md) of `proxy<F>, typename R::reflector_type`, `typename R::reflector_type::template accessor<proxy<F>, typename R::reflector_type` is inherited by `proxy<F>`.
 
+*Since 5.0.0*: `Cs` and `Rs` include the conventions and reflections of the supers of `F`, and the accessor of a dispatch type is formed from the overload types of every convention in `Cs` sharing that dispatch type, rather than from a single convention.
+
 ## Member Types
 
 | Name                               | Description |

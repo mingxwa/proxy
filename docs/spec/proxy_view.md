@@ -19,11 +19,11 @@ using proxy_view = proxy<observer_facade<F>>;
 
 ## Member Types of `observer_facade`
 
-| Name               | Description                                                  |
-| ------------------ | ------------------------------------------------------------ |
-| `super_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::super_types`. Specifically, for each super `G` in `typename F::super_types`, `observer_facade<G>` is included. |
-| `convention_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::convention_types`. Specifically, for each convention `C` in `typename F::convention_types`, `C` is included when `C::is_direct` is `false`, or otherwise discarded. |
-| `reflection_types` | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::reflection_types`. Specifically, for each reflection type `R` in `typename F::reflection_types`, `R` is included when `R::is_direct` is `false`, or otherwise discarded. |
+| Name                               | Description                                                  |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `super_types`<br />*(since 5.0.0)* | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::super_types`. Specifically, for each super `G` in `typename F::super_types`, `observer_facade<G>` is included. |
+| `convention_types`                 | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::convention_types`. Specifically, for each convention `C` in `typename F::convention_types`, `C` is included when `C::is_direct` is `false`, or otherwise discarded. |
+| `reflection_types`                 | A [tuple-like](https://en.cppreference.com/w/cpp/utility/tuple/tuple-like) type transformed from `typename F::reflection_types`. Specifically, for each reflection type `R` in `typename F::reflection_types`, `R` is included when `R::is_direct` is `false`, or otherwise discarded. |
 
 ## Member Constants of `observer_facade`
 

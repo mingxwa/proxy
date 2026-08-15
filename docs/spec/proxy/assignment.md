@@ -24,7 +24,7 @@ proxy& operator=(proxy&& rhs)
         F::destructibility >= constraint_level::nontrivial &&
         F::copyability != constraint_level::trivial);
 
-// (4)
+// (4) (since 5.0.0)
 template <facade F2>
 proxy& operator=(const proxy<F2>& rhs)
     noexcept(F::copyability >= constraint_level::nothrow &&
@@ -32,7 +32,7 @@ proxy& operator=(const proxy<F2>& rhs)
     requires(F::copyability >= constraint_level::nontrivial &&
         F::destructibility >= constraint_level::nontrivial);
 
-// (5)
+// (5) (since 5.0.0)
 template <facade F2>
 proxy& operator=(proxy<F2>&& rhs)
     noexcept(F::relocatability >= constraint_level::nothrow &&

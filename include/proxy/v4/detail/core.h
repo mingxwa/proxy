@@ -478,9 +478,19 @@ concept basic_convention =
     } && is_is_direct_well_formed<C>() &&
     extended_overload<typename C::overload_type>;
 
+template <class M>
+concept basic_meta =
+    std::is_nothrow_default_constructible_v<M> &&
+    std::is_nothrow_copy_constructible_v<M> &&
+    std::is_nothrow_copy_assignable_v<M> && std::is_nothrow_destructible_v<M>;
+template <class M, class T>
+concept meta = basic_meta<M> &&
+               std::is_nothrow_constructible_v<M, std::in_place_type_t<T>>;
+
 template <class R>
-concept basic_reflection =
-    requires { typename R::reflector_type; } && is_is_direct_well_formed<R>();
+concept basic_reflection = requires {
+  typename R::reflector_type;
+} && is_is_direct_well_formed<R>() && basic_meta<typename R::reflector_type>;
 
 template <class T>
 concept pointer_like = (std::is_pointer_v<T> ||
@@ -523,7 +533,7 @@ struct reflection_meta {
 template <class T, bool IsDirect, class R>
 consteval bool is_reflector_well_formed() {
   if constexpr (IsDirect) {
-    if constexpr (std::is_constructible_v<R, std::in_place_type_t<T>>) {
+    if constexpr (meta<R, T>) {
       return true;
     }
   } else {
@@ -1602,7 +1612,7 @@ struct facade_impl {
 template <class LR, class CLR, class RR, class CRR>
 class observer_ptr {
 public:
-  explicit observer_ptr(LR lr) : lr_(lr) {}
+  explicit observer_ptr(LR lr) noexcept : lr_(lr) {}
   observer_ptr(const observer_ptr&) = default;
   auto operator->() noexcept { return std::addressof(lr_); }
   auto operator->() const noexcept {
@@ -1633,7 +1643,9 @@ using observer_super_types = std::tuple<observer_facade<Fs>...>;
 
 template <class P>
 auto weak_lock_impl(const P& self) noexcept
-  requires(requires { self.lock(); })
+  requires(requires {
+    { self.lock() } noexcept;
+  })
 {
   if constexpr (std::is_constructible_v<bool, decltype(self.lock())>) {
     return converter{

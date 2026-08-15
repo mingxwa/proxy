@@ -25,6 +25,8 @@ The alias templates `add_reflection`, `add_indirect_reflection` and `add_direct_
 
 Reflection types are deduplicated when a [`proxy`](../proxy/README.md) of the built facade is instantiated, not when they are added.
 
+*Since 5.0.0*: reflection types are appended rather than merged into `Rs`.
+
 ## Notes
 
 Adding duplicate reflection types is well-defined, whether done directly via `add_reflection`, `add_indirect_reflection`, `add_direct_reflection`, or indirectly via [`add_facade`](add_facade.md). While such duplicates change the type produced by [`build`](build.md), they do not affect a [`proxy`](../proxy/README.md) of that facade at either compile-time or runtime.
@@ -39,8 +41,9 @@ Adding duplicate reflection types is well-defined, whether done directly via `ad
 
 struct LayoutReflector {
 public:
+  LayoutReflector() = default;
   template <class T>
-  constexpr explicit LayoutReflector(std::in_place_type_t<T>)
+  constexpr explicit LayoutReflector(std::in_place_type_t<T>) noexcept
       : Size(sizeof(T)), Align(alignof(T)) {}
 
   template <class P, class R>

@@ -23,6 +23,8 @@ The alias templates `add_convention`, `add_indirect_convention`, and `add_direct
   - `typename IC::dispatch_type` is `D`.
   - `typename IC::overload_type` is `O`.
 
+*Since 5.0.0*: each type in `Os` produces its own convention type, rather than one convention type carrying a tuple-like `overload_types`.
+
 ## Notes
 
 Adding duplicated combinations of some dispatch type and overload type is well-defined (either directly via `add_convention`, `add_indirect_convention`, `add_direct_convention`, or indirectly via [`add_facade`](add_facade.md)). While such duplicates change the type produced by [`build`](build.md), they do not have side-effects on a [`proxy`](../proxy/README.md) of that facade at either compile-time or runtime.

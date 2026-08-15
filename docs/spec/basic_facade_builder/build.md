@@ -8,11 +8,11 @@ Specifies a [facade](../facade.md) type deduced from the template parameters of 
 
 ## Member Types
 
-| Name               | Definition |
-| ------------------ | ---------- |
-| `super_types`      | `Ss`       |
-| `convention_types` | `Cs`       |
-| `reflection_types` | `Rs`       |
+| Name                               | Definition |
+| ---------------------------------- | ---------- |
+| `super_types`<br />*(since 5.0.0)* | `Ss`       |
+| `convention_types`                 | `Cs`       |
+| `reflection_types`                 | `Rs`       |
 
 ## Member Constants
 
