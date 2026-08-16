@@ -90,6 +90,7 @@ int main() {
 
 ## See Also
 
+- [class template `box`](../box/README.md)
 - [concept `proxiable`](../proxiable.md)
 - [function template `make_proxy`](../make_proxy.md)
 - [macro `PRO_DEF_MEM_DISPATCH`](../PRO_DEF_MEM_DISPATCH.md)

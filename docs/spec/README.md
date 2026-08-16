@@ -70,6 +70,16 @@ Also included in `proxy.h`.
 | [`PRO_DEF_FREE_DISPATCH`](PRO_DEF_FREE_DISPATCH.md)          | Defines a dispatch type for free function call expressions with accessibility |
 | [`PRO_DEF_MEM_DISPATCH`](PRO_DEF_MEM_DISPATCH.md)            | Defines a dispatch type for member function call expressions with accessibility |
 
+## Header `<box.h>`
+
+Value semantics on top of `proxy`. This header includes `proxy.h`; `proxy.h` does not include it.
+
+### Classes
+
+| Name                   | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| [`box`](box/README.md) | Owns a value object matching specified facade  |
+
 ## Header `<proxy_fmt.h>`
 
 ### Alias Templates

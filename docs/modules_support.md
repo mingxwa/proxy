@@ -4,6 +4,8 @@
 
 The "Proxy" library ships with `.ixx` files starting with version **4.0.0**. Compared to traditional headers, modules offer faster compilation speed and isolation against preprocessor macro definitions.
 
+`proxy.v4` exports the interfaces of `proxy.h` and of [`box.h`](spec/box/README.md).
+
 As of 2025-05-11, CMake lacks support for forward compatibility when consuming C++ modules, which causes consumers with newer C++ standard to be unable to use modules with older standard. Until this is implemented by CMake, a CMake target containing the module can be manually declared using the following CMake script:
 
 ```cmake

@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <memory_resource>
 #include <optional>
-#include <proxy/proxy.h>
+#include <proxy/box.h>
 
 namespace box_tests_detail {
 
@@ -78,6 +78,27 @@ struct TestRttiStringable
       ::add_skill<pro::skills::rtti>                             //
       ::build {};
 
+struct TestTriviallyCopyableStringable
+    : pro::facade_builder                                        //
+      ::add_convention<utils::spec::FreeToString, std::string()> //
+      ::support_copy<pro::constraint_level::trivial>             //
+      ::build {};
+
+struct TestImmovableStringable
+    : pro::facade_builder                                        //
+      ::add_convention<utils::spec::FreeToString, std::string()> //
+      ::support_relocation<pro::constraint_level::none>          //
+      ::build {};
+
+#ifdef PRO4D_HAS_FORMAT
+struct TestFormattable : pro::facade_builder              //
+                         ::add_skill<pro::skills::format> //
+                         ::build {};
+#endif // PRO4D_HAS_FORMAT
+
+template <class T>
+concept Releasable = requires(T v) { v.release(); };
+
 class Widget {
 public:
   explicit Widget(int id) noexcept : id_(id) {}
@@ -104,6 +125,21 @@ static_assert(
 static_assert(std::is_convertible_v<
               const pro::box<TestLargeStringable>&,
               const pro::proxy_indirect_accessor<TestLargeStringable>&>);
+static_assert(sizeof(pro::box<TestLargeStringable>) ==
+              sizeof(pro::proxy<TestLargeStringable>));
+static_assert(alignof(pro::box<TestLargeStringable>) ==
+              alignof(pro::proxy<TestLargeStringable>));
+static_assert(std::is_copy_constructible_v<pro::box<TestLargeStringable>>);
+static_assert(std::is_move_constructible_v<pro::box<TestLargeStringable>>);
+static_assert(!std::is_copy_constructible_v<pro::box<utils::spec::Stringable>>);
+static_assert(std::is_move_constructible_v<pro::box<utils::spec::Stringable>>);
+static_assert(
+    std::is_nothrow_default_constructible_v<pro::box<utils::spec::Stringable>>);
+static_assert(std::is_constructible_v<pro::box<TestImmovableStringable>, int>);
+static_assert(!std::is_move_constructible_v<pro::box<TestImmovableStringable>>);
+static_assert(!std::is_assignable_v<pro::box<TestImmovableStringable>&, int>);
+static_assert(Releasable<pro::box<TestLargeStringable>>);
+static_assert(!Releasable<pro::box<TestImmovableStringable>>);
 
 } // namespace box_tests_detail
 
@@ -489,6 +525,15 @@ TEST(BoxTests, TestRelease) {
   ASSERT_TRUE(tracker.GetOperations() == expected_ops);
 }
 
+TEST(BoxTests, TestRelease_TriviallyCopyable) {
+  pro::box<detail::TestTriviallyCopyableStringable> b{std::in_place_type<int>,
+                                                      123};
+  pro::proxy<detail::TestTriviallyCopyableStringable> p = b.release();
+  ASSERT_FALSE(b.has_value());
+  ASSERT_TRUE(p.has_value());
+  ASSERT_EQ(ToString(*p), "123");
+}
+
 TEST(BoxTests, TestIndirectAccessorConversion) {
   pro::box<detail::TestLargeStringable> b{detail::Widget{7}};
   pro::proxy_indirect_accessor<detail::TestLargeStringable>& ia = b;
@@ -535,4 +580,14 @@ TEST(BoxTests, TestIndirectReflection) {
   ASSERT_EQ(proxy_typeid(b), typeid(detail::Widget));
   ASSERT_EQ(to_string(proxy_cast<detail::Widget>(b)), "Widget 3");
   ASSERT_EQ(proxy_cast<int>(&b), nullptr);
+}
+
+TEST(BoxTests, TestFormat) {
+#ifdef PRO4D_HAS_FORMAT
+  pro::box<detail::TestFormattable> b = 123;
+  ASSERT_EQ(std::format("{}", b), "123");
+  ASSERT_EQ(std::format("{:*<6}", b), "123***");
+#else
+  GTEST_SKIP() << "std::format not available";
+#endif // PRO4D_HAS_FORMAT
 }

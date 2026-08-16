@@ -1,5 +1,6 @@
 module;
 
+#include <proxy/v4/box.h>
 #include <proxy/v4/proxy.h>
 
 export module proxy.v4;

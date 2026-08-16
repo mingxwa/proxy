@@ -2,11 +2,10 @@
 // Copyright (c) 2026-Present Next Gen C++ Foundation.
 // Licensed under the MIT License.
 
-#ifndef MSFT_PROXY_V4_DETAIL_BOX_H_
-#define MSFT_PROXY_V4_DETAIL_BOX_H_
+#ifndef MSFT_PROXY_V4_BOX_H_
+#define MSFT_PROXY_V4_BOX_H_
 
-#include "core.h"
-#include "proxy_creation.h"
+#include "proxy.h"
 
 #if __STDC_HOSTED__
 
@@ -48,16 +47,12 @@ public:
   template <facade F2>
   box(const box<F2>& rhs) noexcept(
       std::is_nothrow_convertible_v<const proxy<F2>&, proxy<F>>)
-    requires(std::is_nothrow_convertible_v<const detail::proxy_meta<F2>&,
-                                           const detail::proxy_meta<F>&> &&
-             std::is_convertible_v<const proxy<F2>&, proxy<F>>)
+    requires(std::is_convertible_v<const proxy<F2>&, proxy<F>>)
       : p_(rhs.p_) {}
   template <facade F2>
   box(box<F2>&& rhs) noexcept(
       std::is_nothrow_convertible_v<proxy<F2>, proxy<F>>)
-    requires(std::is_nothrow_convertible_v<const detail::proxy_meta<F2>&,
-                                           const detail::proxy_meta<F>&> &&
-             std::is_convertible_v<proxy<F2>, proxy<F>>)
+    requires(std::is_convertible_v<proxy<F2>, proxy<F>>)
       : p_(std::move(rhs.p_)) {}
   template <class T>
   constexpr box(T&& val)
@@ -127,7 +122,7 @@ public:
   constexpr box& operator=(T&& val)
     requires(!detail::specialization_of<std::decay_t<T>, box> &&
              std::is_constructible_v<std::decay_t<T>, T> &&
-             std::is_destructible_v<proxy<F>>)
+             std::is_assignable_v<proxy<F>, proxy<F>>)
   {
     p_ = make_proxy<F>(std::forward<T>(val));
     return *this;
@@ -179,8 +174,18 @@ public:
     return *p_.template emplace<detail::allocated_ptr<F, T, Alloc>>(
         alloc, il, std::forward<Args>(args)...);
   }
-  proxy<F> release() noexcept(std::is_nothrow_move_constructible_v<proxy<F>>) {
-    return std::move(p_);
+  proxy<F> release() noexcept(std::is_nothrow_move_constructible_v<proxy<F>> &&
+                              std::is_nothrow_destructible_v<proxy<F>>)
+    requires(std::is_move_constructible_v<proxy<F>> &&
+             std::is_destructible_v<proxy<F>>)
+  {
+    if constexpr (F::copyability == constraint_level::trivial) {
+      proxy<F> result = p_;
+      p_.reset();
+      return result;
+    } else {
+      return std::move(p_);
+    }
   }
   operator proxy_indirect_accessor<F>&() & noexcept { return *p_; }
   operator const proxy_indirect_accessor<F>&() const& noexcept { return *p_; }
@@ -199,19 +204,19 @@ public:
     return !lhs.has_value();
   }
   template <class D, class O, class... Args>
-  friend decltype(auto) invoke(box& v, Args&&... args) {
+  friend detail::ret_t<O> invoke(box& v, Args&&... args) {
     return invoke<D, O>(*v.p_, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
-  friend decltype(auto) invoke(const box& v, Args&&... args) {
+  friend detail::ret_t<O> invoke(const box& v, Args&&... args) {
     return invoke<D, O>(*v.p_, std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
-  friend decltype(auto) invoke(box&& v, Args&&... args) {
+  friend detail::ret_t<O> invoke(box&& v, Args&&... args) {
     return invoke<D, O>(*std::move(v.p_), std::forward<Args>(args)...);
   }
   template <class D, class O, class... Args>
-  friend decltype(auto) invoke(const box&& v, Args&&... args) {
+  friend detail::ret_t<O> invoke(const box&& v, Args&&... args) {
     return invoke<D, O>(*std::move(v.p_), std::forward<Args>(args)...);
   }
   template <class R>
@@ -227,4 +232,4 @@ private:
 
 #endif // __STDC_HOSTED__
 
-#endif // MSFT_PROXY_V4_DETAIL_BOX_H_
+#endif // MSFT_PROXY_V4_BOX_H_
