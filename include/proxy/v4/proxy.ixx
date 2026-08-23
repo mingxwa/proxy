@@ -44,6 +44,24 @@ using v4::weak_dispatch;
 using v4::weak_facade;
 using v4::weak_proxy;
 
+namespace facets {
+
+using facets::convention;
+using facets::copyability;
+using facets::destructibility;
+using facets::direct_convention;
+using facets::direct_reflection;
+using facets::facet;
+using facets::indirect_convention;
+using facets::indirect_reflection;
+using facets::layout;
+using facets::pack;
+using facets::reflection;
+using facets::relocatability;
+using facets::super;
+
+} // namespace facets
+
 namespace skills {
 
 #ifdef PRO4D_HAS_FORMAT
