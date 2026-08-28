@@ -31,169 +31,7 @@ consteval std::size_t max_align_of(std::size_t value) {
 
 using ptr_prototype = void* [2];
 
-template <class F>
-struct super_facet_primitive {};
-template <bool IsDirect, class D, class O>
-struct convention_facet_primitive {};
-template <bool IsDirect, class R>
-struct reflection_facet_primitive {};
-template <constraint_level CL>
-struct copyability_facet_primitive {};
-template <constraint_level CL>
-struct relocatability_facet_primitive {};
-template <constraint_level CL>
-struct destructibility_facet_primitive {};
-template <std::size_t MaxSize, std::size_t MaxAlign>
-struct layout_facet_primitive {};
-template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-          std::size_t MaxAlign, constraint_level Copyability,
-          constraint_level Relocatability, constraint_level Destructibility>
-struct pack_facet_primitive
-    : facade_impl<
-          Ss, Cs, Rs, MaxSize == invalid_size ? sizeof(ptr_prototype) : MaxSize,
-          MaxAlign == invalid_size ? alignof(ptr_prototype) : MaxAlign,
-          Copyability == invalid_cl ? constraint_level::none : Copyability,
-          Relocatability == invalid_cl ? constraint_level::trivial
-                                       : Relocatability,
-          Destructibility == invalid_cl ? constraint_level::nothrow
-                                        : Destructibility> {};
-
-template <class F>
-super_facet_primitive<F> get_facet_primitive(super_facet_primitive<F>*);
-template <bool IsDirect, class D, class O>
-convention_facet_primitive<IsDirect, D, O>
-    get_facet_primitive(convention_facet_primitive<IsDirect, D, O>*);
-template <bool IsDirect, class R>
-reflection_facet_primitive<IsDirect, R>
-    get_facet_primitive(reflection_facet_primitive<IsDirect, R>*);
-template <constraint_level CL>
-copyability_facet_primitive<CL>
-    get_facet_primitive(copyability_facet_primitive<CL>*);
-template <constraint_level CL>
-relocatability_facet_primitive<CL>
-    get_facet_primitive(relocatability_facet_primitive<CL>*);
-template <constraint_level CL>
-destructibility_facet_primitive<CL>
-    get_facet_primitive(destructibility_facet_primitive<CL>*);
-template <std::size_t MaxSize, std::size_t MaxAlign>
-layout_facet_primitive<MaxSize, MaxAlign>
-    get_facet_primitive(layout_facet_primitive<MaxSize, MaxAlign>*);
-template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-          std::size_t MaxAlign, constraint_level Copyability,
-          constraint_level Relocatability, constraint_level Destructibility>
-pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability,
-                     Destructibility>
-    get_facet_primitive(
-        pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability,
-                             Relocatability, Destructibility>*);
-template <class F>
-using facet_primitive_t = decltype(get_facet_primitive(std::declval<F*>()));
-
-template <class Primitive>
-struct facet_traits_impl;
-template <class Ss1, class Cs1, class Rs1, std::size_t MaxSize1,
-          std::size_t MaxAlign1, constraint_level Copyability1,
-          constraint_level Relocatability1, constraint_level Destructibility1>
-struct facet_traits_impl<
-    pack_facet_primitive<Ss1, Cs1, Rs1, MaxSize1, MaxAlign1, Copyability1,
-                         Relocatability1, Destructibility1>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack =
-      pack_facet_primitive<composite_t<Ss, Ss1>, composite_t<Cs, Cs1>,
-                           composite_t<Rs, Rs1>, merge_size(MaxSize, MaxSize1),
-                           merge_size(MaxAlign, MaxAlign1),
-                           merge_constraint(Copyability, Copyability1),
-                           merge_constraint(Relocatability, Relocatability1),
-                           merge_constraint(Destructibility, Destructibility1)>;
-};
-template <class F>
-struct facet_traits_impl<super_facet_primitive<F>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack = pack_facet_primitive<
-      composite_t<Ss, F>, Cs, Rs, merge_size(MaxSize, F::max_size),
-      merge_size(MaxAlign, F::max_align),
-      merge_constraint(Copyability, F::copyability),
-      merge_constraint(Relocatability, F::relocatability),
-      merge_constraint(Destructibility, F::destructibility)>;
-};
-template <bool IsDirect, class D, class O>
-struct facet_traits_impl<convention_facet_primitive<IsDirect, D, O>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack =
-      pack_facet_primitive<Ss, composite_t<Cs, conv_impl<IsDirect, D, O>>, Rs,
-                           MaxSize, MaxAlign, Copyability, Relocatability,
-                           Destructibility>;
-};
-template <bool IsDirect, class R>
-struct facet_traits_impl<reflection_facet_primitive<IsDirect, R>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack =
-      pack_facet_primitive<Ss, Cs, composite_t<Rs, refl_impl<IsDirect, R>>,
-                           MaxSize, MaxAlign, Copyability, Relocatability,
-                           Destructibility>;
-};
-template <constraint_level CL>
-struct facet_traits_impl<copyability_facet_primitive<CL>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack = pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign,
-                                         merge_constraint(Copyability, CL),
-                                         Relocatability, Destructibility>;
-};
-template <constraint_level CL>
-struct facet_traits_impl<relocatability_facet_primitive<CL>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack =
-      pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability,
-                           merge_constraint(Relocatability, CL),
-                           Destructibility>;
-};
-template <constraint_level CL>
-struct facet_traits_impl<destructibility_facet_primitive<CL>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack = pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign,
-                                         Copyability, Relocatability,
-                                         merge_constraint(Destructibility, CL)>;
-};
-template <std::size_t MaxSize1, std::size_t MaxAlign1>
-struct facet_traits_impl<layout_facet_primitive<MaxSize1, MaxAlign1>> {
-  template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-            std::size_t MaxAlign, constraint_level Copyability,
-            constraint_level Relocatability, constraint_level Destructibility>
-  using push_pack =
-      pack_facet_primitive<Ss, Cs, Rs, merge_size(MaxSize, MaxSize1),
-                           merge_size(MaxAlign, MaxAlign1), Copyability,
-                           Relocatability, Destructibility>;
-};
-template <class F>
-struct facet_traits : facet_traits_impl<facet_primitive_t<F>> {};
-
-template <class O, class I>
-struct facet_reduction;
-template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-          std::size_t MaxAlign, constraint_level Copyability,
-          constraint_level Relocatability, constraint_level Destructibility,
-          class I>
-struct facet_reduction<
-    pack_facet_primitive<Ss, Cs, Rs, MaxSize, MaxAlign, Copyability,
-                         Relocatability, Destructibility>,
-    I>
-    : std::type_identity<typename facet_traits<I>::template push_pack<
-          Ss, Cs, Rs, MaxSize, MaxAlign, Copyability, Relocatability,
-          Destructibility>> {};
+struct facet_primitive_resolver;
 
 } // namespace detail
 
@@ -280,60 +118,192 @@ using facade_builder =
 namespace facets {
 
 template <class F>
-concept facet = requires { typename detail::facet_primitive_t<F>; };
+concept facet = std::is_invocable_v<detail::facet_primitive_resolver, F*>;
 
 template <facet... Fs>
-struct pack
-    : detail::recursive_reduction_t<
-          detail::reduction_t<detail::facet_reduction>,
-          detail::pack_facet_primitive<std::tuple<>, std::tuple<>, std::tuple<>,
-                                       detail::invalid_size,
-                                       detail::invalid_size, detail::invalid_cl,
-                                       detail::invalid_cl, detail::invalid_cl>,
-          Fs...> {};
+struct pack {};
 
 template <facade F>
-struct super : detail::super_facet_primitive<F> {};
+struct super {};
 
 template <class D, detail::extended_overload... Os>
   requires(sizeof...(Os) > 0u)
-struct indirect_convention : pack<indirect_convention<D, Os>...> {};
-template <class D, detail::extended_overload O>
-struct indirect_convention<D, O>
-    : detail::convention_facet_primitive<false, D, O> {};
+struct indirect_convention {};
 template <class D, detail::extended_overload... Os>
   requires(sizeof...(Os) > 0u)
-struct direct_convention : pack<direct_convention<D, Os>...> {};
-template <class D, detail::extended_overload O>
-struct direct_convention<D, O>
-    : detail::convention_facet_primitive<true, D, O> {};
+struct direct_convention {};
 template <class D, detail::extended_overload... Os>
   requires(sizeof...(Os) > 0u)
-struct convention : indirect_convention<D, Os...> {};
+using convention = indirect_convention<D, Os...>;
 
 template <detail::basic_meta R>
-struct indirect_reflection : detail::reflection_facet_primitive<false, R> {};
+struct indirect_reflection {};
 template <detail::basic_meta R>
-struct direct_reflection : detail::reflection_facet_primitive<true, R> {};
+struct direct_reflection {};
 template <detail::basic_meta R>
-struct reflection : indirect_reflection<R> {};
+using reflection = indirect_reflection<R>;
 
 template <constraint_level CL>
   requires(detail::is_cl_well_formed(CL))
-struct copyability : detail::copyability_facet_primitive<CL> {};
+struct copyability {};
 template <constraint_level CL>
   requires(detail::is_cl_well_formed(CL))
-struct relocatability : detail::relocatability_facet_primitive<CL> {};
+struct relocatability {};
 template <constraint_level CL>
   requires(detail::is_cl_well_formed(CL))
-struct destructibility : detail::destructibility_facet_primitive<CL> {};
+struct destructibility {};
 
 template <std::size_t PtrSize,
           std::size_t PtrAlign = detail::max_align_of(PtrSize)>
   requires(detail::is_layout_well_formed(PtrSize, PtrAlign))
-struct layout : detail::layout_facet_primitive<PtrSize, PtrAlign> {};
+struct layout {};
 
 } // namespace facets
+
+namespace detail {
+
+struct facet_primitive_resolver {
+  template <class... Fs>
+  facets::pack<Fs...> operator()(facets::pack<Fs...>*) const;
+  template <class F>
+  facets::super<F> operator()(facets::super<F>*) const;
+  template <class D, class... Os>
+  facets::indirect_convention<D, Os...>
+      operator()(facets::indirect_convention<D, Os...>*) const;
+  template <class D, class... Os>
+  facets::direct_convention<D, Os...>
+      operator()(facets::direct_convention<D, Os...>*) const;
+  template <class R>
+  facets::indirect_reflection<R>
+      operator()(facets::indirect_reflection<R>*) const;
+  template <class R>
+  facets::direct_reflection<R> operator()(facets::direct_reflection<R>*) const;
+  template <constraint_level CL>
+  facets::copyability<CL> operator()(facets::copyability<CL>*) const;
+  template <constraint_level CL>
+  facets::relocatability<CL> operator()(facets::relocatability<CL>*) const;
+  template <constraint_level CL>
+  facets::destructibility<CL> operator()(facets::destructibility<CL>*) const;
+  template <std::size_t PtrSize, std::size_t PtrAlign>
+  facets::layout<PtrSize, PtrAlign>
+      operator()(facets::layout<PtrSize, PtrAlign>*) const;
+};
+template <class O, class I>
+struct facet_reduction
+    : facet_reduction<O, std::invoke_result_t<facet_primitive_resolver, I*>> {};
+
+template <class F1, class F2>
+struct facet_reduction_pack_impl;
+template <class Ss1, class Cs1, class Rs1, std::size_t Sz1, std::size_t Al1,
+          constraint_level Cp1, constraint_level Rl1, constraint_level Ds1,
+          class Ss2, class Cs2, class Rs2, std::size_t Sz2, std::size_t Al2,
+          constraint_level Cp2, constraint_level Rl2, constraint_level Ds2>
+struct facet_reduction_pack_impl<
+    facade_impl<Ss1, Cs1, Rs1, Sz1, Al1, Cp1, Rl1, Ds1>,
+    facade_impl<Ss2, Cs2, Rs2, Sz2, Al2, Cp2, Rl2, Ds2>>
+    : std::type_identity<
+          facade_impl<composite_t<Ss1, Ss2>, composite_t<Cs1, Cs2>,
+                      composite_t<Rs1, Rs2>, merge_size(Sz1, Sz2),
+                      merge_size(Al1, Al2), merge_constraint(Cp1, Cp2),
+                      merge_constraint(Rl1, Rl2), merge_constraint(Ds1, Ds2)>> {
+};
+
+template <class... Fs>
+using incomplete_facade_t = recursive_reduction_t<
+    reduction_t<facet_reduction>,
+    facade_impl<std::tuple<>, std::tuple<>, std::tuple<>, invalid_size,
+                invalid_size, invalid_cl, invalid_cl, invalid_cl>,
+    Fs...>;
+
+template <class O, class... Fs>
+struct facet_reduction<O, facets::pack<Fs...>>
+    : facet_reduction_pack_impl<O, incomplete_facade_t<Fs...>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          class F>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::super<F>>
+    : std::type_identity<facade_impl<
+          composite_t<Ss, F>, Cs, Rs, merge_size(Sz, F::max_size),
+          merge_size(Al, F::max_align), merge_constraint(Cp, F::copyability),
+          merge_constraint(Rl, F::relocatability),
+          merge_constraint(Ds, F::destructibility)>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          class D, class... Os>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::indirect_convention<D, Os...>>
+    : std::type_identity<
+          facade_impl<Ss, composite_t<Cs, conv_impl<false, D, Os>...>, Rs, Sz,
+                      Al, Cp, Rl, Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          class D, class... Os>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::direct_convention<D, Os...>>
+    : std::type_identity<
+          facade_impl<Ss, composite_t<Cs, conv_impl<true, D, Os>...>, Rs, Sz,
+                      Al, Cp, Rl, Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          class R>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::indirect_reflection<R>>
+    : std::type_identity<facade_impl<
+          Ss, Cs, composite_t<Rs, refl_impl<false, R>>, Sz, Al, Cp, Rl, Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          class R>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::direct_reflection<R>>
+    : std::type_identity<facade_impl<
+          Ss, Cs, composite_t<Rs, refl_impl<true, R>>, Sz, Al, Cp, Rl, Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          constraint_level CL>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::copyability<CL>>
+    : std::type_identity<
+          facade_impl<Ss, Cs, Rs, Sz, Al, merge_constraint(Cp, CL), Rl, Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          constraint_level CL>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::relocatability<CL>>
+    : std::type_identity<
+          facade_impl<Ss, Cs, Rs, Sz, Al, Cp, merge_constraint(Rl, CL), Ds>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          constraint_level CL>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::destructibility<CL>>
+    : std::type_identity<
+          facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, merge_constraint(Ds, CL)>> {};
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds,
+          std::size_t PtrSize, std::size_t PtrAlign>
+struct facet_reduction<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>,
+                       facets::layout<PtrSize, PtrAlign>>
+    : std::type_identity<facade_impl<Ss, Cs, Rs, merge_size(Sz, PtrSize),
+                                     merge_size(Al, PtrAlign), Cp, Rl, Ds>> {};
+
+template <class F>
+struct defaulted_facade_traits;
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds>
+struct defaulted_facade_traits<facade_impl<Ss, Cs, Rs, Sz, Al, Cp, Rl, Ds>>
+    : std::type_identity<facade_impl<
+          Ss, Cs, Rs, Sz == invalid_size ? sizeof(ptr_prototype) : Sz,
+          Al == invalid_size ? alignof(ptr_prototype) : Al,
+          Cp == invalid_cl ? constraint_level::none : Cp,
+          Rl == invalid_cl ? constraint_level::trivial : Rl,
+          Ds == invalid_cl ? constraint_level::nothrow : Ds>> {};
+
+} // namespace detail
+
+template <facets::facet... Fs>
+using make_facade =
+    detail::defaulted_facade_traits<detail::incomplete_facade_t<Fs...>>::type;
 
 } // namespace pro::inline v4
 
