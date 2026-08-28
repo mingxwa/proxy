@@ -1595,18 +1595,17 @@ struct refl_impl {
   static constexpr bool is_direct = IsDirect;
   using reflector_type = R;
 };
-template <class Ss, class Cs, class Rs, std::size_t MaxSize,
-          std::size_t MaxAlign, constraint_level Copyability,
-          constraint_level Relocatability, constraint_level Destructibility>
+template <class Ss, class Cs, class Rs, std::size_t Sz, std::size_t Al,
+          constraint_level Cp, constraint_level Rl, constraint_level Ds>
 struct facade_impl {
   using super_types = Ss;
   using convention_types = Cs;
   using reflection_types = Rs;
-  static constexpr std::size_t max_size = MaxSize;
-  static constexpr std::size_t max_align = MaxAlign;
-  static constexpr constraint_level copyability = Copyability;
-  static constexpr constraint_level relocatability = Relocatability;
-  static constexpr constraint_level destructibility = Destructibility;
+  static constexpr std::size_t max_size = Sz;
+  static constexpr std::size_t max_align = Al;
+  static constexpr constraint_level copyability = Cp;
+  static constexpr constraint_level relocatability = Rl;
+  static constexpr constraint_level destructibility = Ds;
 };
 
 template <class LR, class CLR, class RR, class CRR>
