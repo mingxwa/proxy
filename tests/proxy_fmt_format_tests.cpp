@@ -33,6 +33,16 @@ static_assert(
     std::is_default_constructible_v<
         fmt::formatter<pro::proxy_indirect_accessor<Formattable>, wchar_t>>);
 
+// The facets describe the same facade the skills built
+static_assert(std::is_same_v<pro::make_facade<pro::facets::fmt_formattable,
+                                              pro::facets::fmt_wformattable>,
+                             pro::facade_builder                  //
+                             ::add_skill<pro::skills::fmt_format> //
+                             ::add_skill<pro::skills::fmt_wformat>::build>);
+
+struct FormattableFacets : pro::make_facade<pro::facets::fmt_formattable,
+                                            pro::facets::fmt_wformattable> {};
+
 } // namespace proxy_fmt_format_tests_detail
 
 namespace detail = proxy_fmt_format_tests_detail;
@@ -48,5 +58,12 @@ TEST(ProxyFmtFormatTests, TestWformat) {
   int v = 123;
   pro::proxy<detail::Formattable> p = &v;
   ASSERT_EQ(fmt::format(L"{}", *p), L"123");
+  ASSERT_EQ(fmt::format(L"{:*<6}", *p), L"123***");
+}
+
+TEST(ProxyFmtFormatTests, TestFormatFacet) {
+  int v = 123;
+  pro::proxy<detail::FormattableFacets> p = &v;
+  ASSERT_EQ(fmt::format("{}", *p), "123");
   ASSERT_EQ(fmt::format(L"{:*<6}", *p), L"123***");
 }

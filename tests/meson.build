@@ -2,6 +2,7 @@ test_srcs = files(
   'proxy_creation_tests.cpp',
   'proxy_detail_tests.cpp',
   'proxy_dispatch_tests.cpp',
+  'proxy_facets_ext_tests.cpp',
   'proxy_facets_tests.cpp',
   'proxy_format_tests.cpp',
   'proxy_integration_tests.cpp',
