@@ -15,6 +15,7 @@ add_executable(
   proxy_creation_tests.cpp
   proxy_detail_tests.cpp
   proxy_dispatch_tests.cpp
+  proxy_facets_ext_tests.cpp
   proxy_facets_tests.cpp
   proxy_fmt_format_no_wchar_tests.cpp
   proxy_fmt_format_tests.cpp

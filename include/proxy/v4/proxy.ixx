@@ -47,6 +47,25 @@ using v4::weak_proxy;
 
 namespace facets {
 
+#ifdef PRO4D_HAS_FORMAT
+using facets::formattable;
+using facets::wformattable;
+#endif // PRO4D_HAS_FORMAT
+
+#if __cpp_rtti >= 199711L
+using facets::direct_rtti;
+using facets::indirect_rtti;
+using facets::rtti;
+#endif // __cpp_rtti >= 199711L
+
+#if __STDC_HOSTED__
+using facets::hashable;
+using facets::range_like;
+using facets::serializable;
+using facets::wserializable;
+#endif // __STDC_HOSTED__
+
+using facets::callable;
 using facets::convention;
 using facets::copyability;
 using facets::destructibility;
@@ -59,7 +78,10 @@ using facets::layout;
 using facets::pack;
 using facets::reflection;
 using facets::relocatability;
+using facets::slim;
 using facets::super;
+using facets::viewable;
+using facets::weakable;
 
 } // namespace facets
 
@@ -91,3 +113,11 @@ using std::formatter;
 
 } // namespace std
 #endif // PRO4D_HAS_FORMAT
+
+#if __STDC_HOSTED__
+export namespace std {
+
+using std::hash;
+
+} // namespace std
+#endif // __STDC_HOSTED__

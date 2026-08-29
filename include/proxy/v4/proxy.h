@@ -9,6 +9,7 @@
 #include "detail/core.h"                // IWYU pragma: export
 #include "detail/dispatch.h"            // IWYU pragma: export
 #include "detail/facade_creation.h"     // IWYU pragma: export
+#include "detail/facets_ext.h"          // IWYU pragma: export
 #include "detail/proxy_creation.h"      // IWYU pragma: export
 #include "detail/skills.h"              // IWYU pragma: export
 

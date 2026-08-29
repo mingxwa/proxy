@@ -34,6 +34,20 @@ struct fmt_format_traits
 
 } // namespace detail
 
+namespace facets {
+
+// Enables fmt::formatter<proxy_indirect_accessor<F>, char>.
+struct fmt_formattable
+    : indirect_convention<detail::fmt_format_traits::dispatch,
+                          detail::fmt_format_traits::overload<char>> {};
+
+// Enables fmt::formatter<proxy_indirect_accessor<F>, wchar_t>.
+struct fmt_wformattable
+    : indirect_convention<detail::fmt_format_traits::dispatch,
+                          detail::fmt_format_traits::overload<wchar_t>> {};
+
+} // namespace facets
+
 namespace skills {
 
 template <class FB>
@@ -58,5 +72,19 @@ struct formatter<T, CharT>
     : pro::v4::detail::fmt_format_traits::formatter<CharT> {};
 
 } // namespace fmt
+
+// Mirrors what facets_ext.h asks of std::format_kind: a range_like accessor is
+// a range, but how it prints is the fmt_formattable facet's decision. Only
+// reachable when fmt/ranges.h precedes this header, which is what proxy_fmt.h
+// asks of the {fmt} headers it builds on.
+#if defined(FMT_RANGES_H_) && FMT_VERSION >= 110000
+namespace fmt {
+
+template <pro::v4::facade F, class CharT>
+struct range_format_kind<pro::v4::proxy_indirect_accessor<F>, CharT>
+    : std::integral_constant<range_format, range_format::disabled> {};
+
+} // namespace fmt
+#endif // defined(FMT_RANGES_H_) && FMT_VERSION >= 110000
 
 #endif // MSFT_PROXY_V4_PROXY_FMT_H_
