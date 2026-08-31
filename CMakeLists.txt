@@ -29,6 +29,8 @@ if(PROJECT_IS_TOP_LEVEL)
   )
 endif()
 
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(PROXY_FREESTANDING)
   add_compile_options(-ffreestanding -fno-exceptions -fno-rtti)
   add_link_options(-nodefaultlibs -lc)
