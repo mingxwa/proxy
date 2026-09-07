@@ -1129,8 +1129,11 @@ public:
       if constexpr (F::copyability == constraint_level::nothrow) {
         destroy();
         initialize(rhs);
-      } else {
+      } else if constexpr (F::relocatability >= constraint_level::nontrivial) {
         *this = proxy{rhs};
+      } else {
+        reset();
+        initialize(rhs);
       }
     }
     return *this;
@@ -1161,8 +1164,12 @@ public:
     if constexpr (std::is_nothrow_constructible_v<std::decay_t<P>, P>) {
       destroy();
       initialize<std::decay_t<P>>(std::forward<P>(ptr));
-    } else {
+    } else if constexpr (F::relocatability >= constraint_level::nontrivial ||
+                         F::copyability >= constraint_level::nothrow) {
       *this = proxy{std::forward<P>(ptr)};
+    } else {
+      reset();
+      initialize<std::decay_t<P>>(std::forward<P>(ptr));
     }
     return *this;
   }
