@@ -1224,6 +1224,28 @@ public:
       }
     }
   }
+  void swap(proxy& rhs) noexcept(F::copyability >= constraint_level::nothrow &&
+                                 F::destructibility >=
+                                     constraint_level::nothrow)
+    requires(F::relocatability == constraint_level::none &&
+             (F::copyability == constraint_level::nontrivial ||
+              F::copyability == constraint_level::nothrow) &&
+             F::destructibility >= constraint_level::nontrivial)
+  {
+    if (meta_.has_value()) {
+      if (rhs.meta_.has_value()) {
+        proxy temp = *this;
+        *this = rhs;
+        rhs = temp;
+      } else {
+        rhs = *this;
+        reset();
+      }
+    } else if (rhs.meta_.has_value()) {
+      *this = rhs;
+      rhs.reset();
+    }
+  }
   template <class P, class... Args>
   constexpr P& emplace(Args&&... args) noexcept(
       std::is_nothrow_constructible_v<P, Args...> &&
