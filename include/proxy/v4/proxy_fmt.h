@@ -73,10 +73,8 @@ struct formatter<T, CharT>
 
 } // namespace fmt
 
-// Mirrors what facets_ext.h asks of std::format_kind: a range_like accessor is
-// a range, but how it prints is the fmt_formattable facet's decision. Only
-// reachable when fmt/ranges.h precedes this header, which is what proxy_fmt.h
-// asks of the {fmt} headers it builds on.
+// Mirrors what facets_ext.h asks of std::format_kind, when fmt/ranges.h
+// precedes this header.
 #if defined(FMT_RANGES_H_) && FMT_VERSION >= 110000
 namespace fmt {
 

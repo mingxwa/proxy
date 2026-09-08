@@ -53,16 +53,19 @@ using facets::wformattable;
 #endif // PRO4D_HAS_FORMAT
 
 #if __cpp_rtti >= 199711L
-using facets::direct_rtti;
-using facets::indirect_rtti;
-using facets::rtti;
+using facets::castable;
+using facets::direct_castable;
+using facets::equality_comparable;
+using facets::indirect_castable;
 #endif // __cpp_rtti >= 199711L
 
 #if __STDC_HOSTED__
 using facets::hashable;
-using facets::range_like;
-using facets::serializable;
-using facets::wserializable;
+using facets::input_range;
+using facets::istreamable;
+using facets::ostreamable;
+using facets::wistreamable;
+using facets::wostreamable;
 #endif // __STDC_HOSTED__
 
 using facets::callable;
@@ -72,13 +75,14 @@ using facets::destructibility;
 using facets::direct_convention;
 using facets::direct_reflection;
 using facets::facet;
+using facets::indexable;
 using facets::indirect_convention;
 using facets::indirect_reflection;
 using facets::layout;
 using facets::pack;
 using facets::reflection;
 using facets::relocatability;
-using facets::slim;
+using facets::sized;
 using facets::super;
 using facets::viewable;
 using facets::weakable;

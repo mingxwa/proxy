@@ -32,16 +32,16 @@ using BuiltWith = typename pro::facade_builder::add_skill<Skill>::build;
 
 // --- The facets describe the same facades the skills built ------------------
 
-static_assert(std::is_same_v<pro::make_facade<facets::slim>,
-                             BuiltWith<pro::skills::slim>>);
 static_assert(std::is_same_v<pro::make_facade<facets::viewable>,
                              BuiltWith<pro::skills::as_view>>);
 static_assert(std::is_same_v<pro::make_facade<facets::weakable>,
                              BuiltWith<pro::skills::as_weak>>);
-static_assert(std::is_same_v<pro::make_facade<facets::rtti>,
+static_assert(std::is_same_v<pro::make_facade<facets::castable>,
                              BuiltWith<pro::skills::rtti>>);
-static_assert(std::is_same_v<pro::make_facade<facets::indirect_rtti>,
+static_assert(std::is_same_v<pro::make_facade<facets::indirect_castable>,
                              BuiltWith<pro::skills::indirect_rtti>>);
+static_assert(std::is_same_v<pro::make_facade<facets::direct_castable>,
+                             BuiltWith<pro::skills::direct_rtti>>);
 #ifdef PRO4D_HAS_FORMAT
 static_assert(std::is_same_v<pro::make_facade<facets::formattable>,
                              BuiltWith<pro::skills::format>>);
@@ -53,17 +53,14 @@ static_assert(
                    pro::facade_builder::add_convention<
                        pro::operator_dispatch<"()">, int(int) const>::build>);
 
-// direct_rtti is the one that does not: the skill spends three conventions on
-// a cast the reflection alone can perform.
+// Unlike the others, direct_castable spends no convention at all: the
+// reflection alone performs the cast.
 static_assert(
-    std::tuple_size_v<BuiltWith<pro::skills::direct_rtti>::convention_types> ==
-    3u);
-static_assert(
-    std::is_same_v<pro::make_facade<facets::direct_rtti>::convention_types,
+    std::is_same_v<pro::make_facade<facets::direct_castable>::convention_types,
                    std::tuple<>>);
-static_assert(std::tuple_size_v<
-                  pro::make_facade<facets::direct_rtti>::reflection_types> ==
-              1u);
+static_assert(
+    std::tuple_size_v<
+        pro::make_facade<facets::direct_castable>::reflection_types> == 1u);
 
 // --- Fixtures ---------------------------------------------------------------
 
@@ -89,31 +86,44 @@ using SizeOverload = std::size_t() const;
 
 struct Sized : pro::make_facade<facets::convention<MemSize, SizeOverload>> {};
 
-struct Slim : pro::make_facade<facets::convention<MemSize, SizeOverload>,
-                               facets::slim> {};
+struct Restricted : pro::make_facade<facets::convention<MemSize, SizeOverload>,
+                                     facets::layout<sizeof(void*)>> {};
 
 struct Viewable : pro::make_facade<facets::convention<MemSize, SizeOverload>,
                                    facets::viewable> {};
 
-struct Weakable : pro::make_facade<facets::rtti, facets::weakable> {};
+struct Weakable : pro::make_facade<facets::castable, facets::weakable> {};
 
 struct Callable : pro::make_facade<facets::callable<int(int) const>> {};
 
-struct Rtti : pro::make_facade<facets::rtti, facets::direct_rtti> {};
+struct Indexable : pro::make_facade<facets::indexable<int(std::size_t) const>> {
+};
 
-struct Serializable : pro::make_facade<facets::serializable> {};
+struct SizedRange
+    : pro::make_facade<facets::input_range<const int&>, facets::sized> {};
 
-struct WSerializable : pro::make_facade<facets::wserializable> {};
+struct Comparable : pro::make_facade<facets::equality_comparable> {};
+
+struct Castable : pro::make_facade<facets::castable, facets::direct_castable> {
+};
+
+struct IStreamable : pro::make_facade<facets::istreamable> {};
+
+struct WIStreamable : pro::make_facade<facets::wistreamable> {};
+
+struct OStreamable : pro::make_facade<facets::ostreamable> {};
+
+struct WOStreamable : pro::make_facade<facets::wostreamable> {};
 
 struct Hashable : pro::make_facade<facets::hashable> {};
 
 struct Plain : pro::make_facade<> {};
 
-struct MutableRange : pro::make_facade<facets::range_like<int&>> {};
+struct MutableRange : pro::make_facade<facets::input_range<int&>> {};
 
-struct ConstRange : pro::make_facade<facets::range_like<const int&>> {};
+struct ConstRange : pro::make_facade<facets::input_range<const int&>> {};
 
-struct ValueRange : pro::make_facade<facets::range_like<int>> {};
+struct ValueRange : pro::make_facade<facets::input_range<int>> {};
 
 #ifdef PRO4D_HAS_FORMAT
 struct Formattable
@@ -122,15 +132,26 @@ struct Formattable
 // A facade can be both formattable and iterable; the formattable facet decides
 // how it prints.
 struct FormattableRange
-    : pro::make_facade<facets::formattable, facets::range_like<const char&>> {};
+    : pro::make_facade<facets::formattable, facets::input_range<const char&>> {
+};
 #endif // PRO4D_HAS_FORMAT
 
 // --- What each facet requires of a target -----------------------------------
 
-static_assert(pro::proxiable<Rect*, Slim>);
-static_assert(!pro::proxiable<std::shared_ptr<Rect>, Slim>);
-static_assert(pro::proxiable<int*, Serializable>);
-static_assert(!pro::proxiable<std::vector<int>*, Serializable>);
+static_assert(pro::proxiable<Rect*, Restricted>);
+static_assert(pro::proxiable<int*, Comparable>);
+static_assert(!pro::proxiable<Rect*, Comparable>);
+static_assert(pro::proxiable<std::vector<int>*, Indexable>);
+static_assert(!pro::proxiable<int*, Indexable>);
+static_assert(pro::proxiable<std::vector<int>*, SizedRange>);
+static_assert(!pro::proxiable<std::forward_list<int>*, SizedRange>);
+static_assert(!pro::proxiable<std::shared_ptr<Rect>, Restricted>);
+static_assert(pro::proxiable<int*, OStreamable>);
+static_assert(!pro::proxiable<std::vector<int>*, OStreamable>);
+static_assert(pro::proxiable<int*, IStreamable>);
+// Extraction writes into the target, so a pointer to const cannot supply it.
+static_assert(!pro::proxiable<const int*, IStreamable>);
+static_assert(pro::proxiable<const int*, OStreamable>);
 static_assert(pro::proxiable<int*, Hashable>);
 static_assert(!pro::proxiable<std::vector<int>*, Hashable>);
 static_assert(pro::proxiable<std::vector<int>*, MutableRange>);
@@ -139,6 +160,18 @@ static_assert(pro::proxiable<std::deque<int>*, ConstRange>);
 static_assert(pro::proxiable<std::forward_list<int>*, ConstRange>);
 static_assert(!pro::proxiable<int*, ConstRange>);
 static_assert(!pro::proxiable<std::vector<std::string>*, ConstRange>);
+// A range whose elements are prvalues has nothing to take a reference to, so it
+// is only erasable by value.
+static_assert(pro::proxiable<std::ranges::iota_view<int, int>*, ValueRange>);
+static_assert(!pro::proxiable<std::ranges::iota_view<int, int>*, ConstRange>);
+
+// The element is cached in the iterator and read back from there, so a
+// by-value reference type has to be copyable.
+template <class T>
+concept ValidInputRange = requires { typename facets::input_range<T>; };
+static_assert(ValidInputRange<int>);
+static_assert(ValidInputRange<std::unique_ptr<int>&>);
+static_assert(!ValidInputRange<std::unique_ptr<int>>);
 
 // --- The shape the erased range takes ---------------------------------------
 
@@ -146,6 +179,12 @@ static_assert(
     std::ranges::input_range<pro::proxy_indirect_accessor<ConstRange>>);
 static_assert(
     std::input_iterator<
+        std::ranges::iterator_t<pro::proxy_indirect_accessor<ConstRange>>>);
+// Deliberately no stronger than input: forward would require comparing two
+// erased iterators, which is exactly what pairing the iterator with its
+// sentinel in one cursor exists to avoid.
+static_assert(
+    !std::forward_iterator<
         std::ranges::iterator_t<pro::proxy_indirect_accessor<ConstRange>>>);
 static_assert(std::is_same_v<std::ranges::range_reference_t<
                                  pro::proxy_indirect_accessor<ConstRange>>,
@@ -160,6 +199,13 @@ static_assert(
     std::ranges::input_range<const pro::proxy_indirect_accessor<ConstRange>&>);
 static_assert(
     !std::ranges::range<const pro::proxy_indirect_accessor<MutableRange>&>);
+
+static_assert(
+    std::ranges::sized_range<pro::proxy_indirect_accessor<SizedRange>>);
+// equality_comparable carries castable with it.
+static_assert(std::is_same_v<
+              pro::make_facade<facets::equality_comparable>::reflection_types,
+              pro::make_facade<facets::castable>::reflection_types>);
 
 // --- Which std specializations the facets enable ----------------------------
 
@@ -178,7 +224,7 @@ static_assert(!std::is_default_constructible_v<
 static_assert(
     std::is_default_constructible_v<
         std::formatter<pro::proxy_indirect_accessor<FormattableRange>, char>>);
-// A range_like accessor is a range, but is not formatted as one
+// A input_range accessor is a range, but is not formatted as one
 static_assert(!std::is_default_constructible_v<
               std::formatter<pro::proxy_indirect_accessor<ConstRange>, char>>);
 #endif // PRO4D_HAS_FORMAT
@@ -187,11 +233,11 @@ static_assert(!std::is_default_constructible_v<
 
 namespace detail = proxy_facets_ext_tests_detail;
 
-TEST(ProxyFacetsExtTests, TestSlim) {
+TEST(ProxyFacetsExtTests, TestLayout) {
   detail::Rect rect;
-  pro::proxy<detail::Slim> p = &rect;
+  pro::proxy<detail::Restricted> p = &rect;
   ASSERT_EQ(p->Size(), 42u);
-  ASSERT_LT(sizeof(pro::proxy<detail::Slim>),
+  ASSERT_LT(sizeof(pro::proxy<detail::Restricted>),
             sizeof(pro::proxy<detail::Sized>));
 }
 
@@ -222,9 +268,39 @@ TEST(ProxyFacetsExtTests, TestCallable) {
   ASSERT_EQ((*p)(2), 84);
 }
 
-TEST(ProxyFacetsExtTests, TestIndirectRtti) {
+TEST(ProxyFacetsExtTests, TestIndexable) {
+  std::vector<int> v{10, 20, 30};
+  pro::proxy<detail::Indexable> p = &v;
+  ASSERT_EQ((*p)[1u], 20);
+}
+
+TEST(ProxyFacetsExtTests, TestSized) {
+  const std::vector<int> v{1, 2, 3};
+  pro::proxy<detail::SizedRange> p = &v;
+  ASSERT_EQ((*p).size(), 3u);
+  ASSERT_EQ(std::ranges::size(*p), 3u);
+  ASSERT_EQ(std::ranges::distance(*p), 3);
+}
+
+TEST(ProxyFacetsExtTests, TestEqualityComparable) {
+  int a = 1;
+  int b = 1;
+  int c = 2;
+  double d = 1.0;
+  pro::proxy<detail::Comparable> p1 = &a;
+  pro::proxy<detail::Comparable> p2 = &b;
+  pro::proxy<detail::Comparable> p3 = &c;
+  pro::proxy<detail::Comparable> p4 = &d;
+  ASSERT_TRUE(*p1 == *p2);
+  ASSERT_FALSE(*p1 != *p2);
+  ASSERT_TRUE(*p1 != *p3);
+  ASSERT_TRUE(*p1 != *p4); // a different contained type never compares equal
+  ASSERT_EQ(proxy_cast<int>(*p1), 1); // castable came along
+}
+
+TEST(ProxyFacetsExtTests, TestIndirectCastable) {
   int v = 123;
-  pro::proxy<detail::Rtti> p = &v;
+  pro::proxy<detail::Castable> p = &v;
   ASSERT_EQ(proxy_typeid(*p), typeid(int));
   ASSERT_EQ(proxy_cast<int>(*p), 123);
   proxy_cast<int&>(*p) = 456;
@@ -234,15 +310,15 @@ TEST(ProxyFacetsExtTests, TestIndirectRtti) {
   ASSERT_THROW(proxy_cast<double>(*p), pro::bad_proxy_cast);
 }
 
-TEST(ProxyFacetsExtTests, TestDirectRttiTypeid) {
+TEST(ProxyFacetsExtTests, TestDirectCastableTypeid) {
   int v = 123;
-  pro::proxy<detail::Rtti> p = &v;
+  pro::proxy<detail::Castable> p = &v;
   ASSERT_EQ(proxy_typeid(p), typeid(int*));
 }
 
-TEST(ProxyFacetsExtTests, TestDirectRttiCast) {
+TEST(ProxyFacetsExtTests, TestDirectCastableCast) {
   int v = 123;
-  pro::proxy<detail::Rtti> p = &v;
+  pro::proxy<detail::Castable> p = &v;
   ASSERT_EQ(proxy_cast<int*>(p), &v);
   ASSERT_EQ(proxy_cast<int*&>(p), &v);
   ASSERT_EQ(proxy_cast<int* const&>(p), &v);
@@ -253,41 +329,60 @@ TEST(ProxyFacetsExtTests, TestDirectRttiCast) {
   ASSERT_TRUE(p.has_value()); // a failed cast leaves the proxy alone
 }
 
-TEST(ProxyFacetsExtTests, TestDirectRttiCastConst) {
+TEST(ProxyFacetsExtTests, TestDirectCastableCastConst) {
   int v = 123;
-  pro::proxy<detail::Rtti> p = &v;
-  const pro::proxy<detail::Rtti>& cp = p;
+  pro::proxy<detail::Castable> p = &v;
+  const pro::proxy<detail::Castable>& cp = p;
   ASSERT_EQ(proxy_cast<int*>(cp), &v);
   ASSERT_EQ(proxy_cast<int* const&>(cp), &v);
-  ASSERT_EQ(*proxy_cast<int*>(&cp), &v);
-  static_assert(std::is_same_v<decltype(proxy_cast<int*>(&cp)), int* const*>);
-  // A const operand cannot hand out a mutable reference to what it contains
+  ASSERT_EQ(*proxy_cast<int* const>(&cp), &v);
+  static_assert(
+      std::is_same_v<decltype(proxy_cast<int* const>(&cp)), int* const*>);
+  // A const operand cannot hand out mutable access to what it contains
+  ASSERT_EQ(proxy_cast<int*>(&cp), nullptr);
   ASSERT_THROW(proxy_cast<int*&>(cp), pro::bad_proxy_cast);
 }
 
-TEST(ProxyFacetsExtTests, TestDirectRttiCastMove) {
+TEST(ProxyFacetsExtTests, TestDirectCastableCastMove) {
   int v = 123;
-  pro::proxy<detail::Rtti> p = &v;
-  ASSERT_THROW(proxy_cast<double*>(std::move(p)), pro::bad_proxy_cast);
-  ASSERT_TRUE(p.has_value());
+  pro::proxy<detail::Castable> p = &v;
   ASSERT_EQ(proxy_cast<int*>(std::move(p)), &v);
-  ASSERT_FALSE(p.has_value()); // a successful move cast consumes the proxy
+  ASSERT_FALSE(p.has_value()); // an rvalue cast consumes the proxy
+  pro::proxy<detail::Castable> q = &v;
+  ASSERT_THROW(proxy_cast<double*>(std::move(q)), pro::bad_proxy_cast);
+  ASSERT_FALSE(q.has_value()); // including when it fails
 }
 
-TEST(ProxyFacetsExtTests, TestSerializable) {
+TEST(ProxyFacetsExtTests, TestOStreamable) {
   detail::Rect rect;
-  pro::proxy<detail::Serializable> p = &rect;
+  pro::proxy<detail::OStreamable> p = &rect;
   std::ostringstream out;
   out << *p;
   ASSERT_EQ(out.str(), "6x7");
 }
 
-TEST(ProxyFacetsExtTests, TestWSerializable) {
+TEST(ProxyFacetsExtTests, TestWOStreamable) {
   detail::Rect rect;
-  pro::proxy<detail::WSerializable> p = &rect;
+  pro::proxy<detail::WOStreamable> p = &rect;
   std::wostringstream out;
   out << *p;
   ASSERT_EQ(out.str(), L"6x7");
+}
+
+TEST(ProxyFacetsExtTests, TestIStreamable) {
+  int v = 0;
+  pro::proxy<detail::IStreamable> p = &v;
+  std::istringstream in{"123"};
+  in >> *p;
+  ASSERT_EQ(v, 123);
+}
+
+TEST(ProxyFacetsExtTests, TestWIStreamable) {
+  int v = 0;
+  pro::proxy<detail::WIStreamable> p = &v;
+  std::wistringstream in{L"123"};
+  in >> *p;
+  ASSERT_EQ(v, 123);
 }
 
 TEST(ProxyFacetsExtTests, TestHashable) {
@@ -349,6 +444,28 @@ TEST(ProxyFacetsExtTests, TestRangeLikeSwitchesTarget) {
     }
   }
   ASSERT_EQ(collected, (std::vector<int>{1, 2, 3, 4, 5, 6}));
+}
+
+TEST(ProxyFacetsExtTests, TestRangeLikePrvalueElements) {
+  auto range = std::views::iota(1, 4);
+  pro::proxy<detail::ValueRange> p = &range;
+  std::vector<int> collected;
+  for (int x : *p) {
+    collected.push_back(x);
+  }
+  ASSERT_EQ(collected, (std::vector<int>{1, 2, 3}));
+}
+
+TEST(ProxyFacetsExtTests, TestRangeLikeIteratorIsIndependent) {
+  const std::vector<int> v{1, 2, 3};
+  pro::proxy<detail::ConstRange> p = &v;
+  auto it = (*p).begin();
+  ASSERT_EQ(*it, 1);
+  ASSERT_EQ(*it, 1); // reading twice does not advance
+  auto copy = it;
+  ++it;
+  ASSERT_EQ(*it, 2);
+  ASSERT_EQ(*copy, 1);
 }
 
 TEST(ProxyFacetsExtTests, TestRangeLikeEmpty) {
