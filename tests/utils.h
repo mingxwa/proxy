@@ -38,6 +38,8 @@ struct ConstructionFailure : std::exception {
   LifetimeOperationType type_;
 };
 
+struct DestructionFailure : std::exception {};
+
 class LifetimeTracker {
 public:
   LifetimeTracker() = default;
@@ -69,13 +71,25 @@ public:
       return "Session " + std::to_string(self.id_);
     }
 
-  private:
+  protected:
     int id_;
     LifetimeTracker* const host_;
   };
 
+  class ThrowingDestructionSession : public Session {
+  public:
+    using Session::Session;
+    ~ThrowingDestructionSession() noexcept(false) {
+      if (host_->throw_on_next_destruction_) {
+        host_->throw_on_next_destruction_ = false;
+        throw DestructionFailure{};
+      }
+    }
+  };
+
   const std::vector<LifetimeOperation>& GetOperations() const { return ops_; }
   void ThrowOnNextConstruction() { throw_on_next_construction_ = true; }
+  void ThrowOnNextDestruction() { throw_on_next_destruction_ = true; }
 
 private:
   int AllocateId(LifetimeOperationType operation_type) {
@@ -89,6 +103,7 @@ private:
 
   int max_id_ = 0;
   bool throw_on_next_construction_ = false;
+  bool throw_on_next_destruction_ = false;
   std::vector<LifetimeOperation> ops_;
 };
 
