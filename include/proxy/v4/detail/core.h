@@ -198,8 +198,9 @@ struct relocatability_traits : inapplicable_traits {};
 template <class T>
 struct relocatability_traits<T, constraint_level::none> : applicable_traits {};
 template <class T>
-  requires((std::is_move_constructible_v<T> && std::is_destructible_v<T>) ||
-           is_bitwise_trivially_relocatable_v<T>)
+  requires(
+      (std::is_move_constructible_v<T> && std::is_nothrow_destructible_v<T>) ||
+      is_bitwise_trivially_relocatable_v<T>)
 struct relocatability_traits<T, constraint_level::nontrivial>
     : applicable_traits {};
 template <class T>

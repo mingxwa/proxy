@@ -27,7 +27,7 @@ Relocatability is defined as *move-construct an object and then destroy the orig
 | Value                          | Requirement on `P`                                           |
 | ------------------------------ | ------------------------------------------------------------ |
 | `constraint_level::none`       | None                                                         |
-| `constraint_level::nontrivial` | `(std::is_move_constructible_v<P> && std::is_destructible_v<P>) || `[`is_bitwise_trivially_relocatable_v<P>`](is_bitwise_trivially_relocatable.md) |
+| `constraint_level::nontrivial` | `(std::is_move_constructible_v<P> && std::is_nothrow_destructible_v<P>) || `[`is_bitwise_trivially_relocatable_v<P>`](is_bitwise_trivially_relocatable.md) |
 | `constraint_level::nothrow`    | `(std::is_nothrow_move_constructible_v<P> && std::is_nothrow_destructible_v<P>) || `[`is_bitwise_trivially_relocatable_v<P>`](is_bitwise_trivially_relocatable.md) |
 | `constraint_level::trivial`    | [`is_bitwise_trivially_relocatable_v<P>`](is_bitwise_trivially_relocatable.md) |
 
