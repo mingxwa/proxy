@@ -38,6 +38,8 @@ struct ConstructionFailure : std::exception {
   LifetimeOperationType type_;
 };
 
+struct DestructionFailure : std::exception {};
+
 class LifetimeTracker {
 public:
   LifetimeTracker() = default;
@@ -72,6 +74,14 @@ public:
   private:
     int id_;
     LifetimeTracker* const host_;
+  };
+
+  class ThrowingDestructionSession : public Session {
+  public:
+    using Session::Session;
+    ~ThrowingDestructionSession() noexcept(false) {
+      throw DestructionFailure{};
+    }
   };
 
   const std::vector<LifetimeOperation>& GetOperations() const { return ops_; }
