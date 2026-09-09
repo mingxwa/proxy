@@ -5,6 +5,7 @@
 #ifndef _MSFT_PROXY_TEST_UTILS_
 #define _MSFT_PROXY_TEST_UTILS_
 
+#include <exception>
 #include <proxy/proxy.h>
 #include <string>
 #include <vector>
@@ -80,7 +81,9 @@ public:
   public:
     using Session::Session;
     ~ThrowingDestructionSession() noexcept(false) {
-      throw DestructionFailure{};
+      if (std::uncaught_exceptions() == 0) {
+        throw DestructionFailure{};
+      }
     }
   };
 

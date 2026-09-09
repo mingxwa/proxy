@@ -385,9 +385,7 @@ R invoke_dispatch(Args&&... args) {
 template <class P>
 struct destroying_guard {
   explicit destroying_guard(P* p) noexcept : p_(p) {}
-  ~destroying_guard() noexcept(std::is_nothrow_destructible_v<P>) {
-    std::destroy_at(p_);
-  }
+  ~destroying_guard() noexcept(std::is_nothrow_destructible_v<P>) { p_->~P(); }
 
 private:
   P* p_;
