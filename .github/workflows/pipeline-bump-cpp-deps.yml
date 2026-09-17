@@ -71,7 +71,7 @@ jobs:
           if [ -n "$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')" ]; then
             echo "Updated the existing pull request."
           else
-            gh pr create --base "$BASE" --head "$branch" \
+            gh pr create --base "$BASE" --head "$branch" --draft \
               --title "Bump CMake and Meson dependencies" \
               --body 'Automated bump of the CMake FetchContent registries and the Meson wraps (tools/bump_cmake_meson_deps.py). The Renovate pipeline handles everything else.'
           fi
