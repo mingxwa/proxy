@@ -1,7 +1,7 @@
 project(
-  'msft_proxy4',
+  'msft_proxy5',
   'cpp',
-  version: '4.1.0',
+  version: '5.0.0',
   license: 'MIT',
   license_files: 'LICENSE',
   meson_version: '>=1.3',
@@ -50,7 +50,7 @@ endif
 
 inc = include_directories('include')
 
-msft_proxy4_dep = declare_dependency(
+msft_proxy5_dep = declare_dependency(
   include_directories: inc,
 )
 
@@ -70,7 +70,7 @@ if pkgconfig.found()
   )
 endif
 
-meson.override_dependency(meson.project_name(), msft_proxy4_dep)
+meson.override_dependency(meson.project_name(), msft_proxy5_dep)
 
 tests = get_option('tests').disable_auto_if(meson.is_subproject())
 
