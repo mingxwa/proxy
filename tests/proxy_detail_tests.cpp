@@ -33,8 +33,7 @@ struct NullableMeta {
   template <class P>
   constexpr explicit NullableMeta(std::in_place_type_t<P>) noexcept
       : v(I + 1) {}
-  void reset() noexcept { v = 0; }
-  bool has_value() const noexcept { return v != 0; }
+  explicit operator bool() const noexcept { return v != 0; }
 
   int v = 0;
 };
