@@ -241,7 +241,7 @@ struct proxy_helper {
     explicit meta_resetting_guard(proxy<F>& p) noexcept : p_(p) {}
     explicit meta_resetting_guard(proxy_indirect_accessor<F>& p) noexcept
         : p_(as_proxy<F, qualifier_type::lv>(p)) {}
-    ~meta_resetting_guard() noexcept { p_.meta_.reset(); }
+    ~meta_resetting_guard() noexcept { p_.meta_ = {}; }
 
   private:
     proxy<F>& p_;
@@ -249,7 +249,7 @@ struct proxy_helper {
 
   template <class M, class F>
   static const M& get_meta(const proxy<F>& p) noexcept {
-    assert(p.meta_.has_value());
+    assert(p.meta_);
     return *p.meta_;
   }
   template <class M, class F>
@@ -468,6 +468,9 @@ concept basic_meta =
 template <class M, class T>
 concept meta = basic_meta<M> &&
                std::is_nothrow_constructible_v<M, std::in_place_type_t<T>>;
+template <class M>
+concept nullable =
+    basic_meta<M> && std::is_nothrow_constructible_v<bool, const M&>;
 
 template <class R>
 concept basic_reflection = requires {
@@ -626,12 +629,6 @@ struct sfinae_unique_types_traits<
 template <class T>
 using unique_types_t = sfinae_unique_types_traits<void, std::tuple<>, T>::type;
 
-template <class T>
-concept nullable = requires(T v, const T cv) {
-  { v.reset() } noexcept;
-  { cv.has_value() } noexcept -> std::same_as<bool>;
-};
-
 template <class F>
 struct proxy_meta;
 
@@ -639,60 +636,56 @@ struct sentinel_meta {
   sentinel_meta() = default;
   template <class P>
   constexpr explicit sentinel_meta(std::in_place_type_t<P>) noexcept : v_(1) {}
-  void reset() noexcept { v_ = 0; }
-  bool has_value() const noexcept { return v_; }
+  explicit operator bool() const noexcept { return v_ != 0; }
 
 private:
   std::ptrdiff_t v_;
 };
 
-template <class... Ms>
-struct PRO5D_ENFORCE_EBO composite_meta : Ms... {
-  composite_meta() = default;
+template <nullable First, class... Rest>
+struct PRO5D_ENFORCE_EBO composite_meta : First, Rest... {
+  constexpr composite_meta() noexcept : First() {}
   template <class P>
   constexpr explicit composite_meta(std::in_place_type_t<P>)
-      : Ms(std::in_place_type<P>)... {}
+      : First(std::in_place_type<P>), Rest(std::in_place_type<P>)... {}
+  composite_meta(const composite_meta& rhs) noexcept { assign(rhs); }
+  composite_meta& operator=(const composite_meta& rhs) noexcept {
+    assign(rhs);
+    return *this;
+  }
+
+  explicit operator bool() const noexcept {
+    return static_cast<bool>(static_cast<const First&>(*this));
+  }
+
+private:
+  void assign(const composite_meta& rhs) noexcept {
+    if (rhs) {
+      First::operator=(rhs);
+      ((Rest::operator=(rhs)), ...);
+    } else {
+      First::operator=(First{});
+    }
+  }
 };
 
-template <nullable First, class... Rest>
+template <class... Ms>
 struct proxy_meta_base_impl {
   constexpr proxy_meta_base_impl() noexcept {}
   template <class P>
   constexpr explicit proxy_meta_base_impl(std::in_place_type_t<P>)
       : value_(std::in_place_type<P>) {}
-  proxy_meta_base_impl(const proxy_meta_base_impl& rhs) noexcept
-      : proxy_meta_base_impl() {
-    assign(rhs);
-  }
-  proxy_meta_base_impl& operator=(const proxy_meta_base_impl& rhs) noexcept {
-    assign(rhs);
-    return *this;
-  }
 
   template <class T>
-    requires(std::is_nothrow_convertible_v<const First&, const T&> ||
-             (std::is_nothrow_convertible_v<const Rest&, const T&> || ...))
+    requires((std::is_nothrow_convertible_v<const Ms&, const T&> || ...))
   constexpr operator const T&() const noexcept {
     return static_cast<const recursive_reduction_t<
-        reduction_t<first_containing_reduction, T>, void, First, Rest...>&>(
-        value_);
+        reduction_t<first_containing_reduction, T>, void, Ms...>&>(value_);
   }
-
-  bool has_value() const noexcept {
-    return static_cast<const First&>(value_).has_value();
-  }
-  void reset() noexcept { static_cast<First&>(value_).reset(); }
+  explicit operator bool() const noexcept { return static_cast<bool>(value_); }
 
 private:
-  void assign(const proxy_meta_base_impl& rhs) noexcept {
-    if (rhs.has_value()) {
-      value_ = rhs.value_;
-    } else {
-      reset();
-    }
-  }
-
-  composite_meta<First, Rest...> value_;
+  composite_meta<Ms...> value_;
 };
 template <nullable First>
   requires(std::is_trivially_copyable_v<First>)
@@ -1271,8 +1264,8 @@ public:
     destroy();
   }
 
-  bool has_value() const noexcept { return meta_.has_value(); }
-  explicit operator bool() const noexcept { return meta_.has_value(); }
+  bool has_value() const noexcept { return static_cast<bool>(meta_); }
+  explicit operator bool() const noexcept { return static_cast<bool>(meta_); }
   void reset() noexcept(F::destructibility >= constraint_level::nothrow)
     requires(F::destructibility >= constraint_level::nontrivial)
   {
@@ -1299,15 +1292,15 @@ public:
       std::swap(ptr_, rhs.ptr_);
 #endif // __INTEL_LLVM_COMPILER
     } else {
-      if (meta_.has_value()) {
-        if (rhs.meta_.has_value()) {
+      if (meta_) {
+        if (rhs.meta_) {
           proxy temp = std::move(*this);
           initialize(std::move(rhs));
           rhs.initialize(std::move(temp));
         } else {
           rhs.initialize(std::move(*this));
         }
-      } else if (rhs.meta_.has_value()) {
+      } else if (rhs.meta_) {
         initialize(std::move(rhs));
       }
     }
@@ -1320,8 +1313,8 @@ public:
               F::copyability == constraint_level::nothrow) &&
              F::destructibility >= constraint_level::nontrivial)
   {
-    if (meta_.has_value()) {
-      if (rhs.meta_.has_value()) {
+    if (meta_) {
+      if (rhs.meta_) {
         proxy temp = *this;
         *this = rhs;
         rhs = temp;
@@ -1329,7 +1322,7 @@ public:
         rhs = *this;
         reset();
       }
-    } else if (rhs.meta_.has_value()) {
+    } else if (rhs.meta_) {
       *this = rhs;
       rhs.reset();
     }
@@ -1391,7 +1384,7 @@ public:
 private:
   void initialize() {
     PRO5D_DEBUG(std::ignore = &pro_symbol_guard;)
-    meta_.reset();
+    meta_ = {};
   }
   template <facade F2>
   void initialize(const proxy<F2>& rhs) {
@@ -1406,7 +1399,7 @@ private:
       }
       meta_ = rhs.meta_;
     } else {
-      meta_.reset();
+      meta_ = {};
     }
   }
   template <facade F2>
@@ -1416,7 +1409,7 @@ private:
       auto meta = rhs.meta_;
       if constexpr (F2::relocatability == constraint_level::trivial) {
         std::uninitialized_copy_n(rhs.ptr_, F2::max_size, ptr_);
-        rhs.meta_.reset();
+        rhs.meta_ = {};
       } else {
         invoke<detail::relocate_dispatch,
                void(void*) &&
@@ -1425,7 +1418,7 @@ private:
       }
       meta_ = meta;
     } else {
-      meta_.reset();
+      meta_ = {};
     }
   }
   template <class P, class... Args>
@@ -1444,7 +1437,7 @@ private:
     requires(F::destructibility != constraint_level::none)
   {
     if constexpr (F::destructibility != constraint_level::trivial) {
-      if (meta_.has_value()) {
+      if (meta_) {
         invoke<detail::destroy_dispatch,
                void() && noexcept(F::destructibility ==
                                   constraint_level::nothrow)>(std::move(*this));
