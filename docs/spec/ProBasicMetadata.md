@@ -1,8 +1,8 @@
-# Named requirements: *ProBasicMeta*
+# Named requirements: *ProBasicMetadata*
 
 > Since: 5.0.0
 
-A type `M` meets the *ProBasicMeta* requirements if the following expressions are well-formed and have the specified semantics (let `m` be a value of type `M`, `cm` be a value of type `const M`).
+A type `M` meets the *ProBasicMetadata* requirements if `M` is a class type, and the following expressions are well-formed and have the specified semantics (let `m` be a value of type `M`, `cm` be a value of type `const M`).
 
 | Expressions | Semantics                                                    |
 | ----------- | ------------------------------------------------------------ |
@@ -13,9 +13,10 @@ A type `M` meets the *ProBasicMeta* requirements if the following expressions ar
 
 ## Notes
 
-A "meta" is an object holding metadata deduced from a type at compile time, stored in or referenced by a [`proxy`](proxy/README.md). Because `proxy` creates, copies, assigns, and destroys metadata in contexts specified not to throw, none of these operations may throw.
+"Metadata" is an object holding information deduced from a type at compile time, stored in or referenced by a [`proxy`](proxy/README.md). Because `proxy` creates, copies, assigns, and destroys metadata in contexts specified not to throw, none of these operations may throw.
 
 ## See Also
 
 - [*ProBasicReflection* requirements](ProBasicReflection.md)
-- [*ProMeta* requirements](ProMeta.md)
+- [*ProMetadata* requirements](ProMetadata.md)
+- [*ProMetadataPolicy* requirements](ProMetadataPolicy.md)
