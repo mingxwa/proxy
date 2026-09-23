@@ -27,7 +27,7 @@ using NoexceptInvoker =
     pro::detail::invoker<TestContext, std::size_t(std::size_t) noexcept>;
 
 struct SmallMeta {
-  SmallMeta() = default;
+  constexpr SmallMeta() noexcept : value(0) {}
   template <class P>
   constexpr explicit SmallMeta(std::in_place_type_t<P>) noexcept
       : value(P::value) {}
@@ -37,7 +37,7 @@ struct SmallMeta {
 };
 
 struct LargeMeta : SmallMeta {
-  LargeMeta() = default;
+  constexpr LargeMeta() noexcept : SmallMeta(), extra(0) {}
   template <class P>
   constexpr explicit LargeMeta(std::in_place_type_t<P>) noexcept
       : SmallMeta(std::in_place_type<P>), extra(P::value * 10) {}
