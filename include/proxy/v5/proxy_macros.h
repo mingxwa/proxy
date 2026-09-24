@@ -68,6 +68,22 @@
   };                                                                           \
   PRO5D_DEF_OVERLOAD_SPECIALIZATIONS(macro, __VA_ARGS__)
 
+#define PRO5D_DEF_AGGREGATE_MEM_OPERATION_ACCESSOR_BODY(...)                   \
+  using accessor<ProSelf, ProDs>::__VA_ARGS__...;
+#define PRO5D_DEF_AGGREGATE_FREE_OPERATION_ACCESSOR_BODY(...)
+#define PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(type, macro, ...)                \
+  template <class ProSelf, class... ProDs>                                     \
+  struct PRO5D_ENFORCE_EBO accessor {                                          \
+    accessor() = delete;                                                       \
+  };                                                                           \
+  template <class ProSelf, class... ProDs>                                     \
+    requires(sizeof...(ProDs) > 1u &&                                          \
+             (::std::is_constructible_v<accessor<ProSelf, ProDs>> && ...))     \
+  struct accessor<ProSelf, ProDs...> : accessor<ProSelf, ProDs>... {           \
+    PRO5D_DEF_AGGREGATE_##type##_OPERATION_ACCESSOR_BODY(__VA_ARGS__)          \
+  };                                                                           \
+  PRO5D_DEF_OVERLOAD_SPECIALIZATIONS(macro, __VA_ARGS__)
+
 #define PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(...)                           \
   PRO5D_DEBUG(accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; })
 

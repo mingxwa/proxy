@@ -47,6 +47,58 @@ struct TestFacadeBase : pro::facade_builder //
                         ::build {};
 
 PRO_DEF_FREE_AS_MEM_DISPATCH(FreeMemToString, std::to_string, ToString);
+PRO_DEF_FREE_DISPATCH(FreeToString, std::to_string, ToString);
+
+template <class T>
+concept SupportsFreeToString = requires(const T& self) { ToString(self); };
+
+template <class D, class O, class A>
+struct ConventionWithAccess {
+  static constexpr bool is_direct = false;
+  using dispatch_type = D;
+  using overload_type = O;
+  using access_type = A;
+};
+
+template <class... Cs>
+struct FacadeWithConventions {
+  using super_types = std::tuple<>;
+  using convention_types = std::tuple<Cs...>;
+  using reflection_types = std::tuple<>;
+  static constexpr std::size_t max_size = sizeof(void*);
+  static constexpr std::size_t max_align = alignof(void*);
+  static constexpr auto copyability = pro::constraint_level::none;
+  static constexpr auto relocatability = pro::constraint_level::trivial;
+  static constexpr auto destructibility = pro::constraint_level::trivial;
+};
+
+struct RunDispatch {
+  template <class T>
+  int operator()(T& self) const {
+    return self.Run();
+  }
+};
+
+struct Runner {
+  int operator()(int v) const { return v * 2; }
+  int Run() const { return 7; }
+};
+
+struct LegacyRunDispatch {
+  template <class T>
+  int operator()(T& self) const {
+    return self.Run();
+  }
+
+  template <class P, class D, class... Os>
+  struct accessor {
+    accessor() = delete;
+  };
+  template <class P, class D>
+  struct accessor<P, D, int()> {
+    int Run() { return invoke<D, int()>(static_cast<P&>(*this)); }
+  };
+};
 
 } // namespace proxy_dispatch_tests_detail
 
@@ -829,6 +881,61 @@ TEST(ProxyDispatchTests, TestFreeAsMemDispatch) {
   int v = 123;
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(p->ToString(), "123");
+}
+
+TEST(ProxyDispatchTests, TestUnrelatedAccessType) {
+  struct FreeToStringFacade
+      : pro::facade_builder                                         //
+        ::add_convention<detail::FreeToString, std::string() const> //
+        ::build {};
+  using TestFacade = detail::FacadeWithConventions<
+      detail::ConventionWithAccess<detail::FreeToString, std::string() const,
+                                   pro::explicit_conversion_access>>;
+  static_assert(detail::SupportsFreeToString<
+                pro::proxy_indirect_accessor<FreeToStringFacade>>);
+  static_assert(
+      !detail::SupportsFreeToString<pro::proxy_indirect_accessor<TestFacade>>);
+  int v = 123;
+  pro::proxy<TestFacade> p = &v;
+  ASSERT_EQ(static_cast<std::string>(*p), "123");
+}
+
+TEST(ProxyDispatchTests, TestLegacyAccessor) {
+  struct TestFacade : pro::facade_builder                                //
+                      ::add_convention<detail::LegacyRunDispatch, int()> //
+                      ::build {};
+  detail::Runner runner;
+  pro::proxy<TestFacade> p = &runner;
+  ASSERT_EQ(p->Run(), 7);
+}
+
+TEST(ProxyDispatchTests, TestSharedAccess) {
+  using TestFacade = detail::FacadeWithConventions<
+      detail::ConventionWithAccess<pro::operator_dispatch<"()">, int(int),
+                                   pro::operator_access<"()">>,
+      detail::ConventionWithAccess<detail::RunDispatch, int(),
+                                   pro::operator_access<"()">>>;
+  detail::Runner runner;
+  pro::proxy<TestFacade> p = &runner;
+  ASSERT_EQ((*p)(21), 42);
+  ASSERT_EQ((*p)(), 7);
+}
+
+TEST(ProxyDispatchTests, TestSharedAccess_Supers) {
+  using Base1 = detail::FacadeWithConventions<detail::ConventionWithAccess<
+      pro::operator_dispatch<"()">, int(int), pro::operator_access<"()">>>;
+  using Base2 = detail::FacadeWithConventions<detail::ConventionWithAccess<
+      detail::RunDispatch, int(), pro::operator_access<"()">>>;
+  struct TestFacade : pro::facade_builder //
+                      ::add_facade<Base1> //
+                      ::add_facade<Base2> //
+                      ::build {};
+  detail::Runner runner;
+  pro::proxy<TestFacade> p = &runner;
+  ASSERT_EQ((*p)(21), 42);
+  ASSERT_EQ((*p)(), 7);
+  pro::proxy<Base2> p2 = std::move(p);
+  ASSERT_EQ((*p2)(), 7);
 }
 
 TEST(ProxyDispatchTests, TestSuperConversion) {

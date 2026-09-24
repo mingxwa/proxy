@@ -18,12 +18,16 @@ The alias templates `add_convention`, `add_indirect_convention`, and `add_direct
   - `IC::is_direct` is `false`.
   - `typename IC::dispatch_type` is `D`.
   - `typename IC::overload_type` is `O`.
+  - `typename IC::access_type` is the default access type of `D`.
 - `add_direct_convention` appends an implementation-defined convention type `IC` to `Cs` for each type `O` in `Os`, where:
   - `IC::is_direct` is `true`.
   - `typename IC::dispatch_type` is `D`.
   - `typename IC::overload_type` is `O`.
+  - `typename IC::access_type` is the default access type of `D`.
 
-*Since 5.0.0*: each type in `Os` produces its own convention type, rather than one convention type carrying a tuple-like `overload_types`.
+The *default access type* of `D` is [`operator_access<Sign, Rhs>`](../operator_access/README.md) if `D` is [`operator_dispatch<Sign, Rhs>`](../operator_dispatch/README.md), [`explicit_conversion_access`](../explicit_conversion_access/README.md) if `D` is [`explicit_conversion_dispatch`](../explicit_conversion_dispatch/README.md), and [`implicit_conversion_access`](../implicit_conversion_access/README.md) if `D` is [`implicit_conversion_dispatch`](../implicit_conversion_dispatch/README.md). It is implementation-defined for the dispatch types that the library uses to implement its skills. If `D` is [`weak_dispatch<D2>`](../weak_dispatch/README.md) and the default access type of `D2` is given by these rules, it is the default access type of `D2`. For any other `D`, it is an implementation-defined type `A` where `typename A::template accessor<Self, `[`proxy_operation`](../proxy_operation.md)`<X, Os>...>` is `typename X::template accessor<Self, X, Os...>` for any dispatch type `X`.
+
+*Since 5.0.0*: each type in `Os` produces its own convention type, rather than one convention type carrying a tuple-like `overload_types`. The convention type carries an access type (see [*ProBasicConvention* requirements](../ProBasicConvention.md)). Previously, `proxy` took the accessibility of the convention from the member template `accessor` of `D`.
 
 ## Notes
 
