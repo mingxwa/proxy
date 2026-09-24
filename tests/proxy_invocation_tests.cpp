@@ -159,6 +159,13 @@ PRO_DEF_FREE_DISPATCH(FreeDump, Dump);
 PRO_DEF_FREE_DISPATCH(FreeInvoke, std::invoke, Invoke);
 PRO_DEF_FREE_AS_MEM_DISPATCH(MemInvoke, std::invoke, Invoke);
 
+struct TwiceDispatch {
+  template <class T>
+  int operator()(const T& self) const noexcept {
+    return self * 2;
+  }
+};
+
 } // namespace proxy_invocation_tests_detail
 
 namespace detail = proxy_invocation_tests_detail;
@@ -405,6 +412,27 @@ TEST(ProxyInvocationTests, TestMemberDispatchDefault) {
     }
     ASSERT_TRUE(exception_thrown);
   }
+}
+
+TEST(ProxyInvocationTests, TestWeakDispatchSharedAccess) {
+  struct TestFacade : pro::facade_builder                               //
+                      ::add_convention<detail::MemAt, std::string(int)> //
+                      ::add_convention<pro::weak_dispatch<detail::MemAt>,
+                                       std::string(const std::string&)> //
+                      ::build {};
+  std::vector<std::string> container{"hello", "world"};
+  pro::proxy<TestFacade> p = &container;
+  ASSERT_EQ(p->at(1), "world");
+  ASSERT_THROW(p->at(std::string{"hello"}), pro::not_implemented);
+}
+
+TEST(ProxyInvocationTests, TestConventionWithoutAccessType) {
+  struct TestFacade
+      : pro::facade_builder                                           //
+        ::add_convention<detail::TwiceDispatch, int() const noexcept> //
+        ::build {};
+  pro::proxy<TestFacade> p = pro::make_proxy<TestFacade>(21);
+  ASSERT_EQ((invoke<detail::TwiceDispatch, int() const noexcept>(*p)), 42);
 }
 
 TEST(ProxyInvocationTests, TestFreeDispatchDefault) {

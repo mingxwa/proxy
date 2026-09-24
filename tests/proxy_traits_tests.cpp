@@ -506,6 +506,26 @@ struct BadFacade_BadReflectionType {
 };
 static_assert(!pro::facade<BadFacade_BadReflectionType>);
 
+struct FacadeWithReflectionWithoutAccessType {
+  struct SmallPtrReflection {
+    static constexpr bool is_direct = true;
+    using reflector_type = ReflectionOfSmallPtr;
+  };
+  using super_types = std::tuple<>;
+  using convention_types = std::tuple<>;
+  using reflection_types = std::tuple<SmallPtrReflection>;
+  static constexpr std::size_t max_size = 2 * sizeof(void*);
+  static constexpr std::size_t max_align = alignof(void*);
+  static constexpr auto copyability = pro::constraint_level::none;
+  static constexpr auto relocatability = pro::constraint_level::nothrow;
+  static constexpr auto destructibility = pro::constraint_level::nothrow;
+};
+static_assert(pro::facade<FacadeWithReflectionWithoutAccessType>);
+static_assert(
+    pro::proxiable<MockTrivialPtr, FacadeWithReflectionWithoutAccessType>);
+static_assert(sizeof(pro::proxy<FacadeWithReflectionWithoutAccessType>) ==
+              3 * sizeof(void*));
+
 PRO_DEF_MEM_DISPATCH(MemFoo, Foo);
 PRO_DEF_MEM_DISPATCH(MemBar, Bar);
 struct BigFacade : pro::facade_builder                                //
@@ -516,6 +536,39 @@ struct BigFacade : pro::facade_builder                                //
                    ::build {};
 static_assert(sizeof(pro::proxy<BigFacade>) ==
               3 * sizeof(void*)); // Accessors should not add paddings
+
+static_assert(std::is_same_v<pro::operator_dispatch<"+">::access_type,
+                             pro::operator_access<"+">>);
+static_assert(std::is_same_v<pro::operator_dispatch<"+", true>::access_type,
+                             pro::operator_access<"+", true>>);
+static_assert(std::is_same_v<pro::implicit_conversion_dispatch::access_type,
+                             pro::implicit_conversion_access>);
+static_assert(std::is_same_v<pro::explicit_conversion_dispatch::access_type,
+                             pro::explicit_conversion_access>);
+static_assert(std::is_same_v<pro::weak_dispatch<MemFoo>::access_type,
+                             MemFoo::access_type>);
+
+struct DispatchWithoutAccessType {
+  template <class T>
+  void operator()(T&) const noexcept {}
+};
+struct FacadeWithPulledAccessTypes
+    : pro::facade_builder                                          //
+      ::add_convention<MemFoo, void()>                             //
+      ::add_convention<DispatchWithoutAccessType, void() noexcept> //
+      ::add_direct_reflection<ReflectionOfSmallPtr>                //
+      ::build {};
+static_assert(
+    std::is_same_v<
+        std::tuple_element_t<
+            0, FacadeWithPulledAccessTypes::convention_types>::access_type,
+        MemFoo::access_type>);
+static_assert(
+    std::is_void_v<std::tuple_element_t<
+        1, FacadeWithPulledAccessTypes::convention_types>::access_type>);
+static_assert(
+    std::is_void_v<std::tuple_element_t<
+        0, FacadeWithPulledAccessTypes::reflection_types>::access_type>);
 
 // A facade-aware convention declared on a super is substituted against the
 // deriving facade, so proxiable shall reflect the substituted overload rather

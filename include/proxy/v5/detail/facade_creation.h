@@ -40,24 +40,30 @@ struct basic_facade_builder {
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_indirect_convention = basic_facade_builder<
-      Ss, detail::composite_t<Cs, detail::conv_impl<false, D, Os>...>, Rs,
-      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss,
+      detail::composite_t<
+          Cs, detail::conv_impl<false, D, Os, detail::access_t<D>>...>,
+      Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_direct_convention = basic_facade_builder<
-      Ss, detail::composite_t<Cs, detail::conv_impl<true, D, Os>...>, Rs,
-      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss,
+      detail::composite_t<
+          Cs, detail::conv_impl<true, D, Os, detail::access_t<D>>...>,
+      Rs, MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class D, detail::extended_overload... Os>
     requires(sizeof...(Os) > 0u)
   using add_convention = add_indirect_convention<D, Os...>;
   template <class R>
   using add_indirect_reflection = basic_facade_builder<
-      Ss, Cs, detail::composite_t<Rs, detail::refl_impl<false, R>>, MaxSize,
-      MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss, Cs,
+      detail::composite_t<Rs, detail::refl_impl<false, R, detail::access_t<R>>>,
+      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
   using add_direct_reflection = basic_facade_builder<
-      Ss, Cs, detail::composite_t<Rs, detail::refl_impl<true, R>>, MaxSize,
-      MaxAlign, Copyability, Relocatability, Destructibility>;
+      Ss, Cs,
+      detail::composite_t<Rs, detail::refl_impl<true, R, detail::access_t<R>>>,
+      MaxSize, MaxAlign, Copyability, Relocatability, Destructibility>;
   template <class R>
   using add_reflection = add_indirect_reflection<R>;
   template <facade F, bool Unused = false>

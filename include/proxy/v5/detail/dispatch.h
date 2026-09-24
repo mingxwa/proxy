@@ -56,30 +56,32 @@ using wildcard = converter<noreturn_conversion>;
 } // namespace detail
 
 template <detail::sign Sign, bool Rhs = false>
+struct operator_access;
+template <detail::sign Sign, bool Rhs = false>
 struct operator_dispatch;
 
 #define PRO5D_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                        \
-  template <class P, class D, class R>                                         \
-  struct accessor<P, D, R() oq ne> {                                           \
+  template <class Self, class D, class R>                                      \
+  struct accessor<Self, proxy_operation<D, R() oq ne>> {                       \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
     R __VA_ARGS__() oq ne {                                                    \
-      return invoke<D, R() oq ne>(static_cast<P pq>(*this));                   \
+      return invoke<D, R() oq ne>(static_cast<Self pq>(*this));                \
     }                                                                          \
   }
 #define PRO5D_DEF_LHS_UNARY_OP_ACCESSOR(oq, pq, ne, ...)                       \
-  template <class P, class D, class R>                                         \
-  struct accessor<P, D, R() oq ne> {                                           \
+  template <class Self, class D, class R>                                      \
+  struct accessor<Self, proxy_operation<D, R() oq ne>> {                       \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
     decltype(auto) __VA_ARGS__() oq ne {                                       \
-      invoke<D, R() oq ne>(static_cast<P pq>(*this));                          \
-      return static_cast<P pq>(*this);                                         \
+      invoke<D, R() oq ne>(static_cast<Self pq>(*this));                       \
+      return static_cast<Self pq>(*this);                                      \
     }                                                                          \
   };                                                                           \
-  template <class P, class D, class R>                                         \
-  struct accessor<P, D, R(int) oq ne> {                                        \
+  template <class Self, class D, class R>                                      \
+  struct accessor<Self, proxy_operation<D, R(int) oq ne>> {                    \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
     R __VA_ARGS__(int) oq ne {                                                 \
-      return invoke<D, R(int) oq ne>(static_cast<P pq>(*this), 0);             \
+      return invoke<D, R(int) oq ne>(static_cast<Self pq>(*this), 0);          \
     }                                                                          \
   }
 #define PRO5D_DEF_LHS_BINARY_OP_ACCESSOR PRO5D_DEF_MEM_ACCESSOR
@@ -102,64 +104,73 @@ struct operator_dispatch;
 #define PRO5D_LHS_ALL_OP_DISPATCH_BODY_IMPL(...)                               \
   PRO5D_LHS_LEFT_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                            \
   PRO5D_LHS_BINARY_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)
-#define PRO5D_LHS_OP_DISPATCH_IMPL(type, ...)                                  \
+#define PRO5D_LHS_OP_IMPL(type, ...)                                           \
+  template <>                                                                  \
+  struct operator_access<#__VA_ARGS__, false> {                                \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
+        MEM, PRO5D_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)         \
+  };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
+    using access_type = operator_access<#__VA_ARGS__, false>;                  \
+                                                                               \
     PRO5D_LHS_##type##_OP_DISPATCH_BODY_IMPL(__VA_ARGS__)                      \
-        PRO5D_DEF_ACCESSOR_TEMPLATE(                                           \
-            MEM, PRO5D_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)     \
   };
 
 #define PRO5D_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                             \
-  template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg) oq ne> {                                        \
-    friend R operator __VA_ARGS__(Arg arg, P pq self) ne {                     \
-      return invoke<D, R(Arg) oq ne>(static_cast<P pq>(self),                  \
+  template <class Self, class D, class R, class Arg>                           \
+  struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
+    friend R operator __VA_ARGS__(Arg arg, Self pq self) ne {                  \
+      return invoke<D, R(Arg) oq ne>(static_cast<Self pq>(self),               \
                                      std::forward<Arg>(arg));                  \
     }                                                                          \
     PRO5D_DEBUG(                                                             \
       accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
                                                                              \
     private:                                                                 \
-      static inline R pro_symbol_guard(Arg arg, P pq self) {                 \
-        return std::forward<Arg>(arg) __VA_ARGS__ static_cast<P pq>(self);   \
+      static inline R pro_symbol_guard(Arg arg, Self pq self) {              \
+        return std::forward<Arg>(arg) __VA_ARGS__ static_cast<Self pq>(self);\
       }                                                                      \
     ) \
   }
-#define PRO5D_RHS_OP_DISPATCH_IMPL(...)                                        \
+#define PRO5D_RHS_OP_IMPL(...)                                                 \
+  template <>                                                                  \
+  struct operator_access<#__VA_ARGS__, true> {                                 \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_OP_ACCESSOR, __VA_ARGS__)  \
+  };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
+    using access_type = operator_access<#__VA_ARGS__, true>;                   \
+                                                                               \
     template <class T, class Arg>                                              \
     PRO5D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO5D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
-        PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_OP_ACCESSOR,           \
-                                    __VA_ARGS__)                               \
   };
 
-#define PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL(...)                            \
-  PRO5D_LHS_OP_DISPATCH_IMPL(ALL, __VA_ARGS__)                                 \
-  PRO5D_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
+#define PRO5D_EXTENDED_BINARY_OP_IMPL(...)                                     \
+  PRO5D_LHS_OP_IMPL(ALL, __VA_ARGS__)                                          \
+  PRO5D_RHS_OP_IMPL(__VA_ARGS__)
 
-#define PRO5D_BINARY_OP_DISPATCH_IMPL(...)                                     \
-  PRO5D_LHS_OP_DISPATCH_IMPL(BINARY, __VA_ARGS__)                              \
-  PRO5D_RHS_OP_DISPATCH_IMPL(__VA_ARGS__)
+#define PRO5D_BINARY_OP_IMPL(...)                                              \
+  PRO5D_LHS_OP_IMPL(BINARY, __VA_ARGS__)                                       \
+  PRO5D_RHS_OP_IMPL(__VA_ARGS__)
 
 #define PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                  \
-  template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg) oq ne> {                                        \
+  template <class Self, class D, class R, class Arg>                           \
+  struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
     decltype(auto) __VA_ARGS__(Arg arg) oq ne {                                \
-      invoke<D, R(Arg) oq ne>(static_cast<P pq>(*this),                        \
+      invoke<D, R(Arg) oq ne>(static_cast<Self pq>(*this),                     \
                               std::forward<Arg>(arg));                         \
-      return static_cast<P pq>(*this);                                         \
+      return static_cast<Self pq>(*this);                                      \
     }                                                                          \
   }
 #define PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                  \
-  template <class P, class D, class R, class Arg>                              \
-  struct accessor<P, D, R(Arg&) oq ne> {                                       \
-    friend Arg& operator __VA_ARGS__(Arg& arg, P pq self) ne {                 \
-      invoke<D, R(Arg&) oq ne>(static_cast<P pq>(self), arg);                  \
+  template <class Self, class D, class R, class Arg>                           \
+  struct accessor<Self, proxy_operation<D, R(Arg&) oq ne>> {                   \
+    friend Arg& operator __VA_ARGS__(Arg& arg, Self pq self) ne {              \
+      invoke<D, R(Arg&) oq ne>(static_cast<Self pq>(self), arg);               \
       return arg;                                                              \
     }                                                                          \
     PRO5D_DEBUG(                                                               \
@@ -167,74 +178,95 @@ struct operator_dispatch;
                                                                                \
         private : static inline Arg& pro_symbol_guard(                         \
             Arg& arg,                                                          \
-            P pq self) { return arg __VA_ARGS__ static_cast<P pq>(self); })    \
+            Self pq                                                            \
+                self) { return arg __VA_ARGS__ static_cast<Self pq>(self); })  \
   }
-#define PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(...)                                 \
+#define PRO5D_ASSIGNMENT_OP_IMPL(...)                                          \
+  template <>                                                                  \
+  struct operator_access<#__VA_ARGS__, false> {                                \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
+        MEM, PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)       \
+  };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
+    using access_type = operator_access<#__VA_ARGS__, false>;                  \
+                                                                               \
     template <class T, class Arg>                                              \
     PRO5D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO5D_DIRECT_FUNC_IMPL(std::forward<T>(self)                               \
                                __VA_ARGS__ std::forward<Arg>(arg))             \
-        PRO5D_DEF_ACCESSOR_TEMPLATE(                                           \
-            MEM, PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)   \
+  };                                                                           \
+  template <>                                                                  \
+  struct operator_access<#__VA_ARGS__, true> {                                 \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR,    \
+                                __VA_ARGS__)                                   \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
+    using access_type = operator_access<#__VA_ARGS__, true>;                   \
+                                                                               \
     template <class T, class Arg>                                              \
     PRO5D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO5D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
-        PRO5D_DEF_ACCESSOR_TEMPLATE(FREE,                                      \
-                                    PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR,      \
-                                    __VA_ARGS__)                               \
   };
 
-PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL(+)
-PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL(-)
-PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL(*)
-PRO5D_BINARY_OP_DISPATCH_IMPL(/)
-PRO5D_BINARY_OP_DISPATCH_IMPL(%)
-PRO5D_LHS_OP_DISPATCH_IMPL(UNARY, ++)
-PRO5D_LHS_OP_DISPATCH_IMPL(UNARY, --)
-PRO5D_BINARY_OP_DISPATCH_IMPL(==)
-PRO5D_BINARY_OP_DISPATCH_IMPL(!=)
-PRO5D_BINARY_OP_DISPATCH_IMPL(>)
-PRO5D_BINARY_OP_DISPATCH_IMPL(<)
-PRO5D_BINARY_OP_DISPATCH_IMPL(>=)
-PRO5D_BINARY_OP_DISPATCH_IMPL(<=)
-PRO5D_BINARY_OP_DISPATCH_IMPL(<=>)
-PRO5D_LHS_OP_DISPATCH_IMPL(LEFT, !)
-PRO5D_BINARY_OP_DISPATCH_IMPL(&&)
-PRO5D_BINARY_OP_DISPATCH_IMPL(||)
-PRO5D_LHS_OP_DISPATCH_IMPL(LEFT, ~)
-PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL(&)
-PRO5D_BINARY_OP_DISPATCH_IMPL(|)
-PRO5D_BINARY_OP_DISPATCH_IMPL(^)
-PRO5D_BINARY_OP_DISPATCH_IMPL(<<)
-PRO5D_BINARY_OP_DISPATCH_IMPL(>>)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(+=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(-=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(*=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(/=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(%=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(&=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(|=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(^=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(<<=)
-PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL(>>=)
-PRO5D_BINARY_OP_DISPATCH_IMPL(, )
-PRO5D_BINARY_OP_DISPATCH_IMPL(->*)
+PRO5D_EXTENDED_BINARY_OP_IMPL(+)
+PRO5D_EXTENDED_BINARY_OP_IMPL(-)
+PRO5D_EXTENDED_BINARY_OP_IMPL(*)
+PRO5D_BINARY_OP_IMPL(/)
+PRO5D_BINARY_OP_IMPL(%)
+PRO5D_LHS_OP_IMPL(UNARY, ++)
+PRO5D_LHS_OP_IMPL(UNARY, --)
+PRO5D_BINARY_OP_IMPL(==)
+PRO5D_BINARY_OP_IMPL(!=)
+PRO5D_BINARY_OP_IMPL(>)
+PRO5D_BINARY_OP_IMPL(<)
+PRO5D_BINARY_OP_IMPL(>=)
+PRO5D_BINARY_OP_IMPL(<=)
+PRO5D_BINARY_OP_IMPL(<=>)
+PRO5D_LHS_OP_IMPL(LEFT, !)
+PRO5D_BINARY_OP_IMPL(&&)
+PRO5D_BINARY_OP_IMPL(||)
+PRO5D_LHS_OP_IMPL(LEFT, ~)
+PRO5D_EXTENDED_BINARY_OP_IMPL(&)
+PRO5D_BINARY_OP_IMPL(|)
+PRO5D_BINARY_OP_IMPL(^)
+PRO5D_BINARY_OP_IMPL(<<)
+PRO5D_BINARY_OP_IMPL(>>)
+PRO5D_ASSIGNMENT_OP_IMPL(+=)
+PRO5D_ASSIGNMENT_OP_IMPL(-=)
+PRO5D_ASSIGNMENT_OP_IMPL(*=)
+PRO5D_ASSIGNMENT_OP_IMPL(/=)
+PRO5D_ASSIGNMENT_OP_IMPL(%=)
+PRO5D_ASSIGNMENT_OP_IMPL(&=)
+PRO5D_ASSIGNMENT_OP_IMPL(|=)
+PRO5D_ASSIGNMENT_OP_IMPL(^=)
+PRO5D_ASSIGNMENT_OP_IMPL(<<=)
+PRO5D_ASSIGNMENT_OP_IMPL(>>=)
+PRO5D_BINARY_OP_IMPL(, )
+PRO5D_BINARY_OP_IMPL(->*)
 
 template <>
+struct operator_access<"()", false> {
+  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator())
+};
+template <>
 struct operator_dispatch<"()", false> {
+  using access_type = operator_access<"()", false>;
+
   template <class T, class... Args>
   PRO5D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
   PRO5D_DIRECT_FUNC_IMPL(std::forward<T>(self)(std::forward<Args>(args)...))
-      PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator())
+};
+template <>
+struct operator_access<"[]", false> {
+  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator[])
 };
 template <>
 struct operator_dispatch<"[]", false> {
+  using access_type = operator_access<"[]", false>;
+
 #if __cpp_multidimensional_subscript >= 202110L
   template <class T, class... Args>
   PRO5D_STATIC_CALL(decltype(auto), T&& self, Args&&... args)
@@ -244,17 +276,16 @@ struct operator_dispatch<"[]", false> {
   PRO5D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)
   PRO5D_DIRECT_FUNC_IMPL(std::forward<T>(self)[std::forward<Arg>(arg)])
 #endif // __cpp_multidimensional_subscript >= 202110L
-      PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator[])
 };
 
-#undef PRO5D_ASSIGNMENT_OP_DISPATCH_IMPL
+#undef PRO5D_ASSIGNMENT_OP_IMPL
 #undef PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR
 #undef PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR
-#undef PRO5D_BINARY_OP_DISPATCH_IMPL
-#undef PRO5D_EXTENDED_BINARY_OP_DISPATCH_IMPL
-#undef PRO5D_RHS_OP_DISPATCH_IMPL
+#undef PRO5D_BINARY_OP_IMPL
+#undef PRO5D_EXTENDED_BINARY_OP_IMPL
+#undef PRO5D_RHS_OP_IMPL
 #undef PRO5D_DEF_RHS_OP_ACCESSOR
-#undef PRO5D_LHS_OP_DISPATCH_IMPL
+#undef PRO5D_LHS_OP_IMPL
 #undef PRO5D_LHS_ALL_OP_DISPATCH_BODY_IMPL
 #undef PRO5D_LHS_BINARY_OP_DISPATCH_BODY_IMPL
 #undef PRO5D_LHS_UNARY_OP_DISPATCH_BODY_IMPL
@@ -264,13 +295,20 @@ struct operator_dispatch<"[]", false> {
 #undef PRO5D_DEF_LHS_UNARY_OP_ACCESSOR
 #undef PRO5D_DEF_LHS_LEFT_OP_ACCESSOR
 
-struct implicit_conversion_dispatch : detail::cast_dispatch_base<false, false> {
+struct implicit_conversion_access : detail::cast_access_base<false, false> {};
+struct explicit_conversion_access : detail::cast_access_base<true, false> {};
+
+struct implicit_conversion_dispatch {
+  using access_type = implicit_conversion_access;
+
   template <class T>
   PRO5D_STATIC_CALL(T&&, T&& self) noexcept {
     return std::forward<T>(self);
   }
 };
-struct explicit_conversion_dispatch : detail::cast_dispatch_base<true, false> {
+struct explicit_conversion_dispatch {
+  using access_type = explicit_conversion_access;
+
   template <class T>
   PRO5D_STATIC_CALL(auto, T&& self) noexcept {
     return detail::converter{

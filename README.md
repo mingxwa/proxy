@@ -144,6 +144,8 @@ In addition to the operator expressions demonstrated in the previous examples, t
 - [class template `pro::operator_dispatch`](https://ngcpp.github.io/proxy/spec/operator_dispatch): Dispatch type for operator expressions.
 - [class `explicit_conversion_dispatch` (aka. `conversion_dispatch`)](https://ngcpp.github.io/proxy/spec/explicit_conversion_dispatch) and [class `implicit_conversion_dispatch`](https://ngcpp.github.io/proxy/spec/implicit_conversion_dispatch): Dispatch type for conversion expressions.
 
+Each of these dispatch types provides accessibility through its *access type*. [Class template `pro::operator_access`](https://ngcpp.github.io/proxy/spec/operator_access), [class `pro::explicit_conversion_access`](https://ngcpp.github.io/proxy/spec/explicit_conversion_access) and [class `pro::implicit_conversion_access`](https://ngcpp.github.io/proxy/spec/implicit_conversion_access) can also be the access type of a custom dispatch type, making operator and conversion expressions available for it.
+
 Note that some facilities are provided as macro, because C++ templates today do not support generating a function with an arbitrary name. Here is another example that makes member function call expressions polymorphic ([run](https://godbolt.org/z/E95nY7PYq)):
 
 ```cpp

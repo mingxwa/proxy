@@ -47,6 +47,38 @@ struct TestFacadeBase : pro::facade_builder //
                         ::build {};
 
 PRO_DEF_FREE_AS_MEM_DISPATCH(FreeMemToString, std::to_string, ToString);
+PRO_DEF_FREE_DISPATCH(FreeToString, std::to_string, ToString);
+
+struct FacadeWithConventionAccessType {
+  struct ToStringConvention {
+    static constexpr bool is_direct = false;
+    using dispatch_type = FreeToString;
+    using overload_type = std::string() const;
+    using access_type = FreeMemToString::access_type;
+  };
+  using super_types = std::tuple<>;
+  using convention_types = std::tuple<ToStringConvention>;
+  using reflection_types = std::tuple<>;
+  static constexpr std::size_t max_size = sizeof(void*);
+  static constexpr std::size_t max_align = alignof(void*);
+  static constexpr auto copyability = pro::constraint_level::none;
+  static constexpr auto relocatability = pro::constraint_level::trivial;
+  static constexpr auto destructibility = pro::constraint_level::trivial;
+};
+
+struct RunDispatch {
+  using access_type = pro::operator_access<"()">;
+
+  template <class T>
+  int operator()(T& self) const {
+    return self.Run();
+  }
+};
+
+struct Runner {
+  int operator()(int v) const { return v * 2; }
+  int Run() const { return 7; }
+};
 
 } // namespace proxy_dispatch_tests_detail
 
@@ -829,6 +861,43 @@ TEST(ProxyDispatchTests, TestFreeAsMemDispatch) {
   int v = 123;
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(p->ToString(), "123");
+}
+
+TEST(ProxyDispatchTests, TestConventionAccessType) {
+  int v = 123;
+  pro::proxy<detail::FacadeWithConventionAccessType> p = &v;
+  ASSERT_EQ(p->ToString(), "123");
+}
+
+TEST(ProxyDispatchTests, TestSharedAccess) {
+  struct TestFacade
+      : pro::facade_builder                                      //
+        ::add_convention<pro::operator_dispatch<"()">, int(int)> //
+        ::add_convention<detail::RunDispatch, int()>             //
+        ::build {};
+  detail::Runner runner;
+  pro::proxy<TestFacade> p = &runner;
+  ASSERT_EQ((*p)(21), 42);
+  ASSERT_EQ((*p)(), 7);
+}
+
+TEST(ProxyDispatchTests, TestSharedAccess_Supers) {
+  struct Base1 : pro::facade_builder                                      //
+                 ::add_convention<pro::operator_dispatch<"()">, int(int)> //
+                 ::build {};
+  struct Base2 : pro::facade_builder                          //
+                 ::add_convention<detail::RunDispatch, int()> //
+                 ::build {};
+  struct TestFacade : pro::facade_builder //
+                      ::add_facade<Base1> //
+                      ::add_facade<Base2> //
+                      ::build {};
+  detail::Runner runner;
+  pro::proxy<TestFacade> p = &runner;
+  ASSERT_EQ((*p)(21), 42);
+  ASSERT_EQ((*p)(), 7);
+  pro::proxy<Base2> p2 = std::move(p);
+  ASSERT_EQ((*p2)(), 7);
 }
 
 TEST(ProxyDispatchTests, TestSuperConversion) {

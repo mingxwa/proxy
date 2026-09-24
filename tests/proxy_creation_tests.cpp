@@ -19,6 +19,17 @@ enum LifetimeModelType {
 };
 
 struct LifetimeModelReflector {
+  struct access_type {
+    template <class Self, class... Ds>
+    struct accessor {
+      LifetimeModelType GetLifetimeType() const noexcept {
+        const LifetimeModelReflector& refl =
+            reflect<LifetimeModelReflector>(static_cast<const Self&>(*this));
+        return refl.Type;
+      }
+    };
+  };
+
   LifetimeModelReflector() = default;
   template <class T>
   constexpr explicit LifetimeModelReflector(
@@ -51,15 +62,6 @@ struct LifetimeModelReflector {
   template <class T>
   constexpr explicit LifetimeModelReflector(std::in_place_type_t<T>) noexcept
       : Type(LifetimeModelType::kNone) {}
-
-  template <class Self, class R>
-  struct accessor {
-    LifetimeModelType GetLifetimeType() const noexcept {
-      const LifetimeModelReflector& refl =
-          reflect<R>(static_cast<const Self&>(*this));
-      return refl.Type;
-    }
-  };
 
   LifetimeModelType Type;
 };
@@ -978,6 +980,28 @@ TEST(ProxyCreationTests, TestMakeProxyShared_WeakOfSuperWithoutSkill) {
   }
   p1.reset();
   ASSERT_FALSE(p2.lock().has_value());
+}
+
+TEST(ProxyCreationTests, TestMakeProxyShared_ViewAndWeak) {
+  struct ViewAndWeak
+      : pro::facade_builder                                        //
+        ::support_copy<pro::constraint_level::nothrow>             //
+        ::add_convention<utils::spec::FreeToString, std::string()> //
+        ::add_skill<pro::skills::as_view>                          //
+        ::add_skill<pro::skills::as_weak>                          //
+        ::build {};
+  static_assert(sizeof(pro::proxy<ViewAndWeak>) == 3 * sizeof(void*));
+  auto p1 = pro::make_proxy_shared<ViewAndWeak>(123);
+  pro::proxy_view<ViewAndWeak> p2 = p1;
+  ASSERT_EQ(ToString(*p2), "123");
+  pro::weak_proxy<ViewAndWeak> p3 = p1;
+  {
+    auto p4 = p3.lock();
+    ASSERT_TRUE(p4.has_value());
+    ASSERT_EQ(ToString(*p4), "123");
+  }
+  p1.reset();
+  ASSERT_FALSE(p3.lock().has_value());
 }
 
 TEST(ProxyCreationTests, TestMakeProxyShared_SharedCompact_FromValue) {

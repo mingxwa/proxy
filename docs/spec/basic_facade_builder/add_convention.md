@@ -18,12 +18,14 @@ The alias templates `add_convention`, `add_indirect_convention`, and `add_direct
   - `IC::is_direct` is `false`.
   - `typename IC::dispatch_type` is `D`.
   - `typename IC::overload_type` is `O`.
+  - `typename IC::access_type` is `typename D::access_type` if it is a valid type, or `void` otherwise.
 - `add_direct_convention` appends an implementation-defined convention type `IC` to `Cs` for each type `O` in `Os`, where:
   - `IC::is_direct` is `true`.
   - `typename IC::dispatch_type` is `D`.
   - `typename IC::overload_type` is `O`.
+  - `typename IC::access_type` is `typename D::access_type` if it is a valid type, or `void` otherwise.
 
-*Since 5.0.0*: each type in `Os` produces its own convention type, rather than one convention type carrying a tuple-like `overload_types`.
+*Since 5.0.0*: each type in `Os` produces its own convention type, rather than one convention type carrying a tuple-like `overload_types`. The convention type carries the access type of `D`, which provides the accessibility previously provided by `D` itself.
 
 ## Notes
 

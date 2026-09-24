@@ -36,24 +36,29 @@ This function is useful when only metadata deduced from a type is needed. While 
 
 #include <proxy/proxy.h>
 
-class CopyabilityReflector {
-public:
+struct CopyabilityAccess {
+  template <class Self, class... Ds>
+  struct accessor {
+    accessor() = delete;
+  };
+  template <class Self, class R>
+  struct accessor<Self, pro::proxy_reflection<R>> {
+    bool IsCopyable() const noexcept {
+      const R& refl = pro::proxy_reflect<R>(static_cast<const Self&>(*this));
+      return refl.Copyable;
+    }
+  };
+};
+
+struct CopyabilityReflector {
+  using access_type = CopyabilityAccess;
+
   CopyabilityReflector() = default;
   template <class T>
   constexpr explicit CopyabilityReflector(std::in_place_type_t<T>) noexcept
-      : copyable_(std::is_copy_constructible_v<T>) {}
+      : Copyable(std::is_copy_constructible_v<T>) {}
 
-  template <class P, class R>
-  struct accessor {
-    bool IsCopyable() const noexcept {
-      const CopyabilityReflector& self =
-          pro::proxy_reflect<R>(static_cast<const P&>(*this));
-      return self.copyable_;
-    }
-  };
-
-private:
-  bool copyable_;
+  bool Copyable;
 };
 
 struct CopyabilityAware : pro::facade_builder                           //

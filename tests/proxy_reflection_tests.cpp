@@ -6,12 +6,29 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <proxy/proxy.h>
+#include <string>
+#include <type_traits>
 #include <typeinfo>
 
 namespace proxy_reflection_tests_detail {
 
+struct TraitsAccess {
+  template <class Self, class... Ds>
+  struct accessor {
+    accessor() = delete;
+  };
+  template <class Self, class R>
+  struct accessor<Self, pro::proxy_reflection<R>> {
+    const R& ReflectTraits() const noexcept {
+      return reflect<R>(static_cast<const Self&>(*this));
+    }
+  };
+};
+
 struct TraitsReflector {
 public:
+  using access_type = TraitsAccess;
+
   TraitsReflector() = default;
   template <class T>
   constexpr explicit TraitsReflector(std::in_place_type_t<T>) noexcept
@@ -21,13 +38,6 @@ public:
         is_nothrow_destructible_(std::is_nothrow_destructible_v<T>),
         is_trivial_(std::is_trivially_default_constructible_v<T> &&
                     std::is_trivially_copyable_v<T>) {}
-
-  template <class Self, class R>
-  struct accessor {
-    const TraitsReflector& ReflectTraits() const noexcept {
-      return reflect<R>(static_cast<const Self&>(*this));
-    }
-  };
 
   bool is_default_constructible_;
   bool is_copy_constructible_;
@@ -44,6 +54,49 @@ struct TestRttiFacade : pro::facade_builder                           //
 struct TestTraitsFacade : pro::facade_builder                      //
                           ::add_direct_reflection<TraitsReflector> //
                           ::build {};
+
+struct DescriptionAccess {
+  template <class Self, class... Ds>
+  struct PRO5D_ENFORCE_EBO accessor : accessor<Self, Ds>... {};
+  template <class Self, class D>
+  struct accessor<Self, pro::proxy_operation<D, std::string() const>> {
+    std::string Describe() const {
+      return invoke<D, std::string() const>(static_cast<const Self&>(*this));
+    }
+  };
+  template <class Self, class R>
+  struct accessor<Self, pro::proxy_reflection<R>> {
+    const char* GetTypeName() const noexcept {
+      return reflect<R>(static_cast<const Self&>(*this)).info->name();
+    }
+  };
+};
+
+struct DescribeDispatch {
+  using access_type = DescriptionAccess;
+
+  template <class T>
+  std::string operator()(const T& self) const {
+    return std::to_string(self);
+  }
+};
+
+struct TypeInfoReflector {
+  using access_type = DescriptionAccess;
+
+  TypeInfoReflector() = default;
+  template <class T>
+  constexpr explicit TypeInfoReflector(std::in_place_type_t<T>) noexcept
+      : info(&typeid(T)) {}
+
+  const std::type_info* info;
+};
+
+struct TestDescriptionFacade
+    : pro::facade_builder                                     //
+      ::add_convention<DescribeDispatch, std::string() const> //
+      ::add_reflection<TypeInfoReflector>                     //
+      ::build {};
 
 } // namespace proxy_reflection_tests_detail
 
@@ -79,4 +132,28 @@ TEST(ProxyReflectionTests, TestTraits_FancyPtr) {
   ASSERT_EQ(p.ReflectTraits().is_nothrow_move_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_nothrow_destructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_trivial_, false);
+}
+
+TEST(ProxyReflectionTests, TestSharedAccess) {
+  using Self = pro::proxy_indirect_accessor<detail::TestDescriptionFacade>;
+  static_assert(
+      std::is_base_of_v<detail::DescriptionAccess::accessor<
+                            Self,
+                            pro::proxy_operation<detail::DescribeDispatch,
+                                                 std::string() const>,
+                            pro::proxy_reflection<detail::TypeInfoReflector>>,
+                        Self>);
+  static_assert(sizeof(pro::proxy<detail::TestDescriptionFacade>) ==
+                3 * sizeof(void*));
+  static_assert(sizeof(pro::proxy_view<detail::TestDescriptionFacade>) ==
+                2 * sizeof(void*));
+  pro::proxy<detail::TestDescriptionFacade> p =
+      pro::make_proxy<detail::TestDescriptionFacade>(123);
+  ASSERT_EQ(p->Describe(), "123");
+  ASSERT_STREQ(p->GetTypeName(), typeid(int).name());
+  double value = 1.5;
+  pro::proxy_view<detail::TestDescriptionFacade> pv =
+      pro::make_proxy_view<detail::TestDescriptionFacade>(value);
+  ASSERT_EQ(pv->Describe(), std::to_string(value));
+  ASSERT_STREQ(pv->GetTypeName(), typeid(double).name());
 }

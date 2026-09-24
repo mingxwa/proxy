@@ -9,7 +9,9 @@
 class implicit_conversion_dispatch;
 ```
 
-Class `implicit_conversion_dispatch` models a [dispatch](../ProDispatch.md) type for implicit type conversion expressions. It meets the [*ProAccessible* requirements](../ProAccessible.md) of applicable types.
+Class `implicit_conversion_dispatch` models a [dispatch](../ProDispatch.md) type for implicit type conversion expressions. The accessibility of `implicit_conversion_dispatch` is provided by its `access_type`, [`implicit_conversion_access`](../implicit_conversion_access/README.md).
+
+*Since 5.0.0*: the accessibility is provided by `implicit_conversion_access`. Previously, `implicit_conversion_dispatch` met the [*ProAccessible* requirements](../ProAccessible.md) of applicable types itself.
 
 ## Member Functions
 
@@ -20,9 +22,9 @@ Class `implicit_conversion_dispatch` models a [dispatch](../ProDispatch.md) type
 
 ## Member Types
 
-| Name                      | Description                       |
-| ------------------------- | --------------------------------- |
-| [`accessor`](accessor.md) | provides accessibility to `proxy` |
+| Name          | Description                                                             |
+| ------------- | ----------------------------------------------------------------------- |
+| `access_type` | [`implicit_conversion_access`](../implicit_conversion_access/README.md) |
 
 ## Example
 
@@ -65,5 +67,6 @@ int main() {
 
 ## See Also
 
+- [class `implicit_conversion_access`](../implicit_conversion_access/README.md)
 - [class `explicit_conversion_dispatch`](../explicit_conversion_dispatch/README.md)
 - [class template `operator_dispatch`](../operator_dispatch/README.md)

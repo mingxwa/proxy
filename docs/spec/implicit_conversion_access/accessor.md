@@ -1,28 +1,28 @@
-# Class template `implicit_conversion_dispatch::accessor`
+# Class template `implicit_conversion_access::accessor`
 
 ```cpp
 // (1)
-template <class P, class D, class... Os>
+template <class Self, class... Ds>
 struct accessor {
   accessor() = delete;
 };
 
 // (2)
-template <class P, class D, class... Os>
-    requires(sizeof...(Os) > 1u && (std::is_constructible_v<accessor<P, D, Os>> && ...))
-struct accessor<P, D, Os...> : accessor<P, D, Os>... {
-  using accessor<P, D, Os>::operator return-type-of<Os>...;
+template <class Self, class... Ds>
+    requires(sizeof...(Ds) > 1u && (std::is_constructible_v<accessor<Self, Ds>> && ...))
+struct accessor<Self, Ds...> : accessor<Self, Ds>... {
+  using accessor<Self, Ds>::operator return-type-of<Ds>...;
 };
 
 // (3)
-template <class P, class D, class T>
-struct accessor<P, D, T() cv ref noex> {
+template <class Self, class D, class T>
+struct accessor<Self, proxy_operation<D, T() cv ref noex>> {
   operator T() cv ref noex;
 };
 ```
 
 `(1)` The default implementation of `accessor` is not constructible.
 
-`(2)` When `sizeof...(Os)` is greater than `1`, and `accessor<P, D, Os>...` are default-constructible, inherits all `accessor<P, D, Os>...` types and `using` their `operator return-type-of<Os>`. `return-type-of<O>` denotes the *return type* of the overload type `O`.
+`(2)` When `sizeof...(Ds)` is greater than `1`, and `accessor<Self, Ds>...` are default-constructible, inherits all `accessor<Self, Ds>...` types and `using` their `operator return-type-of<Ds>`. For a *descriptor* (see [*ProAccessible* requirements](../ProAccessible.md)) [`proxy_operation`](../proxy_operation.md)`<D, O>`, `return-type-of<proxy_operation<D, O>>` denotes the *return type* of the overload type `O`.
 
-`(3)` When `sizeof...(Os)` is `1` and the only type `O` in `Os` is `T() cv ref noex`, provides an implicit  `operator T()` with the same *cv ref noex* specifiers. `accessor::operator T()` is equivalent to `return invoke<T() cv ref noex>(static_cast<P cv <ref ? ref : &>>(*this))`.
+`(3)` When `sizeof...(Ds)` is `1` and the only type in `Ds` is `proxy_operation<D, T() cv ref noex>`, provides an implicit  `operator T()` with the same *cv ref noex* specifiers. `accessor::operator T()` is equivalent to `return invoke<T() cv ref noex>(static_cast<Self cv <ref ? ref : &>>(*this))`.

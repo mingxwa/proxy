@@ -35,20 +35,28 @@ This function is useful when only metadata deduced from a type is needed. While 
 
 #include <proxy/proxy.h>
 
+struct LayoutAccess {
+  template <class Self, class... Ds>
+  struct accessor {
+    accessor() = delete;
+  };
+  template <class Self, class R>
+  struct accessor<Self, pro::proxy_reflection<R>> {
+    friend std::size_t SizeOf(const Self& self) noexcept {
+      const R& refl = reflect<R>(self);
+      return refl.Size;
+    }
+  };
+};
+
 class LayoutReflector {
 public:
+  using access_type = LayoutAccess;
+
   LayoutReflector() = default;
   template <class T>
   constexpr explicit LayoutReflector(std::in_place_type_t<T>) noexcept
       : Size(sizeof(T)), Align(alignof(T)) {}
-
-  template <class P, class R>
-  struct accessor {
-    friend std::size_t SizeOf(const P& self) noexcept {
-      const LayoutReflector& refl = reflect<R>(self);
-      return refl.Size;
-    }
-  };
 
   std::size_t Size, Align;
 };

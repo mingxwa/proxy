@@ -17,15 +17,15 @@ The alias templates `add_reflection`, `add_indirect_reflection` and `add_direct_
 - `add_indirect_reflection` appends an implementation-defined reflection type `Refl` to `Rs`, where:
   - `Refl::is_direct` is `false`.
   - `typename Refl::reflector_type` is `R`.
-  - `typename Refl::template accessor<F>` is `typename R::template accessor<proxy_indirect_accessor<F>, R>` if applicable.
+  - `typename Refl::access_type` is `typename R::access_type` if it is a valid type, or `void` otherwise.
 - `add_direct_reflection` appends an implementation-defined reflection type `Refl` to `Rs`, where:
   - `Refl::is_direct` is `true`.
   - `typename Refl::reflector_type` is `R`.
-  - `typename Refl::template accessor<F>` is `typename R::template accessor<proxy<F>, R>` if applicable.
+  - `typename Refl::access_type` is `typename R::access_type` if it is a valid type, or `void` otherwise.
 
 Reflection types are deduplicated when a [`proxy`](../proxy/README.md) of the built facade is instantiated, not when they are added.
 
-*Since 5.0.0*: reflection types are appended rather than merged into `Rs`.
+*Since 5.0.0*: reflection types are appended rather than merged into `Rs`. The reflection type carries the access type of `R`, which provides the accessibility previously provided by `R` itself.
 
 ## Notes
 
@@ -39,25 +39,33 @@ Adding duplicate reflection types is well-defined, whether done directly via `ad
 
 #include <proxy/proxy.h>
 
+struct LayoutAccess {
+  template <class Self, class... Ds>
+  struct accessor {
+    accessor() = delete;
+  };
+  template <class Self, class R>
+  struct accessor<Self, pro::proxy_reflection<R>> {
+    friend std::size_t SizeOf(const Self& self) noexcept {
+      const R& refl = reflect<R>(self);
+      return refl.Size;
+    }
+
+    friend std::size_t AlignOf(const Self& self) noexcept {
+      const R& refl = reflect<R>(self);
+      return refl.Align;
+    }
+  };
+};
+
 struct LayoutReflector {
 public:
+  using access_type = LayoutAccess;
+
   LayoutReflector() = default;
   template <class T>
   constexpr explicit LayoutReflector(std::in_place_type_t<T>) noexcept
       : Size(sizeof(T)), Align(alignof(T)) {}
-
-  template <class P, class R>
-  struct accessor {
-    friend std::size_t SizeOf(const P& self) noexcept {
-      const LayoutReflector& refl = reflect<R>(self);
-      return refl.Size;
-    }
-
-    friend std::size_t AlignOf(const P& self) noexcept {
-      const LayoutReflector& refl = reflect<R>(self);
-      return refl.Align;
-    }
-  };
 
   std::size_t Size, Align;
 };
@@ -92,3 +100,5 @@ int main() {
 ## See Also
 
 - [named requirements: *ProReflection*](../ProReflection.md)
+- [named requirements: *ProAccessible*](../ProAccessible.md)
+- [class template `proxy_reflection`](../proxy_reflection.md)
