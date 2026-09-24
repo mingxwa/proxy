@@ -12,6 +12,10 @@ struct weak_dispatch : D;
 
 Class template `weak_dispatch<D>` extends an existing [dispatch](../ProDispatch.md) type `D` and offers a default implementation of `operator()` that throws [`not_implemented`](../not_implemented.md) when a convention is not implemented in `D`.
 
+The default access type of `weak_dispatch<D>` is that of `D` (see [`basic_facade_builder::add_convention`](../basic_facade_builder/add_convention.md)). Therefore, the conventions of `weak_dispatch<D>` and of `D` added via `basic_facade_builder` share an access type.
+
+*Since 5.0.0*: the conventions of `weak_dispatch<D>` and of `D` share an access type. Previously, each dispatch type had its own accessor.
+
 ## Member Functions
 
 | Name                                           | Description                         |
