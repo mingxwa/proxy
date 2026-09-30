@@ -5,6 +5,11 @@
 #ifndef MSFT_PROXY_V5_PROXY_MACROS_H_
 #define MSFT_PROXY_V5_PROXY_MACROS_H_
 
+#include <cstdlib>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
 #if __cpp_static_call_operator >= 202207L
 #define PRO5D_STATIC_CALL(ret, ...) static ret operator()(__VA_ARGS__)
 #else
