@@ -68,7 +68,7 @@ struct operation_traits<proxy_operation<D, O>> : overload_traits<O> {};
   }
 template <bool Expl>
 struct cast_access_base {
-  PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(
+  PRO5D_DEF_ACCESSOR_TEMPLATE(
       MEM, PRO5D_DEF_CAST_ACCESSOR,
       operator typename operation_traits<ProDs>::return_type)
 };
@@ -105,17 +105,8 @@ struct operator_dispatch;
       return invoke<D, R(int) oq ne>(static_cast<Self pq>(*this), 0);          \
     }                                                                          \
   }
-#define PRO5D_DEF_MEM_OP_ACCESSOR(oq, pq, ne, ...)                             \
-  template <class Self, class D, class R, class... Args>                       \
-  struct accessor<Self, proxy_operation<D, R(Args...) oq ne>> {                \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    R __VA_ARGS__(Args... args) oq ne {                                        \
-      return invoke<D, R(Args...) oq ne>(static_cast<Self pq>(*this),          \
-                                         std::forward<Args>(args)...);         \
-    }                                                                          \
-  }
-#define PRO5D_DEF_LHS_BINARY_OP_ACCESSOR PRO5D_DEF_MEM_OP_ACCESSOR
-#define PRO5D_DEF_LHS_ALL_OP_ACCESSOR PRO5D_DEF_MEM_OP_ACCESSOR
+#define PRO5D_DEF_LHS_BINARY_OP_ACCESSOR PRO5D_DEF_MEM_ACCESSOR
+#define PRO5D_DEF_LHS_ALL_OP_ACCESSOR PRO5D_DEF_MEM_ACCESSOR
 #define PRO5D_LHS_LEFT_OP_DISPATCH_BODY_IMPL(...)                              \
   template <class T>                                                           \
   PRO5D_STATIC_CALL(decltype(auto), T&& self)                                  \
@@ -137,7 +128,7 @@ struct operator_dispatch;
 #define PRO5D_LHS_OP_IMPL(type, ...)                                           \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, false> {                                \
-    PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(                                     \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
         MEM, PRO5D_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)         \
   };                                                                           \
   template <>                                                                  \
@@ -164,8 +155,7 @@ struct operator_dispatch;
 #define PRO5D_RHS_OP_IMPL(...)                                                 \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, true> {                                 \
-    PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_OP_ACCESSOR,     \
-                                          __VA_ARGS__)                         \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_OP_ACCESSOR, __VA_ARGS__)  \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
@@ -211,7 +201,7 @@ struct operator_dispatch;
 #define PRO5D_ASSIGNMENT_OP_IMPL(...)                                          \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, false> {                                \
-    PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(                                     \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
         MEM, PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)       \
   };                                                                           \
   template <>                                                                  \
@@ -223,8 +213,8 @@ struct operator_dispatch;
   };                                                                           \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, true> {                                 \
-    PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(                                     \
-        FREE, PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR, __VA_ARGS__)               \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR,    \
+                                __VA_ARGS__)                                   \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
@@ -272,8 +262,7 @@ PRO5D_BINARY_OP_IMPL(->*)
 
 template <>
 struct operator_access<"()", false> {
-  PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(MEM,
-                                        PRO5D_DEF_MEM_OP_ACCESSOR, operator())
+  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator())
 };
 template <>
 struct operator_dispatch<"()", false> {
@@ -283,8 +272,7 @@ struct operator_dispatch<"()", false> {
 };
 template <>
 struct operator_access<"[]", false> {
-  PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(MEM,
-                                        PRO5D_DEF_MEM_OP_ACCESSOR, operator[])
+  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator[])
 };
 template <>
 struct operator_dispatch<"[]", false> {
@@ -315,7 +303,6 @@ struct operator_dispatch<"[]", false> {
 #undef PRO5D_DEF_LHS_BINARY_OP_ACCESSOR
 #undef PRO5D_DEF_LHS_UNARY_OP_ACCESSOR
 #undef PRO5D_DEF_LHS_LEFT_OP_ACCESSOR
-#undef PRO5D_DEF_MEM_OP_ACCESSOR
 
 struct implicit_conversion_access : detail::cast_access_base<false> {};
 struct explicit_conversion_access : detail::cast_access_base<true> {};

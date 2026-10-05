@@ -62,7 +62,7 @@ concept enabled_for = std::is_base_of_v<enabled_t<TT, Ctx...>, T>;
     }                                                                          \
   }
 struct dependent_cast_access {
-  PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_DEPENDENT_CAST_ACCESSOR)
+  PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_DEPENDENT_CAST_ACCESSOR)
 };
 #undef PRO5D_DEF_DEPENDENT_CAST_ACCESSOR
 
@@ -266,7 +266,7 @@ private:
       : proxy_cast_accessor_impl<Self pq, D, void(proxy_cast_context) oq ne> { \
   }
 struct proxy_cast_access {
-  PRO5D_DEF_OPERATION_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_PROXY_CAST_ACCESSOR)
+  PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_PROXY_CAST_ACCESSOR)
 };
 #undef PRO5D_DEF_PROXY_CAST_ACCESSOR
 
