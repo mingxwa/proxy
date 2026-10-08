@@ -300,6 +300,49 @@ concept invocable_dispatch =
     (Q != qualifier_type::rv || (NE && std::is_nothrow_destructible_v<P>) ||
      (!NE && std::is_destructible_v<P>));
 
+template <class P, bool IsDirect, qualifier_type Q>
+operand_t<P, IsDirect, Q>
+    get_operand(std::remove_reference_t<add_qualifier_t<P, Q>>* self) {
+  if constexpr (IsDirect) {
+    return static_cast<add_qualifier_t<P, Q>>(*self);
+  } else {
+    add_qualifier_t<P, Q> ptr = static_cast<add_qualifier_t<P, Q>>(*self);
+    if constexpr (std::is_constructible_v<bool, P&>) {
+      assert(ptr);
+    }
+    return *std::forward<add_qualifier_t<P, Q>>(ptr);
+  }
+}
+
+// When a dispatch always throws, MSVC may incorrectly warn about unreachable
+// code (C4702). Disable the warning for invoke_dispatch().
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif // defined(_MSC_VER) && !defined(__clang__)
+template <class D, class R, class... Args>
+R invoke_dispatch(Args&&... args) {
+  if constexpr (std::is_void_v<R>) {
+    D()(std::forward<Args>(args)...);
+  } else {
+    return D()(std::forward<Args>(args)...);
+  }
+}
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif // defined(_MSC_VER) && !defined(__clang__)
+
+template <class P>
+struct destroying_guard {
+  explicit destroying_guard(P* p) noexcept : p_(p) {}
+  ~destroying_guard() noexcept(std::is_nothrow_destructible_v<P>) { p_->~P(); }
+
+private:
+  P* p_;
+};
+
+struct relocate_dispatch;
+
 template <class O>
 struct overload_traits : inapplicable_traits {};
 template <qualifier_type Q, bool NE, class R, class... Args>
@@ -349,49 +392,6 @@ struct overload_traits<R(Args...) const && noexcept>
     : overload_traits_impl<qualifier_type::const_rv, true, R, Args...> {};
 template <class O>
 using ret_t = overload_traits<O>::return_type;
-
-template <class P, bool IsDirect, qualifier_type Q>
-operand_t<P, IsDirect, Q>
-    get_operand(std::remove_reference_t<add_qualifier_t<P, Q>>* self) {
-  if constexpr (IsDirect) {
-    return static_cast<add_qualifier_t<P, Q>>(*self);
-  } else {
-    add_qualifier_t<P, Q> ptr = static_cast<add_qualifier_t<P, Q>>(*self);
-    if constexpr (std::is_constructible_v<bool, P&>) {
-      assert(ptr);
-    }
-    return *std::forward<add_qualifier_t<P, Q>>(ptr);
-  }
-}
-
-// When a dispatch always throws, MSVC may incorrectly warn about unreachable
-// code (C4702). Disable the warning for invoke_dispatch().
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4702)
-#endif // defined(_MSC_VER) && !defined(__clang__)
-template <class D, class R, class... Args>
-R invoke_dispatch(Args&&... args) {
-  if constexpr (std::is_void_v<R>) {
-    D()(std::forward<Args>(args)...);
-  } else {
-    return D()(std::forward<Args>(args)...);
-  }
-}
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif // defined(_MSC_VER) && !defined(__clang__)
-
-template <class P>
-struct destroying_guard {
-  explicit destroying_guard(P* p) noexcept : p_(p) {}
-  ~destroying_guard() noexcept(std::is_nothrow_destructible_v<P>) { p_->~P(); }
-
-private:
-  P* p_;
-};
-
-struct relocate_dispatch;
 
 template <bool IsDirect, class D, class O>
 struct erased_context {
