@@ -159,6 +159,29 @@ PRO_DEF_FREE_DISPATCH(FreeDump, Dump);
 PRO_DEF_FREE_DISPATCH(FreeInvoke, std::invoke, Invoke);
 PRO_DEF_FREE_AS_MEM_DISPATCH(MemInvoke, std::invoke, Invoke);
 
+struct TwiceDispatch {
+  template <class T>
+  int operator()(const T& self) const noexcept {
+    return self * 2;
+  }
+};
+
+struct FacadeWithConventionWithoutAccessType {
+  struct TwiceConvention {
+    static constexpr bool is_direct = false;
+    using dispatch_type = TwiceDispatch;
+    using overload_type = int() const noexcept;
+  };
+  using super_types = std::tuple<>;
+  using convention_types = std::tuple<TwiceConvention>;
+  using reflection_types = std::tuple<>;
+  static constexpr std::size_t max_size = 2 * sizeof(void*);
+  static constexpr std::size_t max_align = alignof(void*);
+  static constexpr auto copyability = pro::constraint_level::none;
+  static constexpr auto relocatability = pro::constraint_level::trivial;
+  static constexpr auto destructibility = pro::constraint_level::nothrow;
+};
+
 } // namespace proxy_invocation_tests_detail
 
 namespace detail = proxy_invocation_tests_detail;
@@ -405,6 +428,37 @@ TEST(ProxyInvocationTests, TestMemberDispatchDefault) {
     }
     ASSERT_TRUE(exception_thrown);
   }
+}
+
+TEST(ProxyInvocationTests, TestWeakDispatchSharedAccess) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_convention<pro::operator_dispatch<"[]">,
+                         std::string(std::size_t)> //
+        ::add_convention<pro::weak_dispatch<pro::operator_dispatch<"[]">>,
+                         std::string(const std::string&)> //
+        ::build {};
+  std::vector<std::string> container{"hello", "world"};
+  pro::proxy<TestFacade> p = &container;
+  ASSERT_EQ((*p)[1], "world");
+  ASSERT_THROW((*p)[std::string{"hello"}], pro::not_implemented);
+}
+
+TEST(ProxyInvocationTests, TestWeakDispatchLegacyAccess) {
+  struct TestFacade : pro::facade_builder                                     //
+                      ::add_convention<detail::FreeDump, std::string() const> //
+                      ::add_convention<pro::weak_dispatch<detail::FreeDump>,
+                                       std::string(int) const> //
+                      ::build {};
+  pro::proxy<TestFacade> p = pro::make_proxy<TestFacade>(123);
+  ASSERT_EQ(Dump(*std::as_const(p)), "is_const=true, is_ref=true, value=123");
+  ASSERT_THROW(Dump(*std::as_const(p), 0), pro::not_implemented);
+}
+
+TEST(ProxyInvocationTests, TestConventionWithoutAccessType) {
+  pro::proxy<detail::FacadeWithConventionWithoutAccessType> p =
+      pro::make_proxy<detail::FacadeWithConventionWithoutAccessType>(21);
+  ASSERT_EQ((invoke<detail::TwiceDispatch, int() const noexcept>(*p)), 42);
 }
 
 TEST(ProxyInvocationTests, TestFreeDispatchDefault) {
