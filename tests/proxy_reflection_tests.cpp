@@ -10,6 +10,9 @@
 #include <type_traits>
 #include <typeinfo>
 
+PRO_ENABLE_MEMBER(ReflectTraits);
+PRO_ENABLE_FREE(ReflectTraits);
+
 namespace proxy_reflection_tests_detail {
 
 struct TraitsReflector {
@@ -24,13 +27,6 @@ public:
         is_trivial_(std::is_trivially_default_constructible_v<T> &&
                     std::is_trivially_copyable_v<T>) {}
 
-  template <class Self, class R>
-  struct accessor {
-    const TraitsReflector& ReflectTraits() const noexcept {
-      return reflect<R>(static_cast<const Self&>(*this));
-    }
-  };
-
   bool is_default_constructible_;
   bool is_copy_constructible_;
   bool is_nothrow_move_constructible_;
@@ -43,9 +39,17 @@ struct TestRttiFacade : pro::facade_builder                           //
                         ::add_direct_reflection<utils::RttiReflector> //
                         ::build {};
 
-struct TestTraitsFacade : pro::facade_builder                      //
-                          ::add_direct_reflection<TraitsReflector> //
-                          ::build {};
+struct TestTraitsFacade : pro::facade_builder::build {
+  struct MemberReflection {
+    static constexpr bool is_direct = true;
+    using reflector_type = TraitsReflector;
+    using access_type = pro::member_access<"ReflectTraits">;
+  };
+  struct FreeReflection : MemberReflection {
+    using access_type = pro::free_access<"ReflectTraits">;
+  };
+  using reflection_types = std::tuple<MemberReflection, FreeReflection>;
+};
 
 struct DescriptionAccess {
   template <class Self, class... Ds>
@@ -122,6 +126,7 @@ TEST(ProxyReflectionTests, TestRtti_FancyPtr) {
 TEST(ProxyReflectionTests, TestTraits_RawPtr) {
   int foo = 123;
   pro::proxy<detail::TestTraitsFacade> p = &foo;
+  ASSERT_EQ(&ReflectTraits(p), &p.ReflectTraits());
   ASSERT_EQ(p.ReflectTraits().is_default_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_copy_constructible_, true);
   ASSERT_EQ(p.ReflectTraits().is_nothrow_move_constructible_, true);

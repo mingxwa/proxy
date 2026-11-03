@@ -20,6 +20,13 @@
 #include <mdspan>
 #endif // __cpp_lib_mdspan >= 202207L
 
+using std::to_string;
+
+PRO_ENABLE_MEMBER(Run);
+PRO_ENABLE_MEMBER(ToString);
+PRO_ENABLE_FREE(to_string);
+PRO_ENABLE_FREE(ToString);
+
 namespace proxy_dispatch_tests_detail {
 
 struct CommaTester {
@@ -46,7 +53,6 @@ struct TestFacadeBase : pro::facade_builder //
                                          std::ostream&(std::ostream& out)> //
                         ::build {};
 
-PRO_DEF_FREE_AS_MEM_DISPATCH(FreeMemToString, std::to_string, ToString);
 PRO_DEF_FREE_DISPATCH(FreeToString, std::to_string, ToString);
 
 template <class T>
@@ -72,12 +78,7 @@ struct FacadeWithConventions {
   static constexpr auto destructibility = pro::constraint_level::trivial;
 };
 
-struct RunDispatch {
-  template <class T>
-  int operator()(T& self) const {
-    return self.Run();
-  }
-};
+using RunDispatch = pro::member_dispatch<"Run">;
 
 struct Runner {
   int operator()(int v) const { return v * 2; }
@@ -875,19 +876,19 @@ TEST(ProxyDispatchTests, TestImplciitConversion) {
 }
 
 TEST(ProxyDispatchTests, TestFreeAsMemDispatch) {
-  struct TestFacade
-      : pro::facade_builder::add_convention<detail::FreeMemToString,
-                                            std::string() const>::build {};
+  using TestFacade = detail::FacadeWithConventions<detail::ConventionWithAccess<
+      pro::free_dispatch<"to_string">, std::string() const,
+      pro::member_access<"ToString">>>;
   int v = 123;
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(p->ToString(), "123");
 }
 
 TEST(ProxyDispatchTests, TestUnrelatedAccessType) {
-  struct FreeToStringFacade
-      : pro::facade_builder                                         //
-        ::add_convention<detail::FreeToString, std::string() const> //
-        ::build {};
+  using FreeToStringFacade =
+      detail::FacadeWithConventions<detail::ConventionWithAccess<
+          pro::free_dispatch<"to_string">, std::string() const,
+          pro::free_access<"ToString">>>;
   using TestFacade = detail::FacadeWithConventions<
       detail::ConventionWithAccess<detail::FreeToString, std::string() const,
                                    pro::explicit_conversion_access>>;
@@ -896,6 +897,8 @@ TEST(ProxyDispatchTests, TestUnrelatedAccessType) {
   static_assert(
       !detail::SupportsFreeToString<pro::proxy_indirect_accessor<TestFacade>>);
   int v = 123;
+  pro::proxy<FreeToStringFacade> free = &v;
+  ASSERT_EQ(ToString(*free), "123");
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(static_cast<std::string>(*p), "123");
 }

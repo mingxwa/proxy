@@ -29,6 +29,10 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`implicit_conversion_dispatch`](implicit_conversion_dispatch/README.md) | Dispatch type for implicit conversion expressions            |
 | [`is_bitwise_trivially_relocatable`](is_bitwise_trivially_relocatable.md) | Specifies whether a type is bitwise trivially relocatable    |
 | [`not_implemented` ](not_implemented.md)                     | Exception thrown by `weak_dispatch` for the default implementation |
+| [`member_dispatch`](member_dispatch.md) | Independent dispatch type for named member function calls |
+| [`member_access`](member_access/README.md) | Independent access type for named member function calls |
+| [`free_dispatch`](free_dispatch.md) | Independent dispatch type for named free function calls |
+| [`free_access`](free_access/README.md) | Independent access type for named free function calls |
 | [`operator_access`](operator_access/README.md)               | Access type for operator expressions                         |
 | [`operator_dispatch`](operator_dispatch/README.md)           | Dispatch type for operator expressions                       |
 | [`proxy_dependent_signature`](proxy_dependent_signature.md)  | Specifies a proxy-dependent signature template               |
@@ -74,6 +78,8 @@ Also included in `proxy.h`.
 | [`__msft_lib_proxy`](msft_lib_proxy.md)                      | Feature test macro                                           |
 | [`PRO_DEF_FREE_AS_MEM_DISPATCH` ](PRO_DEF_FREE_AS_MEM_DISPATCH.md) | Defines a dispatch type for free function call expressions with accessibility via a member function |
 | [`PRO_DEF_FREE_DISPATCH`](PRO_DEF_FREE_DISPATCH.md)          | Defines a dispatch type for free function call expressions with accessibility |
+| [`PRO_ENABLE_MEMBER`](PRO_ENABLE_MEMBER.md) | Enables independent named member dispatch and access types |
+| [`PRO_ENABLE_FREE`](PRO_ENABLE_FREE.md) | Enables independent named free dispatch and access types |
 | [`PRO_DEF_MEM_DISPATCH`](PRO_DEF_MEM_DISPATCH.md)            | Defines a dispatch type for member function call expressions with accessibility |
 
 ## Header `<proxy_fmt.h>`
