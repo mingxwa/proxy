@@ -2,7 +2,7 @@
 
 > Since: 5.0.0
 
-A *descriptor* is a specialization of either [`proxy_operation`](proxy_operation.md) or [`proxy_reflection`](proxy_reflection.md). A type `A` meets the *ProxyAccess* requirements of a type `Self` and descriptor types `Ds...`, where `Self` is a specialization of either [`proxy`](proxy/README.md) or [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md), if the following expressions are well-formed and have the specified semantics.
+A *descriptor* is a specialization of either [`proxy_operation`](proxy_operation.md) or [`proxy_reflection`](proxy_reflection.md). A type `A` meets the *ProxyAccess* requirements of a type `Self` and descriptor types `Ds...`, where `Self` is a specialization of [`proxy`](proxy/README.md), [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md), [`box`](box/README.md) or [`box_view`](box_view/README.md), if the following expressions are well-formed and have the specified semantics.
 
 | Expressions                                  | Semantics                                                    |
 | -------------------------------------------- | ------------------------------------------------------------ |
@@ -14,7 +14,7 @@ A *descriptor* is a specialization of either [`proxy_operation`](proxy_operation
 
 The order of the descriptors supplied to an access type is unspecified. To provide the same functions across implementations, an access type should accept every permutation of those descriptors and provide equivalent member and non-member functions for each permutation. In particular, an accessor should identify an operation or reflection by its descriptor type rather than its position in `Ds...`.
 
-The *access type* of an operation or a reflection is its member type `access_type`, or `void` if it has none (see [*ProxyBasicOperation*](ProxyBasicOperation.md) and [*ProxyBasicReflection*](ProxyBasicReflection.md)). For each access type `A`, `proxy` inherits a single accessor formed from the descriptors of all its direct operations and reflections sharing `A`, and `proxy_indirect_accessor` inherits one formed from the descriptors of all its indirect operations and reflections sharing `A`, provided that `A` meets the *ProxyAccess* requirements of `Self` and those descriptors (see [`proxy`](proxy/README.md) and [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md)). Therefore, a member function of the accessor can be called on `Self`, and a friend function defined in the accessor can be found by [argument-dependent lookup](https://en.cppreference.com/w/cpp/language/adl) when `Self` is an associated class of the arguments.
+The *access type* of an operation or a reflection is its member type `access_type`, or `void` if it has none (see [*ProxyBasicOperation*](ProxyBasicOperation.md) and [*ProxyBasicReflection*](ProxyBasicReflection.md)). For each access type `A`, `proxy` inherits a single accessor formed from the descriptors of all its direct operations and reflections sharing `A`, and `proxy_indirect_accessor` inherits one formed from the descriptors of all its indirect operations and reflections sharing `A`, provided that `A` meets the *ProxyAccess* requirements of `Self` and those descriptors (see [`proxy`](proxy/README.md) and [`proxy_indirect_accessor`](proxy_indirect_accessor/README.md)). `box<F, MP>` and `box_view<F, MP>` inherit the accessors formed from the same descriptors as `proxy_indirect_accessor<F, MP>` and `proxy_indirect_accessor<view_facade<F>, MP>`, respectively, with themselves as `Self` (see [`box`](box/README.md) and [`box_view`](box_view/README.md)). Therefore, a member function of the accessor can be called on `Self`, and a friend function defined in the accessor can be found by [argument-dependent lookup](https://en.cppreference.com/w/cpp/language/adl) when `Self` is an associated class of the arguments.
 
 In the accessor, `*this` can be converted to a reference to `Self`, through which an operation described by `proxy_operation<D, S>` is performed via [`invoke<D, S>`](proxy/friend_invoke.md), and a reflection described by `proxy_reflection<M>` is acquired via [`reflect<M>`](proxy/friend_reflect.md). When `Ds...` contains more than one descriptor, the accessor usually inherits the accessors of the individual descriptors and, for member functions, makes them visible together with `using`-declarations, so that overload resolution is performed among all of them. [`operator_access`](operator_access/README.md), [`explicit_conversion_access`](explicit_conversion_access/README.md), [`implicit_conversion_access`](implicit_conversion_access/README.md), [`member_access`](member_access.md) and [`free_access`](free_access.md) follow this pattern.
 
@@ -26,6 +26,8 @@ On MSVC, only the first of several empty base classes is placed without taking u
 
 ## See Also
 
+- [class template `box`](box/README.md)
+- [class template `box_view`](box_view/README.md)
 - [class template `proxy`](proxy/README.md)
 - [class template `proxy_indirect_accessor`](proxy_indirect_accessor/README.md)
 - [class template `proxy_operation`](proxy_operation.md)

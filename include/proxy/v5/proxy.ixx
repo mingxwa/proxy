@@ -1,5 +1,6 @@
 module;
 
+#include <proxy/v5/box.h>
 #include <proxy/v5/proxy.h>
 
 export module proxy.v5;
@@ -9,6 +10,8 @@ export namespace pro::inline v5 {
 #if __STDC_HOSTED__
 using v5::allocate_proxy;
 using v5::allocate_proxy_shared;
+using v5::box;
+using v5::box_view;
 using v5::make_proxy;
 using v5::make_proxy_shared;
 #endif // __STDC_HOSTED__

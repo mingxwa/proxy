@@ -62,4 +62,5 @@ int main() {
 ## See Also
 
 - [alias template `skills::as_view`](skills_as_view.md)
+- [class template `box_view`](box_view/README.md)
 - [function template `make_proxy_view`](make_proxy_view.md)

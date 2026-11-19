@@ -82,6 +82,17 @@ Also included in `proxy.h`.
 | [`PRO_ENABLE_FREE`](PRO_ENABLE_FREE.md)                      | Defines the dispatch and access types for free function call expressions of a given name |
 | [`PRO_ENABLE_MEMBER`](PRO_ENABLE_MEMBER.md)                  | Defines the dispatch and access types for member function call expressions of a given name |
 
+## Header `<box.h>`
+
+Value semantics on top of `proxy`. This header includes `proxy.h`; `proxy.h` does not include it. All the facilities in this header are freestanding-deleted.
+
+### Classes
+
+| Name                             | Description                                              |
+| -------------------------------- | -------------------------------------------------------- |
+| [`box`](box/README.md)           | Owns a value object matching specified facade            |
+| [`box_view`](box_view/README.md) | Refers to the value of a `box` without owning it         |
+
 ## Header `<proxy_fmt.h>`
 
 ### Alias Templates

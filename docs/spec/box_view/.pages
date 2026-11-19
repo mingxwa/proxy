@@ -1,0 +1,12 @@
+nav:
+  - box_view: README.md
+  - (constructor): constructor.md
+  - (destructor): destructor.md
+  - invoke (non-member): friend_invoke.md
+  - operator bool<br />has_value: operator_bool.md
+  - operator proxy_indirect_accessor&: conversion.md
+  - operator== (non-member): friend_operator_equality.md
+  - operator=: assignment.md
+  - reflect (non-member): friend_reflect.md
+  - reset: reset.md
+  - swap: swap.md
