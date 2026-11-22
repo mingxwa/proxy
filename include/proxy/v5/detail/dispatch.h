@@ -60,6 +60,27 @@ struct operation_traits;
 template <class D, class S>
 struct operation_traits<proxy_operation<D, S>> : signature_traits<S> {};
 
+template <class... Args>
+concept leading_alignment =
+    sizeof...(Args) > 0u &&
+    std::is_same_v<
+        std::remove_cvref_t<std::tuple_element_t<0u, std::tuple<Args...>>>,
+        std::align_val_t>;
+
+template <class T>
+concept proxy_operand =
+    specialization_of<std::remove_cvref_t<T>, proxy> ||
+    specialization_of<std::remove_cvref_t<T>, proxy_indirect_accessor>;
+
+#if __cpp_impl_coroutine >= 201902L
+template <class T>
+concept member_co_awaitable =
+    requires(T&& self) { std::forward<T>(self).operator co_await(); };
+template <class T>
+concept free_co_awaitable =
+    requires(T&& self) { operator co_await(std::forward<T>(self)); };
+#endif // __cpp_impl_coroutine >= 201902L
+
 #define PRO5D_DEF_CAST_ACCESSOR(oq, pq, ne, ...)                               \
   template <class Self, class D, class T>                                      \
   struct accessor<Self, proxy_operation<D, T() oq ne>> {                       \
@@ -116,35 +137,44 @@ struct free_dispatch {
 #define PRO5D_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, ...)                        \
   template <class Self, class D, class R>                                      \
   struct accessor<Self, proxy_operation<D, R() oq ne>> {                       \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    R __VA_ARGS__() oq ne {                                                    \
-      return invoke<D, R() oq ne>(static_cast<Self pq>(*this));                \
+    friend R __VA_ARGS__(Self pq self) ne {                                    \
+      return invoke<D, R() oq ne>(static_cast<Self pq>(self));                 \
     }                                                                          \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(R, (Self pq self),                \
+                                             (static_cast<Self pq>(self)),     \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_DEF_LHS_UNARY_OP_ACCESSOR(oq, pq, ne, ...)                       \
   template <class Self, class D, class R>                                      \
   struct accessor<Self, proxy_operation<D, R() oq ne>> {                       \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    decltype(auto) __VA_ARGS__() oq ne {                                       \
-      invoke<D, R() oq ne>(static_cast<Self pq>(*this));                       \
-      return static_cast<Self pq>(*this);                                      \
+    friend Self pq __VA_ARGS__(Self pq self) ne {                              \
+      invoke<D, R() oq ne>(static_cast<Self pq>(self));                        \
+      return static_cast<Self pq>(self);                                       \
     }                                                                          \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(Self pq, (Self pq self),          \
+                                             (static_cast<Self pq>(self)),     \
+                                             __VA_ARGS__)                      \
   };                                                                           \
   template <class Self, class D, class R>                                      \
   struct accessor<Self, proxy_operation<D, R(int) oq ne>> {                    \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    R __VA_ARGS__(int) oq ne {                                                 \
-      return invoke<D, R(int) oq ne>(static_cast<Self pq>(*this), 0);          \
+    friend R __VA_ARGS__(Self pq self, int) ne {                               \
+      return invoke<D, R(int) oq ne>(static_cast<Self pq>(self), 0);           \
     }                                                                          \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(R, (Self pq self),                \
+                                             (static_cast<Self pq>(self), 0),  \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_DEF_LHS_BINARY_OP_ACCESSOR(oq, pq, ne, ...)                      \
   template <class Self, class D, class R, class Arg>                           \
   struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    R __VA_ARGS__(Arg arg) oq ne {                                             \
-      return invoke<D, R(Arg) oq ne>(static_cast<Self pq>(*this),              \
+    friend R __VA_ARGS__(Self pq self, Arg arg) ne {                           \
+      return invoke<D, R(Arg) oq ne>(static_cast<Self pq>(self),               \
                                      std::forward<Arg>(arg));                  \
     }                                                                          \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(R, (Self pq self, Arg arg),       \
+                                             (static_cast<Self pq>(self),      \
+                                              std::forward<Arg>(arg)),         \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_DEF_LHS_ALL_OP_ACCESSOR(oq, pq, ne, ...)                         \
   PRO5D_DEF_LHS_LEFT_OP_ACCESSOR(oq, pq, ne, __VA_ARGS__);                     \
@@ -171,7 +201,7 @@ struct free_dispatch {
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, false> {                                \
     PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
-        MEM, PRO5D_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)         \
+        FREE, PRO5D_DEF_LHS_##type##_OP_ACCESSOR, operator __VA_ARGS__)        \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
@@ -181,23 +211,20 @@ struct free_dispatch {
 #define PRO5D_DEF_RHS_OP_ACCESSOR(oq, pq, ne, ...)                             \
   template <class Self, class D, class R, class Arg>                           \
   struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
-    friend R operator __VA_ARGS__(Arg arg, Self pq self) ne {                  \
+    friend R __VA_ARGS__(Arg arg, Self pq self) ne {                           \
       return invoke<D, R(Arg) oq ne>(static_cast<Self pq>(self),               \
                                      std::forward<Arg>(arg));                  \
     }                                                                          \
-    PRO5D_DEBUG(                                                             \
-      accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
-                                                                             \
-    private:                                                                 \
-      static inline R pro_symbol_guard(Arg arg, Self pq self) {              \
-        return std::forward<Arg>(arg) __VA_ARGS__ static_cast<Self pq>(self);\
-      }                                                                      \
-    ) \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(R, (Arg arg, Self pq self),       \
+                                             (std::forward<Arg>(arg),          \
+                                              static_cast<Self pq>(self)),     \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_RHS_OP_IMPL(...)                                                 \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, true> {                                 \
-    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_OP_ACCESSOR, __VA_ARGS__)  \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
+        FREE, PRO5D_DEF_RHS_OP_ACCESSOR, operator __VA_ARGS__)                 \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
@@ -218,33 +245,33 @@ struct free_dispatch {
 #define PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                  \
   template <class Self, class D, class R, class Arg>                           \
   struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
-    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
-    decltype(auto) __VA_ARGS__(Arg arg) oq ne {                                \
-      invoke<D, R(Arg) oq ne>(static_cast<Self pq>(*this),                     \
+    friend Self pq __VA_ARGS__(Self pq self, Arg arg) ne {                     \
+      invoke<D, R(Arg) oq ne>(static_cast<Self pq>(self),                      \
                               std::forward<Arg>(arg));                         \
-      return static_cast<Self pq>(*this);                                      \
+      return static_cast<Self pq>(self);                                       \
     }                                                                          \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(Self pq, (Self pq self, Arg arg), \
+                                             (static_cast<Self pq>(self),      \
+                                              std::forward<Arg>(arg)),         \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR(oq, pq, ne, ...)                  \
   template <class Self, class D, class R, class Arg>                           \
   struct accessor<Self, proxy_operation<D, R(Arg&) oq ne>> {                   \
-    friend Arg& operator __VA_ARGS__(Arg& arg, Self pq self) ne {              \
+    friend Arg& __VA_ARGS__(Arg& arg, Self pq self) ne {                       \
       invoke<D, R(Arg&) oq ne>(static_cast<Self pq>(self), arg);               \
       return arg;                                                              \
     }                                                                          \
-    PRO5D_DEBUG(                                                               \
-        accessor() noexcept { std::ignore = &pro_symbol_guard; }               \
-                                                                               \
-        private : static inline Arg& pro_symbol_guard(                         \
-            Arg& arg,                                                          \
-            Self pq                                                            \
-                self) { return arg __VA_ARGS__ static_cast<Self pq>(self); })  \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(Arg&, (Arg & arg, Self pq self),  \
+                                             (arg,                             \
+                                              static_cast<Self pq>(self)),     \
+                                             __VA_ARGS__)                      \
   }
 #define PRO5D_ASSIGNMENT_OP_IMPL(...)                                          \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, false> {                                \
     PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
-        MEM, PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)       \
+        FREE, PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)      \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, false> {                              \
@@ -255,8 +282,8 @@ struct free_dispatch {
   };                                                                           \
   template <>                                                                  \
   struct operator_access<#__VA_ARGS__, true> {                                 \
-    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR,    \
-                                __VA_ARGS__)                                   \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(                                               \
+        FREE, PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR, operator __VA_ARGS__)      \
   };                                                                           \
   template <>                                                                  \
   struct operator_dispatch<#__VA_ARGS__, true> {                               \
@@ -264,6 +291,25 @@ struct free_dispatch {
     PRO5D_STATIC_CALL(decltype(auto), T&& self, Arg&& arg)                     \
     PRO5D_DIRECT_FUNC_IMPL(std::forward<Arg>(arg)                              \
                                __VA_ARGS__ std::forward<T>(self))              \
+  };
+
+#define PRO5D_PLACEMENT_OP_IMPL(type, name, hook, ...)                         \
+  template <>                                                                  \
+  struct operator_access<#__VA_ARGS__, false> {                                \
+    PRO5D_DEF_ACCESSOR_TEMPLATE(FREE, PRO5D_DEF_FREE_ACCESSOR, hook)           \
+  };                                                                           \
+  template <>                                                                  \
+  struct operator_dispatch<#__VA_ARGS__, false> {                              \
+    template <class T, class... Args>                                          \
+    PRO5D_STATIC_CALL(decltype(auto), T&& self, type name,                     \
+                      std::align_val_t alignment, Args&&... args)              \
+    PRO5D_DIRECT_FUNC_IMPL(operator __VA_ARGS__(                               \
+        name, alignment, std::forward<T>(self),                                \
+        std::forward<Args>(args)...)) template <class T, class... Args>        \
+      requires(!detail::leading_alignment<Args...>)                            \
+    PRO5D_STATIC_CALL(decltype(auto), T&& self, type name, Args&&... args)     \
+    PRO5D_DIRECT_FUNC_IMPL(operator __VA_ARGS__(name, std::forward<T>(self),   \
+                                                std::forward<Args>(args)...))  \
   };
 
 PRO5D_EXTENDED_BINARY_OP_IMPL(+)
@@ -301,6 +347,10 @@ PRO5D_ASSIGNMENT_OP_IMPL(<<=)
 PRO5D_ASSIGNMENT_OP_IMPL(>>=)
 PRO5D_BINARY_OP_IMPL(, )
 PRO5D_BINARY_OP_IMPL(->*)
+PRO5D_PLACEMENT_OP_IMPL(std::size_t, size, pro_operator_new, new)
+PRO5D_PLACEMENT_OP_IMPL(std::size_t, size, pro_operator_new_array, new[])
+PRO5D_PLACEMENT_OP_IMPL(void*, ptr, pro_operator_delete, delete)
+PRO5D_PLACEMENT_OP_IMPL(void*, ptr, pro_operator_delete_array, delete[])
 
 template <>
 struct operator_access<"()", false> {
@@ -317,7 +367,17 @@ struct operator_access<"[]", false> {
 #if __cpp_multidimensional_subscript >= 202110L
   PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_MEM_ACCESSOR, operator[])
 #else
-  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_LHS_BINARY_OP_ACCESSOR, operator[])
+#define PRO5D_DEF_SUBSCRIPT_ACCESSOR(oq, pq, ne, ...)                          \
+  template <class Self, class D, class R, class Arg>                           \
+  struct accessor<Self, proxy_operation<D, R(Arg) oq ne>> {                    \
+    PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(__VA_ARGS__)                       \
+    R __VA_ARGS__(Arg arg) oq ne {                                             \
+      return invoke<D, R(Arg) oq ne>(static_cast<Self pq>(*this),              \
+                                     std::forward<Arg>(arg));                  \
+    }                                                                          \
+  }
+  PRO5D_DEF_ACCESSOR_TEMPLATE(MEM, PRO5D_DEF_SUBSCRIPT_ACCESSOR, operator[])
+#undef PRO5D_DEF_SUBSCRIPT_ACCESSOR
 #endif // __cpp_multidimensional_subscript >= 202110L
 };
 template <>
@@ -332,7 +392,30 @@ struct operator_dispatch<"[]", false> {
   PRO5D_DIRECT_FUNC_IMPL(std::forward<T>(self)[std::forward<Arg>(arg)])
 #endif // __cpp_multidimensional_subscript >= 202110L
 };
+#if __cpp_impl_coroutine >= 201902L
+template <>
+struct operator_access<"co_await", false> {
+  PRO5D_DEF_ACCESSOR_TEMPLATE(FREE,
+                              PRO5D_DEF_LHS_LEFT_OP_ACCESSOR, operator co_await)
+};
+template <>
+struct operator_dispatch<"co_await", false> {
+  template <class T>
+  PRO5D_STATIC_CALL(decltype(auto), T&& self)
+  PRO5D_DIRECT_FUNC_IMPL(
+      std::forward<T>(self).operator co_await()) template <class T>
+    requires(!detail::member_co_awaitable<T>)
+  PRO5D_STATIC_CALL(decltype(auto), T&& self)
+  PRO5D_DIRECT_FUNC_IMPL(operator co_await(
+      std::forward<T>(self))) template <class T>
+    requires(!detail::member_co_awaitable<T> && !detail::free_co_awaitable<T>)
+  PRO5D_STATIC_CALL(T&&, T&& self) noexcept {
+    return std::forward<T>(self);
+  }
+};
+#endif // __cpp_impl_coroutine >= 201902L
 
+#undef PRO5D_PLACEMENT_OP_IMPL
 #undef PRO5D_ASSIGNMENT_OP_IMPL
 #undef PRO5D_DEF_RHS_ASSIGNMENT_OP_ACCESSOR
 #undef PRO5D_DEF_LHS_ASSIGNMENT_OP_ACCESSOR
@@ -412,5 +495,77 @@ struct default_access_traits<weak_dispatch<D>> : default_access_traits<D> {};
 } // namespace detail
 
 } // namespace pro::inline v5
+
+#define PRO5D_DEF_PLACEMENT_NEW(hook, ...)                                     \
+  template <class Self, class... Args>                                         \
+    requires(::pro::v5::detail::proxy_operand<Self> &&                         \
+             !::pro::v5::detail::leading_alignment<Args...> &&                 \
+             requires(std::size_t size, Self&& self, Args&&... args) {         \
+               {                                                               \
+                 hook(std::forward<Self>(self), size,                          \
+                      std::forward<Args>(args)...)                             \
+               } -> std::convertible_to<void*>;                                \
+             })                                                                \
+  void* operator __VA_ARGS__(                                                  \
+      std::size_t size, Self&& self,                                           \
+      Args&&... args) noexcept(noexcept(hook(std::forward<Self>(self), size,   \
+                                             std::forward<Args>(args)...))) {  \
+    return hook(std::forward<Self>(self), size, std::forward<Args>(args)...);  \
+  }                                                                            \
+  template <class Self, class... Args>                                         \
+    requires(::pro::v5::detail::proxy_operand<Self> &&                         \
+             requires(std::size_t size, std::align_val_t alignment,            \
+                      Self&& self, Args&&... args) {                           \
+               {                                                               \
+                 hook(std::forward<Self>(self), size, alignment,               \
+                      std::forward<Args>(args)...)                             \
+               } -> std::convertible_to<void*>;                                \
+             })                                                                \
+  void* operator __VA_ARGS__(                                                  \
+      std::size_t size, std::align_val_t alignment, Self&& self,               \
+      Args&&... args) noexcept(noexcept(hook(std::forward<Self>(self), size,   \
+                                             alignment,                        \
+                                             std::forward<Args>(args)...))) {  \
+    return hook(std::forward<Self>(self), size, alignment,                     \
+                std::forward<Args>(args)...);                                  \
+  }
+#define PRO5D_DEF_PLACEMENT_DELETE(hook, ...)                                  \
+  template <class Self, class... Args>                                         \
+    requires(                                                                  \
+        std::is_reference_v<Self> && (std::is_reference_v<Args> && ...) &&     \
+        ::pro::v5::detail::proxy_operand<Self> &&                              \
+        !::pro::v5::detail::leading_alignment<Args...> &&                      \
+        requires(void* ptr, Self self, Args... args) {                         \
+          {                                                                    \
+            hook(std::forward<Self>(self), ptr, std::forward<Args>(args)...)   \
+          } -> std::same_as<void>;                                             \
+        })                                                                     \
+  void operator __VA_ARGS__(void* ptr, Self self, Args... args) noexcept {     \
+    hook(std::forward<Self>(self), ptr, std::forward<Args>(args)...);          \
+  }                                                                            \
+  template <class Self, class... Args>                                         \
+    requires(std::is_reference_v<Self> &&                                      \
+             (std::is_reference_v<Args> && ...) &&                             \
+             ::pro::v5::detail::proxy_operand<Self> &&                         \
+             requires(void* ptr, std::align_val_t alignment, Self self,        \
+                      Args... args) {                                          \
+               {                                                               \
+                 hook(std::forward<Self>(self), ptr, alignment,                \
+                      std::forward<Args>(args)...)                             \
+               } -> std::same_as<void>;                                        \
+             })                                                                \
+  void operator __VA_ARGS__(void* ptr, std::align_val_t alignment, Self self,  \
+                            Args... args) noexcept {                           \
+    hook(std::forward<Self>(self), ptr, alignment,                             \
+         std::forward<Args>(args)...);                                         \
+  }
+
+PRO5D_DEF_PLACEMENT_NEW(pro_operator_new, new)
+PRO5D_DEF_PLACEMENT_NEW(pro_operator_new_array, new[])
+PRO5D_DEF_PLACEMENT_DELETE(pro_operator_delete, delete)
+PRO5D_DEF_PLACEMENT_DELETE(pro_operator_delete_array, delete[])
+
+#undef PRO5D_DEF_PLACEMENT_DELETE
+#undef PRO5D_DEF_PLACEMENT_NEW
 
 #endif // NGCPP_PROXY_V5_DETAIL_DISPATCH_H_

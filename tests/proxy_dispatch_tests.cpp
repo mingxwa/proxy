@@ -3,7 +3,10 @@
 // Licensed under the MIT License.
 
 #include <cstddef>
+#include <exception>
 #include <gtest/gtest.h>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -22,6 +25,46 @@
 #if __cpp_lib_mdspan >= 202207L
 #include <mdspan>
 #endif // __cpp_lib_mdspan >= 202207L
+
+#if __cpp_impl_coroutine >= 201902L
+#include <coroutine>
+#endif // __cpp_impl_coroutine >= 201902L
+
+struct DispatchTestArena {
+  std::size_t allocated = 0u;
+  std::size_t aligned_allocated = 0u;
+  std::size_t deallocated = 0u;
+  int last_tag = 0;
+  void* last_array = nullptr;
+};
+
+void* operator new(std::size_t size, DispatchTestArena& arena) {
+  arena.allocated += size;
+  return ::operator new(size);
+}
+void* operator new(std::size_t size, DispatchTestArena& arena, int tag) {
+  arena.allocated += size;
+  arena.last_tag = tag;
+  return ::operator new(size);
+}
+void* operator new(std::size_t size, std::align_val_t alignment,
+                   DispatchTestArena& arena) {
+  arena.aligned_allocated += size;
+  return ::operator new(size, alignment);
+}
+void operator delete(void* ptr, DispatchTestArena& arena) noexcept {
+  ++arena.deallocated;
+  ::operator delete(ptr);
+}
+void* operator new[](std::size_t size, DispatchTestArena* arena) {
+  arena->allocated += size;
+  arena->last_array = ::operator new[](size);
+  return arena->last_array;
+}
+void operator delete[](void* ptr, DispatchTestArena* arena) noexcept {
+  ++arena->deallocated;
+  ::operator delete[](ptr);
+}
 
 PRO_ENABLE_MEMBER(size);
 PRO_ENABLE_MEMBER(IsEmpty);
@@ -48,6 +91,72 @@ public:
 private:
   int value_;
 };
+
+struct EqualityTester {
+  bool operator==(int) const { return true; }
+  friend bool operator==(int, const EqualityTester&) { return false; }
+};
+
+struct GenericEqualityOperand {
+  template <class T>
+  friend bool operator==(const GenericEqualityOperand&, const T&) {
+    return false;
+  }
+};
+
+template <class F, class MP>
+using SameFacadeEqualitySignature =
+    bool(const pro::proxy_indirect_accessor<F, MP>& rhs) const;
+
+struct ThrowingConstruction {
+  ThrowingConstruction() { throw std::runtime_error{"construction"}; }
+};
+
+struct alignas(4 * alignof(std::max_align_t)) OverAligned {
+  std::byte data[4 * alignof(std::max_align_t)];
+};
+
+template <class P, class... Args>
+concept PlacementAllocatable =
+    requires(P& p, Args... args) { operator new(sizeof(int), *p, args...); };
+
+#if __cpp_impl_coroutine >= 201902L
+struct IntAwaiter {
+  bool await_ready() const noexcept { return true; }
+  void await_suspend(std::coroutine_handle<>) const noexcept {}
+  int await_resume() const noexcept { return value; }
+
+  int value;
+};
+
+struct MemberAwaitable {
+  IntAwaiter operator co_await() const { return {1}; }
+  friend IntAwaiter operator co_await(const MemberAwaitable&) { return {-1}; }
+};
+
+struct FreeAwaitable {
+  friend IntAwaiter operator co_await(const FreeAwaitable&) { return {2}; }
+};
+
+struct EagerTask {
+  struct promise_type {
+    EagerTask get_return_object() noexcept { return {}; }
+    std::suspend_never initial_suspend() noexcept { return {}; }
+    std::suspend_never final_suspend() noexcept { return {}; }
+    void return_void() noexcept {}
+    void unhandled_exception() noexcept { std::terminate(); }
+  };
+};
+
+struct CoAwaitFacade : pro::facade_builder //
+                       ::add_convention<pro::operator_dispatch<"co_await">,
+                                        IntAwaiter() const> //
+                       ::build {};
+
+EagerTask Await(const pro::proxy<CoAwaitFacade>& p, int& result) {
+  result = co_await *p;
+}
+#endif // __cpp_impl_coroutine >= 201902L
 
 struct TestFacadeBase : pro::facade_builder //
                         ::add_convention<pro::operator_dispatch<"<<", true>,
@@ -163,6 +272,69 @@ TEST(ProxyDispatchTests, TestOpEqualTo) {
   pro::proxy<TestFacade> p = &v;
   ASSERT_EQ(*p == 12, true);
   ASSERT_EQ(*p == 11, false);
+}
+
+TEST(ProxyDispatchTests, TestOpEqualTo_WithRhs) {
+  struct TestFacade
+      : pro::facade_builder                                                   //
+        ::add_convention<pro::operator_dispatch<"==">, bool(int) const>       //
+        ::add_convention<pro::operator_dispatch<"==", true>, bool(int) const> //
+        ::build {};
+  detail::EqualityTester v;
+  pro::proxy<TestFacade> p = &v;
+  ASSERT_TRUE(*p == 1);
+  ASSERT_FALSE(1 == *p);
+}
+
+TEST(ProxyDispatchTests, TestOpEqualTo_WithNotEqualTo) {
+  struct TestFacade
+      : pro::facade_builder                                             //
+        ::add_convention<pro::operator_dispatch<"==">, bool(int) const> //
+        ::add_convention<pro::operator_dispatch<"!=">, bool(int) const> //
+        ::build {};
+  int v = 12;
+  pro::proxy<TestFacade> p = &v;
+  ASSERT_TRUE(12 == *p);
+  ASSERT_FALSE(12 != *p);
+}
+
+TEST(ProxyDispatchTests, TestOpEqualTo_SameFacadeOperands) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_convention<
+            pro::operator_dispatch<"==">,
+            pro::proxy_dependent_signature<detail::SameFacadeEqualitySignature>,
+            bool(int) const> //
+        ::build {};
+  struct Value {
+    bool operator==(const pro::proxy_indirect_accessor<TestFacade>& rhs) const {
+      return rhs == n;
+    }
+    bool operator==(int rhs) const { return n == rhs; }
+
+    int n;
+  };
+  pro::proxy<TestFacade> p1 = pro::make_proxy<TestFacade>(Value{1});
+  pro::proxy<TestFacade> p2 = pro::make_proxy<TestFacade>(Value{1});
+  pro::proxy<TestFacade> p3 = pro::make_proxy<TestFacade>(Value{2});
+  ASSERT_TRUE(*p1 == *p2);
+  ASSERT_FALSE(*p1 == *p3);
+}
+
+TEST(ProxyDispatchTests, TestOpEqualTo_GenericOperand) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_convention<pro::operator_dispatch<"==">,
+                         bool(const detail::GenericEqualityOperand&) const> //
+        ::build {};
+  struct Value {
+    bool operator==(const detail::GenericEqualityOperand&) const {
+      return true;
+    }
+  };
+  Value v;
+  pro::proxy<TestFacade> p = &v;
+  ASSERT_TRUE(*p == detail::GenericEqualityOperand{});
 }
 
 TEST(ProxyDispatchTests, TestOpNotEqualTo) {
@@ -497,6 +669,96 @@ TEST(ProxyDispatchTests, TestOpBrackets_Multidimensional) {
   }
 }
 #endif // __cpp_lib_mdspan >= 202207L
+
+#if __cpp_impl_coroutine >= 201902L
+TEST(ProxyDispatchTests, TestOpCoAwait_Member) {
+  pro::proxy<detail::CoAwaitFacade> p =
+      pro::make_proxy<detail::CoAwaitFacade, detail::MemberAwaitable>();
+  int result = 0;
+  detail::Await(p, result);
+  ASSERT_EQ(result, 1);
+}
+
+TEST(ProxyDispatchTests, TestOpCoAwait_Free) {
+  pro::proxy<detail::CoAwaitFacade> p =
+      pro::make_proxy<detail::CoAwaitFacade, detail::FreeAwaitable>();
+  int result = 0;
+  detail::Await(p, result);
+  ASSERT_EQ(result, 2);
+}
+
+TEST(ProxyDispatchTests, TestOpCoAwait_Awaiter) {
+  pro::proxy<detail::CoAwaitFacade> p =
+      pro::make_proxy<detail::CoAwaitFacade>(detail::IntAwaiter{3});
+  int result = 0;
+  detail::Await(p, result);
+  ASSERT_EQ(result, 3);
+}
+#endif // __cpp_impl_coroutine >= 201902L
+
+TEST(ProxyDispatchTests, TestOpNew) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_convention<pro::operator_dispatch<"new">, void*(std::size_t),
+                         void*(std::size_t, int),
+                         void*(std::size_t, std::align_val_t)> //
+        ::build {};
+  DispatchTestArena arena;
+  pro::proxy<TestFacade> p = &arena;
+  int* i = new (*p) int{1};
+  ASSERT_EQ(arena.allocated, sizeof(int));
+  ::operator delete(i);
+  double* d = new (*p, 7) double{2.0};
+  ASSERT_EQ(arena.allocated, sizeof(int) + sizeof(double));
+  ASSERT_EQ(arena.last_tag, 7);
+  ::operator delete(d);
+  detail::OverAligned* o = new (*p) detail::OverAligned{};
+  ASSERT_EQ(arena.aligned_allocated, sizeof(detail::OverAligned));
+  ::operator delete(o, std::align_val_t{alignof(detail::OverAligned)});
+}
+
+TEST(ProxyDispatchTests, TestOpNew_LeadingAlignmentArgument) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_convention<pro::operator_dispatch<"new">, void*(std::size_t, int),
+                         void*(std::size_t, std::align_val_t)> //
+        ::build {};
+  static_assert(detail::PlacementAllocatable<pro::proxy<TestFacade>, int>);
+  static_assert(
+      !detail::PlacementAllocatable<pro::proxy<TestFacade>, std::align_val_t>);
+}
+
+TEST(ProxyDispatchTests, TestOpDelete) {
+  struct TestFacade
+      : pro::facade_builder                                                 //
+        ::add_convention<pro::operator_dispatch<"new">, void*(std::size_t)> //
+        ::add_convention<pro::operator_dispatch<"delete">,
+                         void(void*) noexcept> //
+        ::build {};
+  DispatchTestArena arena;
+  pro::proxy<TestFacade> p = &arena;
+  ASSERT_THROW(new (*p) detail::ThrowingConstruction, std::runtime_error);
+  ASSERT_EQ(arena.allocated, sizeof(detail::ThrowingConstruction));
+  ASSERT_EQ(arena.deallocated, 1u);
+}
+
+TEST(ProxyDispatchTests, TestOpNewArrayDeleteArray) {
+  struct TestFacade
+      : pro::facade_builder //
+        ::add_direct_convention<pro::operator_dispatch<"new[]">,
+                                void*(std::size_t)> //
+        ::add_direct_convention<pro::operator_dispatch<"delete[]">,
+                                void(void*) noexcept> //
+        ::build {};
+  DispatchTestArena arena;
+  pro::proxy<TestFacade> p = &arena;
+  int* a = new (p) int[3]{1, 2, 3};
+  ASSERT_GE(arena.allocated, 3 * sizeof(int));
+  ASSERT_EQ(a[2], 3);
+  ::operator delete[](arena.last_array);
+  ASSERT_THROW(new (p) detail::ThrowingConstruction[2], std::runtime_error);
+  ASSERT_EQ(arena.deallocated, 1u);
+}
 
 TEST(ProxyDispatchTests, TestRhsOpPlus) {
   struct TestFacade

@@ -627,7 +627,7 @@ struct FacadeWithDefaultAccessTypes
     : pro::facade_builder                                     //
       ::add_convention<pro::operator_dispatch<"+">, int(int)> //
       ::add_convention<pro::weak_dispatch<pro::operator_dispatch<"+">>,
-                       int(double)>                               //
+                       int(const char*)>                          //
       ::add_convention<pro::explicit_conversion_dispatch, int()>  //
       ::add_convention<pro::implicit_conversion_dispatch, long()> //
       ::add_convention<pro::member_dispatch<"Size">, int()>       //
@@ -655,9 +655,8 @@ static_assert(std::is_same_v<DefaultAccessType<7>, pro::free_access<"Size">>);
 using DefaultAccessSelf =
     pro::proxy_indirect_accessor<FacadeWithDefaultAccessTypes>;
 static_assert(requires(DefaultAccessSelf& self) {
-  static_cast<int (DefaultAccessSelf::*)(int)>(&DefaultAccessSelf::operator+);
-  static_cast<int (DefaultAccessSelf::*)(double)>(
-      &DefaultAccessSelf::operator+);
+  { self + 1 } -> std::same_as<int>;
+  { self + "" } -> std::same_as<int>;
   static_cast<int (DefaultAccessSelf::*)()>(&DefaultAccessSelf::Size);
   static_cast<int (DefaultAccessSelf::*)(double)>(&DefaultAccessSelf::Size);
   { Size(self) } -> std::same_as<int>;
@@ -693,10 +692,10 @@ using AnyArgumentSelf =
     pro::proxy_indirect_accessor<AnyArgumentFacade<A, Ss...>>;
 template <class T, class... Args>
 concept HasOperatorPlus =
-    requires(T& self, Args... args) { self.operator+(args...); };
+    requires(T& self, Args... args) { operator+(self, args...); };
 template <class T, class... Args>
 concept HasOperatorSlash =
-    requires(T& self, Args... args) { self.operator/(args...); };
+    requires(T& self, Args... args) { operator/(self, args...); };
 template <class T, class... Args>
 concept HasOperatorSubscript =
     requires(T& self, Args... args) { self.operator[](args...); };

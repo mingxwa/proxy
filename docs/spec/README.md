@@ -1,6 +1,6 @@
 # Proxy 5 Specifications
 
-This document provides the API specifications for the C++ library Proxy (version 5). All the documented concepts, classes, and functions are defined in the namespace `pro`. Unless otherwise specified, all facilities are [freestanding](https://en.cppreference.com/w/cpp/freestanding) by default.
+This document provides the API specifications for the C++ library Proxy (version 5). All the documented concepts, classes, and functions are defined in the namespace `pro`, except the [placement allocation and deallocation function templates](operator_new.md), which are declared in the global namespace. Unless otherwise specified, all facilities are [freestanding](https://en.cppreference.com/w/cpp/freestanding) by default.
 
 *Since 3.4.0*: To support side-by-side installation of multiple major releases, each version of Proxy is wrapped in an inline namespace named after its major number. In a translation unit that includes both Proxy 4 and Proxy 5, the APIs can be referenced explicitly as `pro::v4::foo` or `pro::v5::foo` The current release exports `v5` as the inline (default) namespace, so unqualified names resolve to `pro::v5`.
 
@@ -64,6 +64,7 @@ This document provides the API specifications for the C++ library Proxy (version
 | [`make_proxy_shared`](make_proxy_shared.md)         | Creates a `proxy` object with shared ownership               |
 | [`make_proxy_view`](make_proxy_view.md)             | Creates a `proxy_view` object                                |
 | [`make_proxy`](make_proxy.md)                       | Creates a `proxy` object potentially with heap allocation    |
+| [`operator new`<br />`operator new[]`<br />`operator delete`<br />`operator delete[]`](operator_new.md) | Placement allocation and deallocation through a `proxy` |
 | [`proxy_invoke`](proxy_invoke.md) [deprecated]      | Invokes a `proxy` with a specified operation                 |
 | [`proxy_reflect`](proxy_reflect.md) [deprecated]    | Acquires reflection information of a contained type          |
 

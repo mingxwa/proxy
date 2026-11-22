@@ -44,6 +44,7 @@ nav:
     - make_proxy_shared: make_proxy_shared.md
     - make_proxy_view: make_proxy_view.md
     - make_proxy: make_proxy.md
+    - "operator new<br />operator new[]<br />operator delete<br />operator delete[]": operator_new.md
     - proxy_invoke: proxy_invoke.md
     - proxy_reflect: proxy_reflect.md
   - Macros:

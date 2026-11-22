@@ -70,11 +70,12 @@
 
 #define PRO5D_GEN_DEBUG_SYMBOL_FOR_MEM_ACCESSOR(...)                           \
   PRO5D_DEBUG(accessor() noexcept { ::std::ignore = &accessor::__VA_ARGS__; })
-#define PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(ret, name, params, args)      \
+#define PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(ret, params, args, ...)       \
   PRO5D_DEBUG(                                                                 \
       accessor() noexcept { ::std::ignore = &pro_symbol_guard; }               \
                                                                                \
-      private : static ret pro_symbol_guard params { return name args; })
+      private : static ret pro_symbol_guard                                    \
+          params { return __VA_ARGS__ args; })
 
 #define PRO5D_DEF_MEM_ACCESSOR(oq, pq, ne, ...)                                \
   template <class ProSelf, class ProD, class ProR, class... ProArgs>           \
@@ -96,9 +97,10 @@
           ::std::forward<ProArgs>(pro_args)...);                               \
     }                                                                          \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(                                  \
-        ProR, name, (ProSelf pq pro_self, ProArgs... pro_args),                \
+        ProR, (ProSelf pq pro_self, ProArgs... pro_args),                      \
         (static_cast<ProSelf pq>(pro_self),                                    \
-         ::std::forward<ProArgs>(pro_args)...))                                \
+         ::std::forward<ProArgs>(pro_args)...),                                \
+        name)                                                                  \
   }
 
 #define PRO5_ENABLE_MEMBER(name)                                               \
@@ -137,9 +139,9 @@
       friend const ProM& name(const ProSelf& pro_self) noexcept {              \
         return reflect<ProM>(pro_self);                                        \
       }                                                                        \
-      PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(const ProM&, name,              \
+      PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(const ProM&,                    \
                                                (const ProSelf& pro_self),      \
-                                               (pro_self))                     \
+                                               (pro_self), name)               \
     };                                                                         \
   }
 
@@ -184,9 +186,10 @@
           ::std::forward<ProArgs>(pro_args)...);                               \
     }                                                                          \
     PRO5D_GEN_DEBUG_SYMBOL_FOR_FREE_ACCESSOR(                                  \
-        ProR, __VA_ARGS__, (ProP pq pro_self, ProArgs... pro_args),            \
+        ProR, (ProP pq pro_self, ProArgs... pro_args),                         \
         (static_cast<ProP pq>(pro_self),                                       \
-         ::std::forward<ProArgs>(pro_args)...))                                \
+         ::std::forward<ProArgs>(pro_args)...),                                \
+        __VA_ARGS__)                                                           \
   }
 
 #define PRO5D_DEF_MEM_DISPATCH_IMPL(name, impl, func)                          \

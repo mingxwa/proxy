@@ -18,7 +18,7 @@ Class template `operator_access` is an access type that defines operator functio
 
 ## Supported SOPs
 
-`operator_access` supports the same 37 SOPs as [`operator_dispatch`](../operator_dispatch/README.md#supported-sops). The expressions available for each specialization of `operator_access` are listed in the [specializations of `operator_dispatch`](../operator_dispatch/README.md#specializations).
+`operator_access` supports the same 42 SOPs as [`operator_dispatch`](../operator_dispatch/README.md#supported-sops). The expressions available for each specialization of `operator_access` are listed in the [specializations of `operator_dispatch`](../operator_dispatch/README.md#specializations). The accessors of `operator_access<"new">`, `<"new[]">`, `<"delete">` and `<"delete[]">` take effect through the [allocation and deallocation function templates](../operator_new.md) declared in the global namespace.
 
 ## Member Types
 
@@ -78,5 +78,6 @@ int main() {
 ## See Also
 
 - [class template `operator_dispatch`](../operator_dispatch/README.md)
+- [function templates `operator new`, `operator new[]`, `operator delete`, `operator delete[]`](../operator_new.md)
 - [class `explicit_conversion_access`](../explicit_conversion_access/README.md)
 - [class `implicit_conversion_access`](../implicit_conversion_access/README.md)

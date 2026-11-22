@@ -13,21 +13,22 @@ class operator_dispatch;
 
 Class template `operator_dispatch` is a [dispatch](../ProxyDispatch.md) type for operator expressions. `Sign` represents the sign of operator (SOP) as a string literal (e.g., `"+"` for operator `+`). `Rhs` specifies whether the [`proxy`](../proxy/README.md) operand is on the right-hand side of a binary operator. An operation of `operator_dispatch<Sign, Rhs>` added via [`basic_facade_builder`](../basic_facade_builder/add_convention.md) has the access type [`operator_access<Sign, Rhs>`](../operator_access/README.md).
 
-*Since 5.0.0*: the accessibility is provided by `operator_access`. Previously, `operator_dispatch` provided the accessibility via its member template `accessor`.
+*Since 5.0.0*: the accessibility is provided by `operator_access`. Previously, `operator_dispatch` provided the accessibility via its member template `accessor`, whose functions for the left-hand-side operand were member functions. `operator_dispatch` also supports `"co_await"`, `"new"`, `"new[]"`, `"delete"` and `"delete[]"`.
 
 ## Supported SOPs
 
-As per C++20 specifications, there are 45 different SOPs. `operator_dispatch` supports the following 37 SOPs:
+As per C++20 specifications, there are 45 different SOPs. `operator_dispatch` supports the following 42 SOPs:
 
 ```text
-"+", "-", "*", "/", "%", "++", "--", "==", "!=", ">", "<", ">=", "<=", "<=>", "!", "&&", "||", "~", "&", "|", "^", "<<", ">>", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ",", "->*", "()", "[]"
+"+", "-", "*", "/", "%", "++", "--", "==", "!=", ">", "<", ">=", "<=", "<=>", "!", "&&", "||", "~", "&", "|", "^", "<<", ">>", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ",", "->*", "()", "[]", "co_await", "new", "new[]", "delete", "delete[]"
 ```
 
-The following 8 SOPs are not supported:
+`"co_await"` is supported only when the implementation supports coroutines (`__cpp_impl_coroutine >= 201902L`).
 
-- `new`, `new[]`, `delete`, `delete[]`, and `co_await` are context-dependent and not applicable for `proxy`.
-- Assignment (`=`) and indirection (`->`) are ambiguous in the context of `proxy`.
-- Literals (`""`) apply only to a limited number of primitive types and are not applicable for `proxy`.
+The following 3 SOPs are not supported:
+
+- Assignment (`=`) and member access (`->`) can only be overloaded by non-static member functions ([[over.ass]](https://eel.is/c++draft/over.ass), [[over.ref]](https://eel.is/c++draft/over.ref)). Such functions of `proxy` would collide with the assignment operators and `operator->` of `proxy` itself, and the copy assignment operator of [`proxy_indirect_accessor`](../proxy_indirect_accessor/README.md) hides any `operator=` of its accessors.
+- Literal operators (`""`) only take parameters of the types listed in [[over.literal]](https://eel.is/c++draft/over.literal), so a `proxy` can never be an operand.
 
 ## Type Conversion
 
@@ -35,7 +36,7 @@ Type conversion expressions, although using `operator` syntax, do not have a spe
 
 ## Specializations
 
-Let `self` be the operand of [`proxy`](../proxy/README.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions. Instantiating `operator_dispatch` with any other `Sign` and `Rhs` is ill-formed.
+Let `self` be the operand of [`proxy`](../proxy/README.md), and `other` and `others...` be the other operand(s) in the expression of an operator. `operator_dispatch` has the following specializations for various expressions. Instantiating `operator_dispatch` with any other `Sign` and `Rhs` is ill-formed. The `new` expressions are available through the [allocation and deallocation function templates](../operator_new.md) declared in the global namespace.
 
 | Specializations                   | Expressions             |
 | --------------------------------- | ----------------------- |
@@ -76,6 +77,11 @@ Let `self` be the operand of [`proxy`](../proxy/README.md), and `other` and `oth
 | `operator_dispatch<"->*", false>` | `self ->* other`        |
 | `operator_dispatch<"()", false>`  | `self(others...)`       |
 | `operator_dispatch<"[]", false>`  | `self[other]` (until C++23)<br />`self[others...]` (since C++23) |
+| `operator_dispatch<"co_await", false>` | `co_await self` |
+| `operator_dispatch<"new", false>` | `new (self, others...) T` |
+| `operator_dispatch<"new[]", false>` | `new (self, others...) T[n]` |
+| `operator_dispatch<"delete", false>` | `new (self, others...) T` when the initialization of `T` throws |
+| `operator_dispatch<"delete[]", false>` | `new (self, others...) T[n]` when the initialization of an element throws |
 | `operator_dispatch<"+", true>`    | `other + self`          |
 | `operator_dispatch<"-", true>`    | `other - self`          |
 | `operator_dispatch<"*", true>`    | `other * self`          |
@@ -144,4 +150,5 @@ int main() {
 ## See Also
 
 - [class template `operator_access`](../operator_access/README.md)
+- [function templates `operator new`, `operator new[]`, `operator delete`, `operator delete[]`](../operator_new.md)
 - [class `conversion_dispatch`](../explicit_conversion_dispatch/README.md)

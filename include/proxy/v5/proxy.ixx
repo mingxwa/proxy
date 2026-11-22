@@ -77,6 +77,11 @@ using skills::slim;
 
 } // namespace pro::inline v5
 
+export using ::operator new;
+export using ::operator new[];
+export using ::operator delete;
+export using ::operator delete[];
+
 #ifdef PRO5D_HAS_FORMAT
 export namespace std {
 
